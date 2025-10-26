@@ -241,14 +241,10 @@ export default function Dashboard() {
         )}
 
         <Tabs defaultValue="startup" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="startup">
               <BarChart3 className="h-4 w-4 mr-2" />
               Métricas de Startup
-            </TabsTrigger>
-            <TabsTrigger value="financial">
-              <DollarSign className="h-4 w-4 mr-2" />
-              Visão Financeira
             </TabsTrigger>
             <TabsTrigger value="growth">
               <TrendingUp className="h-4 w-4 mr-2" />
@@ -497,52 +493,6 @@ export default function Dashboard() {
                 data={chartData}
               />
             )}
-          </TabsContent>
-
-          {/* Tab: Visão Financeira */}
-          <TabsContent value="financial" className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {basicMetricCards.map((card) => (
-                <Card key={card.title} className="relative overflow-hidden group hover:shadow-glow transition-all">
-                  <div className={`absolute inset-0 ${card.gradient} opacity-5 group-hover:opacity-10 transition-opacity`} />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      {card.title}
-                    </CardTitle>
-                    <card.icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {card.prefix}{card.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    </div>
-                    <CardDescription className="text-xs">
-                      {card.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Bem-vindo ao FAS AI</CardTitle>
-                <CardDescription>
-                  Gerencie suas transações financeiras com facilidade e segurança
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Use o menu lateral para navegar entre as diferentes funcionalidades da plataforma.
-                </p>
-                <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-                  <li>Registre transações com cálculo automático de impostos</li>
-                  <li>Cadastre clientes (Pessoa Física ou Jurídica)</li>
-                  <li>Visualize projeções de fluxo de caixa</li>
-                  <li>Acompanhe métricas de startup em tempo real</li>
-                  <li>Todas as ações são auditadas e seguras</li>
-                </ul>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Tab: Crescimento */}
