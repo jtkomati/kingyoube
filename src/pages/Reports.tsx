@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,46 +8,85 @@ import { FileText, TrendingUp, DollarSign, AlertCircle, Calendar } from "lucide-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// Dados fictícios de DRE
-const dreData = {
-  "jan-2025": {
-    receitaBruta: 485000,
-    deducoes: 73500,
-    receitaLiquida: 411500,
-    despesasOperacionais: 245800,
-    resultado: 165700,
-    breakdown: {
-      impostos: 73500,
-      folhaPagamento: 145000,
-      aluguel: 35000,
-      marketing: 28000,
-      infraestrutura: 37800
-    }
-  },
-  "fev-2025": {
-    receitaBruta: 562000,
-    deducoes: 85200,
-    receitaLiquida: 476800,
-    despesasOperacionais: 268500,
-    resultado: 208300,
-    breakdown: {
-      impostos: 85200,
-      folhaPagamento: 148000,
-      aluguel: 35000,
-      marketing: 42000,
-      infraestrutura: 43500
-    }
-  }
-};
-
-// Dados de fluxo de caixa realizado
-const cashFlowData = [
-  { mes: "Jan/25", entradas: 485000, saidas: 319300, saldo: 165700 },
-  { mes: "Fev/25", entradas: 562000, saidas: 353700, saldo: 208300 }
-];
-
 const Reports = () => {
-  const [selectedMonth, setSelectedMonth] = useState<"jan-2025" | "fev-2025">("fev-2025");
+  const [selectedMonth, setSelectedMonth] = useState<string>("2025-10");
+  const [dreData, setDreData] = useState<any>({});
+  const [cashFlowData, setCashFlowData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchFinancialData();
+  }, []);
+
+  const fetchFinancialData = async () => {
+    try {
+      setLoading(true);
+      
+      // Buscar transações de janeiro a outubro 2025
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .gte('due_date', '2025-01-01')
+        .lte('due_date', '2025-10-31')
+        .order('due_date');
+
+      if (error) throw error;
+
+      // Processar dados por mês
+      const monthlyData: any = {};
+      const cashFlow: any[] = [];
+      
+      for (let month = 1; month <= 10; month++) {
+        const monthStr = month.toString().padStart(2, '0');
+        const monthKey = `2025-${monthStr}`;
+        const monthLabel = new Date(2025, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+
+        const monthTransactions = transactions?.filter(t => 
+          t.due_date.startsWith(monthKey)
+        ) || [];
+
+        const receitas = monthTransactions
+          .filter(t => t.type === 'RECEIVABLE')
+          .reduce((sum, t) => sum + Number(t.gross_amount), 0);
+        
+        const custos = monthTransactions
+          .filter(t => t.type === 'PAYABLE')
+          .reduce((sum, t) => sum + Number(t.gross_amount), 0);
+
+        const deducoes = receitas * 0.10; // 10% impostos aproximado
+        const receitaLiquida = receitas - deducoes;
+        const resultado = receitaLiquida - custos;
+
+        monthlyData[monthKey] = {
+          receitaBruta: receitas,
+          deducoes: deducoes,
+          receitaLiquida: receitaLiquida,
+          despesasOperacionais: custos,
+          resultado: resultado
+        };
+
+        cashFlow.push({
+          mes: monthLabel.replace('.', ''),
+          entradas: receitas,
+          saidas: custos,
+          saldo: resultado
+        });
+      }
+
+      setDreData(monthlyData);
+      setCashFlowData(cashFlow);
+    } catch (error) {
+      console.error('Erro ao buscar dados financeiros:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Falha ao carregar dados financeiros'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -54,9 +95,16 @@ const Reports = () => {
     }).format(value);
   };
 
-  const currentData = dreData[selectedMonth];
-  const previousMonth = selectedMonth === "fev-2025" ? "jan-2025" : "jan-2025";
-  const variation = ((currentData.resultado - dreData[previousMonth].resultado) / dreData[previousMonth].resultado * 100).toFixed(1);
+  const currentData = dreData[selectedMonth] || { receitaBruta: 0, deducoes: 0, receitaLiquida: 0, despesasOperacionais: 0, resultado: 0 };
+  
+  // Calcular mês anterior
+  const [year, month] = selectedMonth.split('-');
+  const prevMonthNum = parseInt(month) - 1;
+  const previousMonth = prevMonthNum > 0 ? `${year}-${prevMonthNum.toString().padStart(2, '0')}` : `2024-12`;
+  const prevData = dreData[previousMonth] || currentData;
+  const variation = prevData.resultado !== 0 
+    ? ((currentData.resultado - prevData.resultado) / Math.abs(prevData.resultado) * 100).toFixed(1)
+    : "0.0";
 
   return (
     <DashboardLayout>
@@ -70,18 +118,32 @@ const Reports = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-4 mb-4">
-          <Calendar className="h-5 w-5 text-muted-foreground" />
-          <Select value={selectedMonth} onValueChange={(value: "jan-2025" | "fev-2025") => setSelectedMonth(value)}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Selecione o mês" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="jan-2025">Janeiro 2025</SelectItem>
-              <SelectItem value="fev-2025">Fevereiro 2025</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {loading ? (
+          <div className="text-center py-8">Carregando dados financeiros...</div>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 mb-4">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Selecione o mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2025-01">Janeiro 2025</SelectItem>
+                  <SelectItem value="2025-02">Fevereiro 2025</SelectItem>
+                  <SelectItem value="2025-03">Março 2025</SelectItem>
+                  <SelectItem value="2025-04">Abril 2025</SelectItem>
+                  <SelectItem value="2025-05">Maio 2025</SelectItem>
+                  <SelectItem value="2025-06">Junho 2025</SelectItem>
+                  <SelectItem value="2025-07">Julho 2025</SelectItem>
+                  <SelectItem value="2025-08">Agosto 2025</SelectItem>
+                  <SelectItem value="2025-09">Setembro 2025</SelectItem>
+                  <SelectItem value="2025-10">Outubro 2025</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
 
         <Tabs defaultValue="dre" className="space-y-4">
           <TabsList>
@@ -146,9 +208,11 @@ const Reports = () => {
                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-success">{formatCurrency(currentData.resultado)}</div>
-                  <p className="text-xs text-success">
-                    +{variation}% vs mês anterior
+                  <div className={`text-2xl font-bold ${currentData.resultado >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    {formatCurrency(currentData.resultado)}
+                  </div>
+                  <p className={`text-xs ${parseFloat(variation) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    {parseFloat(variation) >= 0 ? '+' : ''}{variation}% vs mês anterior
                   </p>
                 </CardContent>
               </Card>
@@ -174,28 +238,14 @@ const Reports = () => {
                       <span>{formatCurrency(currentData.receitaLiquida)}</span>
                     </div>
                     <div className="flex justify-between pl-4">
-                      <span>(-) Despesas Operacionais</span>
+                      <span>(-) Custos e Despesas</span>
                       <span className="text-destructive">{formatCurrency(currentData.despesasOperacionais)}</span>
-                    </div>
-                    <div className="flex justify-between pl-8 text-xs text-muted-foreground">
-                      <span>• Folha de Pagamento</span>
-                      <span>{formatCurrency(currentData.breakdown.folhaPagamento)}</span>
-                    </div>
-                    <div className="flex justify-between pl-8 text-xs text-muted-foreground">
-                      <span>• Aluguel</span>
-                      <span>{formatCurrency(currentData.breakdown.aluguel)}</span>
-                    </div>
-                    <div className="flex justify-between pl-8 text-xs text-muted-foreground">
-                      <span>• Marketing</span>
-                      <span>{formatCurrency(currentData.breakdown.marketing)}</span>
-                    </div>
-                    <div className="flex justify-between pl-8 text-xs text-muted-foreground">
-                      <span>• Infraestrutura</span>
-                      <span>{formatCurrency(currentData.breakdown.infraestrutura)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>(=) Resultado Operacional</span>
-                      <span className="text-success">{formatCurrency(currentData.resultado)}</span>
+                      <span className={currentData.resultado >= 0 ? 'text-success' : 'text-destructive'}>
+                        {formatCurrency(currentData.resultado)}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -207,12 +257,16 @@ const Reports = () => {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={Object.entries(dreData).map(([key, data]) => ({
-                      mes: key === "jan-2025" ? "Jan/25" : "Fev/25",
-                      receita: data.receitaLiquida,
-                      despesas: data.despesasOperacionais,
-                      resultado: data.resultado
-                    }))}>
+                    <BarChart data={Object.entries(dreData).map(([key, data]: [string, any]) => {
+                      const [year, month] = key.split('-');
+                      const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                      return {
+                        mes: monthLabel.replace('.', ''),
+                        receita: data.receitaLiquida,
+                        despesas: data.despesasOperacionais,
+                        resultado: data.resultado
+                      };
+                    })}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="mes" />
                       <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
