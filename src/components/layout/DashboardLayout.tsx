@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Home, FileText, Users, TrendingUp, LogOut, DollarSign, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, Bird, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -30,7 +30,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <aside className="fixed top-0 left-0 z-40 w-64 h-screen border-r border-border bg-card">
         <div className="h-full px-3 py-4 overflow-y-auto">
           <div className="mb-10 flex items-center px-3">
-            <DollarSign className="h-8 w-8 text-primary mr-2" />
+            <Bird className="h-8 w-8 text-primary mr-2" />
             <span className="text-2xl font-bold text-gradient-primary">
               FAS AI
             </span>
