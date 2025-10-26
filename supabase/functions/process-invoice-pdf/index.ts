@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const { fileUrl, fileName, userId } = await req.json();
+    const { filePath, fileName, userId } = await req.json();
     
-    if (!fileUrl || !fileName || !userId) {
+    if (!filePath || !fileName || !userId) {
       return new Response(
-        JSON.stringify({ error: 'fileUrl, fileName e userId são obrigatórios' }),
+        JSON.stringify({ error: 'filePath, fileName e userId são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -25,17 +25,17 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('Baixando arquivo PDF:', fileUrl);
+    console.log('Baixando arquivo PDF do path:', filePath);
     
-    // Download the PDF file
+    // Download the PDF file from storage bucket using the full path
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('invoices-pdf')
-      .download(fileUrl.split('/').pop());
+      .download(filePath);
 
     if (downloadError) {
       console.error('Erro ao baixar PDF:', downloadError);
       return new Response(
-        JSON.stringify({ error: 'Erro ao baixar PDF' }),
+        JSON.stringify({ error: `Erro ao baixar PDF: ${downloadError.message}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -127,12 +127,17 @@ IMPORTANTE: Retorne APENAS o JSON, sem texto adicional.`
        invoiceData.cofins_amount + invoiceData.csll_amount + 
        invoiceData.iss_amount + invoiceData.inss_amount);
 
+    // Get the storage URL for the file
+    const { data: { publicUrl } } = supabase.storage
+      .from('invoices-pdf')
+      .getPublicUrl(filePath);
+
     // Insert into database
     const { data: invoice, error: insertError } = await supabase
       .from('incoming_invoices')
       .insert({
         file_name: fileName,
-        file_url: fileUrl,
+        file_url: publicUrl,
         file_type: 'pdf',
         supplier_cnpj: invoiceData.supplier_cnpj,
         supplier_name: invoiceData.supplier_name,

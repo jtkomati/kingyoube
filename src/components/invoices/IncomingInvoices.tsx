@@ -86,11 +86,6 @@ export const IncomingInvoices = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('invoices-pdf')
-        .getPublicUrl(filePath);
-
       if (fileExt === 'pdf') {
         // Process PDF with OCR
         toast({
@@ -102,7 +97,7 @@ export const IncomingInvoices = () => {
           'process-invoice-pdf',
           {
             body: { 
-              fileUrl: publicUrl,
+              filePath: filePath,
               fileName: file.name,
               userId: user.id
             }
