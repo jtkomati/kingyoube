@@ -596,6 +596,87 @@ export type Database = {
           },
         ]
       }
+      incoming_invoices: {
+        Row: {
+          cnab_generated: boolean | null
+          cnab_generated_at: string | null
+          cofins_amount: number | null
+          created_at: string
+          created_by: string
+          csll_amount: number | null
+          file_name: string
+          file_type: string
+          file_url: string
+          gross_amount: number
+          id: string
+          inss_amount: number | null
+          invoice_date: string | null
+          invoice_number: string | null
+          irrf_amount: number | null
+          iss_amount: number | null
+          net_amount: number
+          ocr_data: Json | null
+          pis_amount: number | null
+          processing_status: string | null
+          service_code: string | null
+          supplier_cnpj: string
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          cnab_generated?: boolean | null
+          cnab_generated_at?: string | null
+          cofins_amount?: number | null
+          created_at?: string
+          created_by: string
+          csll_amount?: number | null
+          file_name: string
+          file_type: string
+          file_url: string
+          gross_amount: number
+          id?: string
+          inss_amount?: number | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          irrf_amount?: number | null
+          iss_amount?: number | null
+          net_amount: number
+          ocr_data?: Json | null
+          pis_amount?: number | null
+          processing_status?: string | null
+          service_code?: string | null
+          supplier_cnpj: string
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          cnab_generated?: boolean | null
+          cnab_generated_at?: string | null
+          cofins_amount?: number | null
+          created_at?: string
+          created_by?: string
+          csll_amount?: number | null
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          gross_amount?: number
+          id?: string
+          inss_amount?: number | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          irrf_amount?: number | null
+          iss_amount?: number | null
+          net_amount?: number
+          ocr_data?: Json | null
+          pis_amount?: number | null
+          processing_status?: string | null
+          service_code?: string | null
+          supplier_cnpj?: string
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
