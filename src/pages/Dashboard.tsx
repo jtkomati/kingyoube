@@ -114,11 +114,30 @@ export default function Dashboard() {
   const fetchStartupMetrics = async () => {
     setMetricsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('get-startup-metrics');
+      // Dados fictícios para demonstração
+      const mockData: StartupMetrics = {
+        mrr: 45000,
+        mrrGrowth: 15.5,
+        arr: 540000,
+        cac: 850,
+        ltv: 3400,
+        churnRate: 3.2,
+        ltvCacRatio: 4.0,
+        totalCustomers: 42,
+        newCustomersThisMonth: 6,
+        activeCustomers: 38,
+        avgRevenuePerCustomer: 1071.43,
+        burnRate: 12000,
+        runway: 18.5,
+        paybackPeriod: 7.5,
+        cashBalance: 222000,
+      };
       
-      if (error) throw error;
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      setStartupMetrics(data);
+      setStartupMetrics(mockData);
+      setError(null);
     } catch (error: any) {
       const friendlyError = getFriendlyError(error);
       setError(friendlyError.message);
