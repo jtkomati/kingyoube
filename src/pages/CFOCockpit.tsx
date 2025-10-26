@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { LeadsTab } from '@/components/cfo/LeadsTab';
 import { SandboxTab } from '@/components/cfo/SandboxTab';
+import { BudgetTab } from '@/components/cfo/BudgetTab';
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -24,7 +25,8 @@ import {
   DollarSign,
   Users,
   Target,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
 
 interface Alert {
@@ -447,6 +449,10 @@ export default function CFOCockpit() {
             <TabsTrigger value="clients">
               Clientes ({clients.length})
             </TabsTrigger>
+            <TabsTrigger value="budget">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              FP&A / Orçamento
+            </TabsTrigger>
             <TabsTrigger value="leads">
               <Users className="h-4 w-4 mr-2" />
               Leads
@@ -599,6 +605,11 @@ export default function CFOCockpit() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Tab de Budget FP&A - Vence a ROQT */}
+          <TabsContent value="budget">
+            <BudgetTab />
           </TabsContent>
 
           {/* Tab de Leads - Resposta à Barbara */}

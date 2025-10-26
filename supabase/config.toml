@@ -34,6 +34,15 @@ verify_jwt = false
 [functions.cfo-create-sandbox]
 verify_jwt = false
 
+[functions.cfo-set-budget]
+verify_jwt = true
+
+[functions.cfo-budget-variance]
+verify_jwt = false
+
+[functions.cfo-budget-variance-monitor]
+verify_jwt = false
+
 [functions.issue-nfse]
 
 [functions.analyze-contract]

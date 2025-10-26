@@ -235,6 +235,133 @@ export type Database = {
           },
         ]
       }
+      budget_targets: {
+        Row: {
+          account_category: string
+          account_name: string
+          cfo_partner_id: string
+          client_company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          month: string
+          notes: string | null
+          target_amount: number
+          updated_at: string
+        }
+        Insert: {
+          account_category: string
+          account_name: string
+          cfo_partner_id: string
+          client_company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          month: string
+          notes?: string | null
+          target_amount: number
+          updated_at?: string
+        }
+        Update: {
+          account_category?: string
+          account_name?: string
+          cfo_partner_id?: string
+          client_company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          month?: string
+          notes?: string | null
+          target_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_targets_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_targets_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_variance_analysis: {
+        Row: {
+          actual_amount: number
+          alert_generated: boolean | null
+          analysis_date: string
+          budget_target_id: string
+          cfo_partner_id: string
+          client_company_id: string
+          created_at: string
+          id: string
+          severity: string
+          target_amount: number
+          variance_amount: number
+          variance_percent: number
+          variance_status: string
+        }
+        Insert: {
+          actual_amount: number
+          alert_generated?: boolean | null
+          analysis_date: string
+          budget_target_id: string
+          cfo_partner_id: string
+          client_company_id: string
+          created_at?: string
+          id?: string
+          severity: string
+          target_amount: number
+          variance_amount: number
+          variance_percent: number
+          variance_status: string
+        }
+        Update: {
+          actual_amount?: number
+          alert_generated?: boolean | null
+          analysis_date?: string
+          budget_target_id?: string
+          cfo_partner_id?: string
+          client_company_id?: string
+          created_at?: string
+          id?: string
+          severity?: string
+          target_amount?: number
+          variance_amount?: number
+          variance_percent?: number
+          variance_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_variance_analysis_budget_target_id_fkey"
+            columns: ["budget_target_id"]
+            isOneToOne: false
+            referencedRelation: "budget_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_variance_analysis_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_variance_analysis_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
