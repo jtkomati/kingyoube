@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LeadsTab } from '@/components/cfo/LeadsTab';
 import { SandboxTab } from '@/components/cfo/SandboxTab';
 import { BudgetTab } from '@/components/cfo/BudgetTab';
+import { ConfigTab } from '@/components/cfo/ConfigTab';
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -26,7 +27,8 @@ import {
   Users,
   Target,
   Sparkles,
-  BarChart3
+  BarChart3,
+  Settings
 } from 'lucide-react';
 
 interface Alert {
@@ -461,6 +463,10 @@ export default function CFOCockpit() {
               <Target className="h-4 w-4 mr-2" />
               Demo Sandbox
             </TabsTrigger>
+            <TabsTrigger value="config">
+              <Settings className="h-4 w-4 mr-2" />
+              Configuração
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="alerts" className="space-y-4">
@@ -620,6 +626,11 @@ export default function CFOCockpit() {
           {/* Tab de Sandbox - Resposta à Lori */}
           <TabsContent value="sandbox">
             <SandboxTab />
+          </TabsContent>
+
+          {/* Tab de Configuração - Resposta ao Alan */}
+          <TabsContent value="config">
+            <ConfigTab />
           </TabsContent>
         </Tabs>
 
