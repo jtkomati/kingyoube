@@ -12,3 +12,5 @@ verify_jwt = false
 
 [functions.whatsapp-query-ai]
 verify_jwt = false
+
+[functions.issue-nfse]

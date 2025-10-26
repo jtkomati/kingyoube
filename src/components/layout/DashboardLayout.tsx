@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Home, FileText, Users, TrendingUp, LogOut, DollarSign, BarChart3, Link2, GitCompare } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, DollarSign, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -15,6 +15,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Transações', href: '/transactions', icon: FileText },
+    { name: 'Notas Fiscais', href: '/invoices', icon: Receipt, permission: 'FISCAL' },
     { name: 'Fluxo de Caixa', href: '/cash-flow', icon: TrendingUp },
     { name: 'Fornecedores', href: '/suppliers', icon: Users, permission: 'FINANCEIRO' },
     { name: 'Relatórios', href: '/reports', icon: BarChart3 },

@@ -12,6 +12,7 @@ import Suppliers from "./pages/Suppliers";
 import Reports from "./pages/Reports";
 import BankIntegrations from "./pages/BankIntegrations";
 import Reconciliation from "./pages/Reconciliation";
+import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -98,6 +99,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Reconciliation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices"
+              element={
+                <ProtectedRoute>
+                  <Invoices />
                 </ProtectedRoute>
               }
             />
