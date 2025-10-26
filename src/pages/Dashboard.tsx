@@ -93,7 +93,7 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-4xl font-bold gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold text-gradient-primary">
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-2">
