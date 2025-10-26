@@ -26,7 +26,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="mb-10 flex items-center px-3">
             <DollarSign className="h-8 w-8 text-primary mr-2" />
             <span className="text-2xl font-bold gradient-primary bg-clip-text text-transparent">
-              FinanceFlow
+              FAS AI
             </span>
           </div>
           <ul className="space-y-2 font-medium">

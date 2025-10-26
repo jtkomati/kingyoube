@@ -40,10 +40,10 @@ export function AuthForm() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-bold text-center gradient-primary bg-clip-text text-transparent">
-            FinanceFlow
+            FAS AI
           </CardTitle>
           <CardDescription className="text-center">
-            Plataforma de Gestão Financeira
+            Gestão Financeira Inteligente
           </CardDescription>
         </CardHeader>
         <Tabs defaultValue="signin" className="w-full">
