@@ -14,7 +14,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3, permission: 'ADMIN' },
+    { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
     { name: 'Transações', href: '/transactions', icon: FileText },
     { name: 'Notas Fiscais', href: '/invoices', icon: Receipt, permission: 'FISCAL' },
     { name: 'Fluxo de Caixa', href: '/cash-flow', icon: TrendingUp },
