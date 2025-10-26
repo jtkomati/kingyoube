@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { LeadsTab } from '@/components/cfo/LeadsTab';
+import { SandboxTab } from '@/components/cfo/SandboxTab';
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -18,7 +20,11 @@ import {
   CheckCircle2,
   Clock,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  DollarSign,
+  Users,
+  Target,
+  Sparkles
 } from 'lucide-react';
 
 interface Alert {
@@ -47,11 +53,23 @@ interface ClientVitals {
   days_to_negative?: number;
 }
 
+interface ROIDashboard {
+  total_hours_saved: number;
+  reports_generated: number;
+  critical_alerts_viewed: number;
+  manual_tasks_avoided: number;
+  total_value_generated: number;
+  this_month_hours_saved: number;
+  this_month_value: number;
+  hourly_rate: number;
+}
+
 export default function CFOCockpit() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientVitals, setClientVitals] = useState<ClientVitals | null>(null);
+  const [roiDashboard, setRoiDashboard] = useState<ROIDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [monitorLoading, setMonitorLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -85,7 +103,7 @@ export default function CFOCockpit() {
 
   const fetchData = async () => {
     setLoading(true);
-    await Promise.all([fetchAlerts(), fetchClients()]);
+    await Promise.all([fetchAlerts(), fetchClients(), fetchROIDashboard()]);
     setLoading(false);
   };
 
@@ -143,6 +161,30 @@ export default function CFOCockpit() {
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
+    }
+  };
+
+  const fetchROIDashboard = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      const { data: partner } = await supabase
+        .from('cfo_partners')
+        .select('id')
+        .eq('user_id', user.user.id)
+        .single();
+
+      if (!partner) return;
+
+      const { data, error } = await supabase.functions.invoke('cfo-get-roi-dashboard', {
+        body: { cfoPartnerId: partner.id }
+      });
+
+      if (error) throw error;
+      setRoiDashboard(data);
+    } catch (error) {
+      console.error('Error fetching ROI dashboard:', error);
     }
   };
 
@@ -314,6 +356,53 @@ export default function CFOCockpit() {
           </Button>
         </div>
 
+        {/* ROI Dashboard Widget - Resposta ao Kevin */}
+        {roiDashboard && (
+          <Card className="border-success/50 bg-gradient-to-r from-success/5 to-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-success" />
+                Valor Gerado pelo FAS.AI
+              </CardTitle>
+              <CardDescription>
+                Este mês, o FAS.AI já economizou {roiDashboard.this_month_hours_saved.toFixed(1)} horas do seu tempo
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Tempo Total Economizado</div>
+                  <div className="text-2xl font-bold flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-success" />
+                    {roiDashboard.total_hours_saved.toFixed(1)}h
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Valor Gerado</div>
+                  <div className="text-2xl font-bold flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-success" />
+                    {formatNumber(roiDashboard.total_value_generated)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Relatórios IA</div>
+                  <div className="text-2xl font-bold flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    {roiDashboard.reports_generated}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Alertas Monitorados</div>
+                  <div className="text-2xl font-bold flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-warning" />
+                    {roiDashboard.critical_alerts_viewed}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Resumo de Alertas */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="border-destructive/50">
@@ -357,6 +446,14 @@ export default function CFOCockpit() {
             </TabsTrigger>
             <TabsTrigger value="clients">
               Clientes ({clients.length})
+            </TabsTrigger>
+            <TabsTrigger value="leads">
+              <Users className="h-4 w-4 mr-2" />
+              Leads
+            </TabsTrigger>
+            <TabsTrigger value="sandbox">
+              <Target className="h-4 w-4 mr-2" />
+              Demo Sandbox
             </TabsTrigger>
           </TabsList>
 
@@ -502,6 +599,16 @@ export default function CFOCockpit() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Tab de Leads - Resposta à Barbara */}
+          <TabsContent value="leads">
+            <LeadsTab />
+          </TabsContent>
+
+          {/* Tab de Sandbox - Resposta à Lori */}
+          <TabsContent value="sandbox">
+            <SandboxTab />
           </TabsContent>
         </Tabs>
 

@@ -14,6 +14,67 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_feedback_corrections: {
+        Row: {
+          alert_id: string | null
+          applied: boolean | null
+          cfo_partner_id: string
+          client_company_id: string | null
+          correct_value: string
+          created_at: string
+          feedback_text: string
+          feedback_type: string
+          id: string
+          original_value: string | null
+        }
+        Insert: {
+          alert_id?: string | null
+          applied?: boolean | null
+          cfo_partner_id: string
+          client_company_id?: string | null
+          correct_value: string
+          created_at?: string
+          feedback_text: string
+          feedback_type: string
+          id?: string
+          original_value?: string | null
+        }
+        Update: {
+          alert_id?: string | null
+          applied?: boolean | null
+          cfo_partner_id?: string
+          client_company_id?: string | null
+          correct_value?: string
+          created_at?: string
+          feedback_text?: string
+          feedback_type?: string
+          id?: string
+          original_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_corrections_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_corrections_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_corrections_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -299,6 +360,51 @@ export type Database = {
           },
         ]
       }
+      cfo_partner_roi_tracking: {
+        Row: {
+          cfo_partner_id: string
+          client_company_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          time_saved_minutes: number
+        }
+        Insert: {
+          cfo_partner_id: string
+          client_company_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          time_saved_minutes?: number
+        }
+        Update: {
+          cfo_partner_id?: string
+          client_company_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          time_saved_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cfo_partner_roi_tracking_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cfo_partner_roi_tracking_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cfo_partners: {
         Row: {
           active: boolean
@@ -334,6 +440,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      client_sandboxes: {
+        Row: {
+          cfo_partner_id: string
+          client_name: string
+          created_at: string
+          demo_data: Json | null
+          expires_at: string | null
+          id: string
+          industry: string
+          sandbox_url: string
+          status: string | null
+        }
+        Insert: {
+          cfo_partner_id: string
+          client_name: string
+          created_at?: string
+          demo_data?: Json | null
+          expires_at?: string | null
+          id?: string
+          industry: string
+          sandbox_url: string
+          status?: string | null
+        }
+        Update: {
+          cfo_partner_id?: string
+          client_name?: string
+          created_at?: string
+          demo_data?: Json | null
+          expires_at?: string | null
+          id?: string
+          industry?: string
+          sandbox_url?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sandboxes_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_settings: {
         Row: {
@@ -676,6 +826,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      partner_prospect_leads: {
+        Row: {
+          address: string | null
+          cfo_partner_id: string
+          company_name: string
+          created_at: string
+          email: string | null
+          id: string
+          industry: string | null
+          metadata: Json | null
+          phone: string | null
+          region: string | null
+          score: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          cfo_partner_id: string
+          company_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          industry?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          region?: string | null
+          score?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          cfo_partner_id?: string
+          company_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          industry?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          region?: string | null
+          score?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_leads_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

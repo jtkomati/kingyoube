@@ -19,6 +19,21 @@ verify_jwt = false
 [functions.generate-cnab-bradesco]
 verify_jwt = false
 
+[functions.cfo-track-roi]
+verify_jwt = false
+
+[functions.cfo-get-roi-dashboard]
+verify_jwt = false
+
+[functions.cfo-submit-feedback]
+verify_jwt = false
+
+[functions.cfo-generate-leads]
+verify_jwt = false
+
+[functions.cfo-create-sandbox]
+verify_jwt = false
+
 [functions.issue-nfse]
 
 [functions.analyze-contract]
