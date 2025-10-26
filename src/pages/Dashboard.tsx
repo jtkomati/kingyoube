@@ -61,21 +61,21 @@ export default function Dashboard() {
   const metricCards = [
     {
       title: 'Receitas a Receber',
-      value: `R$ ${metrics.totalReceivables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      value: `R$ ${metrics.totalReceivables.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       description: 'Total de receitas pendentes',
       icon: TrendingUp,
       gradient: 'gradient-success',
     },
     {
       title: 'Despesas a Pagar',
-      value: `R$ ${metrics.totalPayables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      value: `R$ ${metrics.totalPayables.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       description: 'Total de despesas pendentes',
       icon: TrendingDown,
       gradient: 'gradient-danger',
     },
     {
       title: 'Saldo Projetado',
-      value: `R$ ${metrics.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      value: `R$ ${metrics.balance.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       description: 'Receitas - Despesas',
       icon: DollarSign,
       gradient: 'gradient-primary',
@@ -136,7 +136,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Bem-vindo ao FinanceFlow</CardTitle>
+            <CardTitle>Bem-vindo ao FAS AI</CardTitle>
             <CardDescription>
               Gerencie suas transações financeiras com facilidade e segurança
             </CardDescription>
