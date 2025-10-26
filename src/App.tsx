@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import CashFlow from "./pages/CashFlow";
 import Transactions from "./pages/Transactions";
 import Suppliers from "./pages/Suppliers";
+import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import BankIntegrations from "./pages/BankIntegrations";
 import Reconciliation from "./pages/Reconciliation";
@@ -75,6 +76,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Suppliers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customers"
+              element={
+                <ProtectedRoute>
+                  <Customers />
                 </ProtectedRoute>
               }
             />

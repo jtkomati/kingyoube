@@ -17,6 +17,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Transações', href: '/transactions', icon: FileText },
     { name: 'Notas Fiscais', href: '/invoices', icon: Receipt, permission: 'FISCAL' },
     { name: 'Fluxo de Caixa', href: '/cash-flow', icon: TrendingUp },
+    { name: 'Clientes', href: '/customers', icon: Users },
     { name: 'Fornecedores', href: '/suppliers', icon: Users, permission: 'FINANCEIRO' },
     { name: 'Relatórios', href: '/reports', icon: BarChart3 },
     { name: 'Integrações', href: '/bank-integrations', icon: Link2, permission: 'ADMIN' },

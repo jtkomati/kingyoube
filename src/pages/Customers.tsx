@@ -1,27 +1,27 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SupplierList } from "@/components/suppliers/SupplierList";
-import { SupplierDialog } from "@/components/suppliers/SupplierDialog";
+import { CustomerList } from "@/components/customers/CustomerList";
+import { CustomerDialog } from "@/components/customers/CustomerDialog";
 import { ContractList } from "@/components/contracts/ContractList";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-const Suppliers = () => {
+const Customers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { hasPermission } = useAuth();
   const canCreate = hasPermission("FINANCEIRO");
 
-  const handleEdit = (supplier: any) => {
-    setSelectedSupplier(supplier);
+  const handleEdit = (customer: any) => {
+    setSelectedCustomer(customer);
     setIsDialogOpen(true);
   };
 
   const handleDialogClose = () => {
     setIsDialogOpen(false);
-    setSelectedSupplier(null);
+    setSelectedCustomer(null);
   };
 
   return (
@@ -30,25 +30,25 @@ const Suppliers = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold text-gradient-primary">
-              Fornecedores
+              Clientes
             </h1>
             <p className="text-muted-foreground mt-2">
-              Gestão completa de fornecedores e contratos com análise de IA
+              Gestão completa de clientes e contratos
             </p>
           </div>
           {canCreate && (
             <Button onClick={() => setIsDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Novo Fornecedor
+              Novo Cliente
             </Button>
           )}
         </div>
 
-        <Tabs defaultValue="suppliers" className="space-y-4">
+        <Tabs defaultValue="customers" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="suppliers" className="gap-2">
+            <TabsTrigger value="customers" className="gap-2">
               <Users className="h-4 w-4" />
-              Fornecedores
+              Clientes
             </TabsTrigger>
             <TabsTrigger value="contracts" className="gap-2">
               <FileText className="h-4 w-4" />
@@ -56,23 +56,23 @@ const Suppliers = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="suppliers">
-            <SupplierList onEdit={handleEdit} />
+          <TabsContent value="customers">
+            <CustomerList onEdit={handleEdit} />
           </TabsContent>
 
           <TabsContent value="contracts">
-            <ContractList entityType="supplier" />
+            <ContractList entityType="customer" />
           </TabsContent>
         </Tabs>
 
-        <SupplierDialog
+        <CustomerDialog
           open={isDialogOpen}
           onClose={handleDialogClose}
-          supplier={selectedSupplier}
+          customer={selectedCustomer}
         />
       </div>
     </DashboardLayout>
   );
 };
 
-export default Suppliers;
+export default Customers;

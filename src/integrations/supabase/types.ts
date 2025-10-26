@@ -246,6 +246,149 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_clauses: {
+        Row: {
+          ai_explanation: string
+          clause_number: string | null
+          clause_text: string
+          clause_title: string | null
+          compliance_status: string
+          contract_id: string
+          created_at: string
+          id: string
+          recommendations: string | null
+          risk_category: string | null
+          risk_level: string | null
+        }
+        Insert: {
+          ai_explanation: string
+          clause_number?: string | null
+          clause_text: string
+          clause_title?: string | null
+          compliance_status: string
+          contract_id: string
+          created_at?: string
+          id?: string
+          recommendations?: string | null
+          risk_category?: string | null
+          risk_level?: string | null
+        }
+        Update: {
+          ai_explanation?: string
+          clause_number?: string | null
+          clause_text?: string
+          clause_title?: string | null
+          compliance_status?: string
+          contract_id?: string
+          created_at?: string
+          id?: string
+          recommendations?: string | null
+          risk_category?: string | null
+          risk_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_clauses_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          ai_analysis: Json | null
+          ai_analyzed_at: string | null
+          auto_renew: boolean | null
+          compliance_score: number | null
+          contract_number: string
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          description: string | null
+          end_date: string | null
+          entity_type: string
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          renewal_alert_days: number | null
+          risk_level: string | null
+          start_date: string
+          status: string | null
+          supplier_id: string | null
+          title: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          ai_analyzed_at?: string | null
+          auto_renew?: boolean | null
+          compliance_score?: number | null
+          contract_number: string
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          entity_type: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          renewal_alert_days?: number | null
+          risk_level?: string | null
+          start_date: string
+          status?: string | null
+          supplier_id?: string | null
+          title: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          ai_analyzed_at?: string | null
+          auto_renew?: boolean | null
+          compliance_score?: number | null
+          contract_number?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          entity_type?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          renewal_alert_days?: number | null
+          risk_level?: string | null
+          start_date?: string
+          status?: string | null
+          supplier_id?: string | null
+          title?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
