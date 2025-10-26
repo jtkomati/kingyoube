@@ -9,7 +9,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { signOut, userRole } = useAuth();
+  const { signOut, userRole, hasPermission } = useAuth();
   const location = useLocation();
 
   const navigation = [
@@ -36,10 +36,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <ul className="space-y-2 font-medium">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
-              const hasPermission = !item.permission || userRole === item.permission || 
-                                   userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+              const canView = !item.permission || hasPermission(item.permission);
               
-              if (!hasPermission) return null;
+              if (!canView) return null;
 
               return (
                 <li key={item.name}>
