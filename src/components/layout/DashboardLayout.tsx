@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Plus, Users, TrendingUp, LogOut, DollarSign } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, DollarSign, BarChart3, Link2, GitCompare } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -13,10 +13,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Nova Transação', href: '/transactions/new', icon: Plus, permission: 'FINANCEIRO' },
-    { name: 'Novo Cliente', href: '/customers/new', icon: Users, permission: 'FINANCEIRO' },
-    { name: 'Projeção de Caixa', href: '/cash-flow', icon: TrendingUp },
+    { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Transações', href: '/transactions', icon: FileText },
+    { name: 'Fluxo de Caixa', href: '/cash-flow', icon: TrendingUp },
+    { name: 'Fornecedores', href: '/suppliers', icon: Users, permission: 'FINANCEIRO' },
+    { name: 'Relatórios', href: '/reports', icon: BarChart3 },
+    { name: 'Integrações', href: '/bank-integrations', icon: Link2, permission: 'ADMIN' },
+    { name: 'Conciliação', href: '/reconciliation', icon: GitCompare, permission: 'FINANCEIRO' },
   ];
 
   return (

@@ -49,6 +49,131 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          access_token: string | null
+          account_number: string | null
+          account_type: string | null
+          agency: string | null
+          api_environment: string | null
+          auto_sync_enabled: boolean | null
+          bank_name: string
+          certificate_path: string | null
+          client_id: string | null
+          client_secret: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          agency?: string | null
+          api_environment?: string | null
+          auto_sync_enabled?: boolean | null
+          bank_name: string
+          certificate_path?: string | null
+          client_id?: string | null
+          client_secret?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          agency?: string | null
+          api_environment?: string | null
+          auto_sync_enabled?: boolean | null
+          bank_name?: string
+          certificate_path?: string | null
+          client_id?: string | null
+          client_secret?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          amount: number
+          balance: number | null
+          bank_account_id: string
+          created_at: string
+          description: string | null
+          id: string
+          imported_at: string
+          imported_by: string
+          reconciliation_status: string | null
+          statement_date: string
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          balance?: number | null
+          bank_account_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          imported_at?: string
+          imported_by: string
+          reconciliation_status?: string | null
+          statement_date: string
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          balance?: number | null
+          bank_account_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string
+          reconciliation_status?: string | null
+          statement_date?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -67,6 +192,57 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      company_settings: {
+        Row: {
+          address: string | null
+          city_code: string | null
+          cnpj: string
+          company_name: string
+          created_at: string
+          id: string
+          municipal_inscription: string | null
+          nfse_environment: string | null
+          nfse_login: string | null
+          nfse_password: string | null
+          notification_email: string | null
+          state_inscription: string | null
+          tax_regime: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city_code?: string | null
+          cnpj: string
+          company_name: string
+          created_at?: string
+          id?: string
+          municipal_inscription?: string | null
+          nfse_environment?: string | null
+          nfse_login?: string | null
+          nfse_password?: string | null
+          notification_email?: string | null
+          state_inscription?: string | null
+          tax_regime?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city_code?: string | null
+          cnpj?: string
+          company_name?: string
+          created_at?: string
+          id?: string
+          municipal_inscription?: string | null
+          nfse_environment?: string | null
+          nfse_login?: string | null
+          nfse_password?: string | null
+          notification_email?: string | null
+          state_inscription?: string | null
+          tax_regime?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -153,6 +329,193 @@ export type Database = {
         }
         Relationships: []
       }
+      reconciliation_rules: {
+        Row: {
+          active: boolean | null
+          auto_match: boolean | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          pattern_type: string
+          pattern_value: string
+          suggested_category_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          auto_match?: boolean | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          pattern_type: string
+          pattern_value: string
+          suggested_category_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          auto_match?: boolean | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          pattern_type?: string
+          pattern_value?: string
+          suggested_category_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_rules_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sci_integrations: {
+        Row: {
+          auto_sync_enabled: boolean | null
+          company_id: string | null
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          sci_api_url: string | null
+          sci_company_code: string
+          sci_password: string | null
+          sci_username: string | null
+          sync_customers: boolean | null
+          sync_invoices: boolean | null
+          sync_suppliers: boolean | null
+          sync_transactions: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          auto_sync_enabled?: boolean | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          sci_api_url?: string | null
+          sci_company_code: string
+          sci_password?: string | null
+          sci_username?: string | null
+          sync_customers?: boolean | null
+          sync_invoices?: boolean | null
+          sync_suppliers?: boolean | null
+          sync_transactions?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          auto_sync_enabled?: boolean | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          sci_api_url?: string | null
+          sci_company_code?: string
+          sci_password?: string | null
+          sci_username?: string | null
+          sync_customers?: boolean | null
+          sync_invoices?: boolean | null
+          sync_suppliers?: boolean | null
+          sync_transactions?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sci_integrations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          company_name: string | null
+          cpf: string | null
+          created_at: string
+          created_by: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          person_type: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          company_name?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          person_type: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          company_name?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          person_type?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          created_at: string
+          error_details: string | null
+          finished_at: string | null
+          id: string
+          integration_id: string | null
+          integration_type: string
+          records_processed: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_details?: string | null
+          finished_at?: string | null
+          id?: string
+          integration_id?: string | null
+          integration_type: string
+          records_processed?: number | null
+          started_at?: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          error_details?: string | null
+          finished_at?: string | null
+          id?: string
+          integration_id?: string | null
+          integration_type?: string
+          records_processed?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       transaction_taxes: {
         Row: {
           created_at: string
@@ -188,8 +551,10 @@ export type Database = {
       transactions: {
         Row: {
           category_id: string
+          cofins_rate: number | null
           created_at: string
           created_by: string
+          csll_rate: number | null
           customer_id: string | null
           description: string | null
           discount_amount: number | null
@@ -197,18 +562,29 @@ export type Database = {
           gross_amount: number
           id: string
           installment: number | null
+          invoice_key: string | null
+          invoice_number: string | null
+          invoice_pdf_url: string | null
+          invoice_status: string | null
+          invoice_xml_url: string | null
+          irpj_rate: number | null
           is_recurring: boolean | null
+          iss_rate: number | null
           net_amount: number
           payment_date: string | null
+          pis_rate: number | null
           supplier_id: string | null
+          tax_regime: string | null
           total_installments: number | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
         }
         Insert: {
           category_id: string
+          cofins_rate?: number | null
           created_at?: string
           created_by: string
+          csll_rate?: number | null
           customer_id?: string | null
           description?: string | null
           discount_amount?: number | null
@@ -216,18 +592,29 @@ export type Database = {
           gross_amount: number
           id?: string
           installment?: number | null
+          invoice_key?: string | null
+          invoice_number?: string | null
+          invoice_pdf_url?: string | null
+          invoice_status?: string | null
+          invoice_xml_url?: string | null
+          irpj_rate?: number | null
           is_recurring?: boolean | null
+          iss_rate?: number | null
           net_amount: number
           payment_date?: string | null
+          pis_rate?: number | null
           supplier_id?: string | null
+          tax_regime?: string | null
           total_installments?: number | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
         }
         Update: {
           category_id?: string
+          cofins_rate?: number | null
           created_at?: string
           created_by?: string
+          csll_rate?: number | null
           customer_id?: string | null
           description?: string | null
           discount_amount?: number | null
@@ -235,10 +622,19 @@ export type Database = {
           gross_amount?: number
           id?: string
           installment?: number | null
+          invoice_key?: string | null
+          invoice_number?: string | null
+          invoice_pdf_url?: string | null
+          invoice_status?: string | null
+          invoice_xml_url?: string | null
+          irpj_rate?: number | null
           is_recurring?: boolean | null
+          iss_rate?: number | null
           net_amount?: number
           payment_date?: string | null
+          pis_rate?: number | null
           supplier_id?: string | null
+          tax_regime?: string | null
           total_installments?: number | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string

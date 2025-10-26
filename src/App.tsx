@@ -7,6 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import CashFlow from "./pages/CashFlow";
+import Transactions from "./pages/Transactions";
+import Suppliers from "./pages/Suppliers";
+import Reports from "./pages/Reports";
+import BankIntegrations from "./pages/BankIntegrations";
+import Reconciliation from "./pages/Reconciliation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +57,46 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <CashFlow />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute>
+                <Transactions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute>
+                <Suppliers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bank-integrations"
+            element={
+              <ProtectedRoute>
+                <BankIntegrations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reconciliation"
+            element={
+              <ProtectedRoute>
+                <Reconciliation />
               </ProtectedRoute>
             }
           />
