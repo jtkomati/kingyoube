@@ -18,20 +18,38 @@ Deno.serve(async (req) => {
 
     const { transaction_id, service_code, service_description } = await req.json()
 
+    if (!transaction_id) {
+      return new Response(
+        JSON.stringify({ error: 'ID da transação é obrigatório' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     console.log('Emitindo NFS-e:', { transaction_id, service_code })
 
-    // 1. Buscar transação
+    // 1. Buscar transação com o relacionamento correto
     const { data: transaction, error: txError } = await supabase
       .from('transactions')
       .select(`
         *,
-        customers(*)
+        customers:customer_id(*)
       `)
       .eq('id', transaction_id)
       .single()
 
-    if (txError || !transaction) {
-      throw new Error('Transação não encontrada')
+    if (txError) {
+      console.error('Erro ao buscar transação:', txError)
+      return new Response(
+        JSON.stringify({ error: 'Erro ao buscar transação: ' + txError.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!transaction) {
+      return new Response(
+        JSON.stringify({ error: 'Transação não encontrada' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // 2. Buscar configurações da empresa
@@ -42,12 +60,18 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (!companySettings) {
-      throw new Error('Configurações da empresa não encontradas. Configure antes de emitir NF.')
+      return new Response(
+        JSON.stringify({ error: 'Configurações da empresa não encontradas. Configure antes de emitir NF.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // 3. Verificar se já tem NF emitida
     if (transaction.invoice_number) {
-      throw new Error('Esta transação já possui nota fiscal emitida')
+      return new Response(
+        JSON.stringify({ error: 'Esta transação já possui nota fiscal emitida' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // 4. Se tiver Focus NFe configurado, integrar
@@ -112,7 +136,13 @@ Deno.serve(async (req) => {
       })
       .eq('id', transaction_id)
 
-    if (updateError) throw updateError
+    if (updateError) {
+      console.error('Erro ao atualizar transação:', updateError)
+      return new Response(
+        JSON.stringify({ error: 'Erro ao atualizar transação: ' + updateError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // 6. Registrar log de sincronização
     await supabase.from('sync_logs').insert({
