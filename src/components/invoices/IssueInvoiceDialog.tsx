@@ -70,11 +70,11 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
               </div>
               <div>
                 <Label className="text-muted-foreground">Valor Bruto</Label>
-                <p className="font-medium">R$ {Number(transaction.gross_amount).toFixed(2)}</p>
+                <p className="font-medium">{Number(transaction.gross_amount).toFixed(0)}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Valor Líquido</Label>
-                <p className="font-medium">R$ {Number(transaction.net_amount).toFixed(2)}</p>
+                <p className="font-medium">{Number(transaction.net_amount).toFixed(0)}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Regime Tributário</Label>
@@ -117,20 +117,20 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span>ISS ({transaction.iss_rate || 5}%):</span>
-                <span>R$ {(Number(transaction.gross_amount) * ((transaction.iss_rate || 5) / 100)).toFixed(2)}</span>
+                <span>{(Number(transaction.gross_amount) * ((transaction.iss_rate || 5) / 100)).toFixed(0)}</span>
               </div>
               <div className="flex justify-between">
                 <span>COFINS ({transaction.cofins_rate || 3}%):</span>
-                <span>R$ {(Number(transaction.gross_amount) * ((transaction.cofins_rate || 3) / 100)).toFixed(2)}</span>
+                <span>{(Number(transaction.gross_amount) * ((transaction.cofins_rate || 3) / 100)).toFixed(0)}</span>
               </div>
               <div className="flex justify-between">
                 <span>PIS ({transaction.pis_rate || 0.65}%):</span>
-                <span>R$ {(Number(transaction.gross_amount) * ((transaction.pis_rate || 0.65) / 100)).toFixed(2)}</span>
+                <span>{(Number(transaction.gross_amount) * ((transaction.pis_rate || 0.65) / 100)).toFixed(0)}</span>
               </div>
               <Separator className="my-2" />
               <div className="flex justify-between font-semibold">
                 <span>Total de Impostos:</span>
-                <span>R$ {(Number(transaction.gross_amount) - Number(transaction.net_amount)).toFixed(2)}</span>
+                <span>{(Number(transaction.gross_amount) - Number(transaction.net_amount)).toFixed(0)}</span>
               </div>
             </div>
           </div>

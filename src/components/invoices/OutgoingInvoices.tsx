@@ -143,7 +143,7 @@ export const OutgoingInvoices = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              R$ {invoices?.reduce((sum, inv) => sum + Number(inv.gross_amount), 0).toFixed(2) || "0,00"}
+              {invoices?.reduce((sum, inv) => sum + Number(inv.gross_amount), 0).toFixed(0) || "0"}
             </div>
           </CardContent>
         </Card>
@@ -166,7 +166,7 @@ export const OutgoingInvoices = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold">R$ {Number(transaction.gross_amount).toFixed(2)}</span>
+                    <span className="font-semibold">{Number(transaction.gross_amount).toFixed(0)}</span>
                     <Button size="sm" onClick={() => handleIssueInvoice(transaction)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Emitir NF
@@ -210,7 +210,7 @@ export const OutgoingInvoices = () => {
                   </TableCell>
                   <TableCell>{invoice.description}</TableCell>
                   <TableCell className="text-right">
-                    R$ {Number(invoice.gross_amount).toFixed(2)}
+                    {Number(invoice.gross_amount).toFixed(0)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(invoice.invoice_status)}>

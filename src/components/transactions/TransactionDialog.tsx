@@ -185,7 +185,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
                 name="gross_amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor Bruto (R$)</FormLabel>
+                    <FormLabel>Valor Bruto</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" {...field} />
                     </FormControl>
@@ -250,20 +250,20 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>ISS ({taxPreview.iss_rate}%):</span>
-                    <span>R$ {taxPreview.iss_amount.toFixed(2)}</span>
+                    <span>{taxPreview.iss_amount.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>COFINS ({taxPreview.cofins_rate}%):</span>
-                    <span>R$ {taxPreview.cofins_amount.toFixed(2)}</span>
+                    <span>{taxPreview.cofins_amount.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>PIS ({taxPreview.pis_rate}%):</span>
-                    <span>R$ {taxPreview.pis_amount.toFixed(2)}</span>
+                    <span>{taxPreview.pis_amount.toFixed(0)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Valor Líquido:</span>
-                    <span className="text-primary">R$ {taxPreview.net_amount.toFixed(2)}</span>
+                    <span className="text-primary">{taxPreview.net_amount.toFixed(0)}</span>
                   </div>
                 </div>
               </div>

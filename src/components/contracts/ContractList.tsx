@@ -138,7 +138,7 @@ export const ContractList = ({ entityType, entityId }: ContractListProps) => {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {contract.value ? `R$ ${Number(contract.value).toFixed(2)}` : "-"}
+                  {contract.value ? `${Number(contract.value).toFixed(0)}` : "-"}
                 </TableCell>
                 <TableCell>
                   <Badge variant={getStatusVariant(contract.status)}>

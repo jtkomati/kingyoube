@@ -125,10 +125,10 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
               </TableCell>
               <TableCell>{transaction.category?.name}</TableCell>
               <TableCell className="text-right">
-                R$ {Number(transaction.gross_amount).toFixed(2)}
+                {Number(transaction.gross_amount).toFixed(0)}
               </TableCell>
               <TableCell className="text-right font-semibold">
-                R$ {Number(transaction.net_amount).toFixed(2)}
+                {Number(transaction.net_amount).toFixed(0)}
               </TableCell>
               <TableCell>
                 {transaction.invoice_number ? (

@@ -70,7 +70,7 @@ export const IncomingInvoices = () => {
             <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 0,00</div>
+            <div className="text-2xl font-bold">0</div>
           </CardContent>
         </Card>
       </div>

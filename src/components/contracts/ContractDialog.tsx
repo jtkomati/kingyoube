@@ -312,7 +312,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
                 name="value"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor (R$)</FormLabel>
+                    <FormLabel>Valor</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" {...field} />
                     </FormControl>
