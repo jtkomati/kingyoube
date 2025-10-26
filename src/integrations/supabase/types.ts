@@ -14,6 +14,320 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_chart_of_accounts: {
+        Row: {
+          account_subtype: string | null
+          account_type: string
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_analytical: boolean | null
+          level: number
+          name: string
+          nature: string | null
+          parent_account_id: string | null
+          referential_code: string | null
+          referential_name: string | null
+          sped_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_subtype?: string | null
+          account_type: string
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_analytical?: boolean | null
+          level?: number
+          name: string
+          nature?: string | null
+          parent_account_id?: string | null
+          referential_code?: string | null
+          referential_name?: string | null
+          sped_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_subtype?: string | null
+          account_type?: string
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_analytical?: boolean | null
+          level?: number
+          name?: string
+          nature?: string | null
+          parent_account_id?: string | null
+          referential_code?: string | null
+          referential_name?: string | null
+          sped_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_chart_of_accounts_parent_account_id_fkey"
+            columns: ["parent_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_cost_centers: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_cost_center_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_cost_center_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_cost_center_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_cost_centers_parent_cost_center_id_fkey"
+            columns: ["parent_cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_entries: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string
+          document_number: string | null
+          document_type: string | null
+          entry_date: string
+          entry_number: string
+          id: string
+          status: string | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description: string
+          document_number?: string | null
+          document_type?: string | null
+          entry_date: string
+          entry_number: string
+          id?: string
+          status?: string | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string
+          document_number?: string | null
+          document_type?: string | null
+          entry_date?: string
+          entry_number?: string
+          id?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      accounting_entry_items: {
+        Row: {
+          account_id: string
+          cost_center_id: string | null
+          created_at: string | null
+          credit_amount: number | null
+          debit_amount: number | null
+          description: string | null
+          entry_id: string
+          id: string
+          profit_center_id: string | null
+          project_id: string | null
+        }
+        Insert: {
+          account_id: string
+          cost_center_id?: string | null
+          created_at?: string | null
+          credit_amount?: number | null
+          debit_amount?: number | null
+          description?: string | null
+          entry_id: string
+          id?: string
+          profit_center_id?: string | null
+          project_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          cost_center_id?: string | null
+          created_at?: string | null
+          credit_amount?: number | null
+          debit_amount?: number | null
+          description?: string | null
+          entry_id?: string
+          id?: string
+          profit_center_id?: string | null
+          project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_entry_items_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_profit_center_id_fkey"
+            columns: ["profit_center_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_profit_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_profit_centers: {
+        Row: {
+          code: string
+          created_at: string | null
+          customer_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_profit_centers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_projects: {
+        Row: {
+          budget_amount: number | null
+          code: string
+          created_at: string | null
+          customer_id: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          budget_amount?: number | null
+          code: string
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          budget_amount?: number | null
+          code?: string
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_projects_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_feedback_corrections: {
         Row: {
           alert_id: string | null

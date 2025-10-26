@@ -14,6 +14,7 @@ import { LeadsTab } from '@/components/cfo/LeadsTab';
 import { SandboxTab } from '@/components/cfo/SandboxTab';
 import { BudgetTab } from '@/components/cfo/BudgetTab';
 import { ConfigTab } from '@/components/cfo/ConfigTab';
+import { AccountingTab } from '@/components/cfo/AccountingTab';
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -572,6 +573,10 @@ Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.rand
               <Users className="h-4 w-4 mr-2" />
               Leads
             </TabsTrigger>
+            <TabsTrigger value="accounting">
+              <FileText className="h-4 w-4 mr-2" />
+              Contabilidade
+            </TabsTrigger>
             <TabsTrigger value="sandbox">
               <Target className="h-4 w-4 mr-2" />
               Demo Sandbox
@@ -734,6 +739,11 @@ Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.rand
           {/* Tab de Leads - Resposta à Barbara */}
           <TabsContent value="leads">
             <LeadsTab />
+          </TabsContent>
+
+          {/* Tab de Contabilidade */}
+          <TabsContent value="accounting">
+            <AccountingTab />
           </TabsContent>
 
           {/* Tab de Sandbox - Resposta à Lori */}
