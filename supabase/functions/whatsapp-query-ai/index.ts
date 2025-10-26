@@ -113,9 +113,15 @@ Sempre termine com: "💬 Posso ajudar com algo mais?"`
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
-    console.error('Erro na função:', error)
+    // Log detailed error server-side only
+    console.error('Erro na função whatsapp-query-ai:', {
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    
+    // Return generic error message to client
     return new Response(
-      JSON.stringify({ response: `Erro ao processar consulta: ${error instanceof Error ? error.message : 'Erro desconhecido'}` }),
+      JSON.stringify({ response: 'Não foi possível processar sua consulta. Tente novamente mais tarde.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

@@ -54,9 +54,15 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("Error in cfo-get-partner-clients:", error);
+    // Log detailed error server-side only
+    console.error("Erro na função cfo-get-partner-clients:", {
+      error: error?.message || 'Erro desconhecido',
+      stack: error?.stack
+    });
+    
+    // Return generic error message to client
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Não foi possível buscar os clientes. Tente novamente mais tarde." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

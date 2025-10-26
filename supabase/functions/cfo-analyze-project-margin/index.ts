@@ -204,10 +204,16 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro na função:', error);
+    // Log detailed error server-side only
+    console.error('Erro na função cfo-analyze-project-margin:', {
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    // Return generic error message to client
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
+        error: 'Não foi possível analisar as margens. Tente novamente mais tarde.'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
