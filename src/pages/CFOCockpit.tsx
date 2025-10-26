@@ -10,11 +10,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { LeadsTab } from '@/components/cfo/LeadsTab';
-import { SandboxTab } from '@/components/cfo/SandboxTab';
-import { BudgetTab } from '@/components/cfo/BudgetTab';
-import { ConfigTab } from '@/components/cfo/ConfigTab';
-import { AccountingTab } from '@/components/cfo/AccountingTab';
+import { AccountingTab } from "@/components/cfo/AccountingTab";
+import { LeadsTab } from "@/components/cfo/LeadsTab";
+import { SandboxTab } from "@/components/cfo/SandboxTab";
+import { BudgetTab } from "@/components/cfo/BudgetTab";
+import { ConfigTab } from "@/components/cfo/ConfigTab";
+import { ProjectsTab } from "@/components/cfo/ProjectsTab";
+import { ROIMetricsTab } from "@/components/cfo/ROIMetricsTab";
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -158,6 +160,7 @@ export default function CFOCockpit() {
   const [showReport, setShowReport] = useState(false);
   const [generatedReport, setGeneratedReport] = useState('');
   const [alertToResolve, setAlertToResolve] = useState<string | null>(null);
+  const [currentPartnerId, setCurrentPartnerId] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -206,6 +209,8 @@ export default function CFOCockpit() {
         console.log('User is not a CFO partner');
         return;
       }
+      
+      setCurrentPartnerId(partner.id);
 
       const { data, error } = await supabase
         .from('cfo_alerts')
@@ -565,6 +570,14 @@ Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.rand
             <TabsTrigger value="clients">
               Clientes ({clients.length})
             </TabsTrigger>
+            <TabsTrigger value="projetos">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Projetos
+            </TabsTrigger>
+            <TabsTrigger value="roi">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              ROI & Valor
+            </TabsTrigger>
             <TabsTrigger value="budget">
               <BarChart3 className="h-4 w-4 mr-2" />
               FP&A / Orçamento
@@ -729,6 +742,16 @@ Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.rand
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Tab de Projetos - Fase 1 & 2 */}
+          <TabsContent value="projetos">
+            <ProjectsTab cfoPartnerId={currentPartnerId} />
+          </TabsContent>
+
+          {/* Tab de ROI & Valor - Fase 5 */}
+          <TabsContent value="roi">
+            <ROIMetricsTab cfoPartnerId={currentPartnerId} />
           </TabsContent>
 
           {/* Tab de Budget FP&A - Vence a ROQT */}

@@ -278,44 +278,56 @@ export type Database = {
       accounting_projects: {
         Row: {
           budget_amount: number | null
+          budget_hours: number | null
           code: string
           created_at: string | null
           customer_id: string | null
           description: string | null
           end_date: string | null
+          hourly_rate: number | null
           id: string
           is_active: boolean | null
           name: string
           start_date: string | null
           status: string | null
+          total_billed: number | null
+          total_hours_logged: number | null
           updated_at: string | null
         }
         Insert: {
           budget_amount?: number | null
+          budget_hours?: number | null
           code: string
           created_at?: string | null
           customer_id?: string | null
           description?: string | null
           end_date?: string | null
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           name: string
           start_date?: string | null
           status?: string | null
+          total_billed?: number | null
+          total_hours_logged?: number | null
           updated_at?: string | null
         }
         Update: {
           budget_amount?: number | null
+          budget_hours?: number | null
           code?: string
           created_at?: string | null
           customer_id?: string | null
           description?: string | null
           end_date?: string | null
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
           start_date?: string | null
           status?: string | null
+          total_billed?: number | null
+          total_hours_logged?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -846,6 +858,50 @@ export type Database = {
           },
         ]
       }
+      cfo_partner_rulesets: {
+        Row: {
+          active: boolean | null
+          alert_severity: string
+          cfo_partner_id: string
+          created_at: string
+          custom_message_template: string | null
+          id: string
+          rule_type: string
+          threshold_value: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          alert_severity: string
+          cfo_partner_id: string
+          created_at?: string
+          custom_message_template?: string | null
+          id?: string
+          rule_type: string
+          threshold_value: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          alert_severity?: string
+          cfo_partner_id?: string
+          created_at?: string
+          custom_message_template?: string | null
+          id?: string
+          rule_type?: string
+          threshold_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cfo_partner_rulesets_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cfo_partners: {
         Row: {
           active: boolean
@@ -1350,6 +1406,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_time_entries: {
+        Row: {
+          billable: boolean | null
+          created_at: string
+          date: string
+          description: string | null
+          hours: number
+          id: string
+          project_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billable?: boolean | null
+          created_at?: string
+          date: string
+          description?: string | null
+          hours: number
+          id?: string
+          project_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billable?: boolean | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          hours?: number
+          id?: string
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reconciliation_rules: {
         Row: {

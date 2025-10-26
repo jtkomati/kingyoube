@@ -1,5 +1,8 @@
 project_id = "zudmeuoeyskducmubruk"
 
+[functions.cfo-analyze-project-margin]
+verify_jwt = false
+
 [functions.get-user-by-phone]
 verify_jwt = false
 
