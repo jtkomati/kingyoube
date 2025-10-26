@@ -1,33 +1,41 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyError, isRetryableError, shouldLogError } from '@/lib/errorMessages';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
+    // Setup auth listener FIRST
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      
+      // Defer Supabase calls to avoid deadlock
+      if (newSession?.user) {
+        setTimeout(() => {
+          fetchUserRole(newSession.user.id);
+        }, 0);
+      } else {
+        setUserRole(null);
       }
       setLoading(false);
     });
 
-    // Escutar mudanças de autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setUserRole(null);
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      if (currentSession?.user) {
+        fetchUserRole(currentSession.user.id);
       }
       setLoading(false);
     });
@@ -43,7 +51,10 @@ export function useAuth() {
       .maybeSingle();
 
     if (error) {
-      console.error('Erro ao buscar role:', error);
+      // Only log non-sensitive errors
+      if (shouldLogError(error)) {
+        console.error('Erro ao buscar role:', error);
+      }
       return;
     }
 
@@ -51,71 +62,98 @@ export function useAuth() {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
+      if (error) throw error;
+
+      toast({
+        title: 'Login realizado',
+        description: 'Bem-vindo de volta!',
+      });
+      return true;
+    } catch (error: any) {
+      const friendlyError = getFriendlyError(error);
+      
       toast({
         variant: 'destructive',
-        title: 'Erro ao fazer login',
-        description: error.message,
+        title: friendlyError.title,
+        description: friendlyError.message,
       });
+      
+      // Only log non-sensitive errors
+      if (shouldLogError(error)) {
+        console.error('Sign in error:', error);
+      }
+      
       return false;
     }
-
-    toast({
-      title: 'Login realizado',
-      description: 'Bem-vindo de volta!',
-    });
-    return true;
   };
 
   const signUp = async (email: string, password: string, fullName: string, phoneNumber?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone_number: phoneNumber,
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+            phone_number: phoneNumber,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
+      if (error) throw error;
+
+      toast({
+        title: 'Conta criada com sucesso!',
+        description: 'Você já pode fazer login.',
+      });
+      return true;
+    } catch (error: any) {
+      const friendlyError = getFriendlyError(error);
+      
       toast({
         variant: 'destructive',
-        title: 'Erro ao criar conta',
-        description: error.message,
+        title: friendlyError.title,
+        description: friendlyError.message,
       });
+      
+      // Only log non-sensitive errors
+      if (shouldLogError(error)) {
+        console.error('Sign up error:', error);
+      }
+      
       return false;
     }
-
-    toast({
-      title: 'Conta criada',
-      description: 'Você já pode fazer login!',
-    });
-    return true;
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
 
-    if (error) {
+      toast({
+        title: 'Até logo!',
+        description: 'Você foi desconectado.',
+      });
+    } catch (error: any) {
+      const friendlyError = getFriendlyError(error);
+      
       toast({
         variant: 'destructive',
-        title: 'Erro ao sair',
-        description: error.message,
+        title: friendlyError.title,
+        description: friendlyError.message,
       });
-      return;
+      
+      if (shouldLogError(error)) {
+        console.error('Sign out error:', error);
+      }
     }
-
-    toast({
-      title: 'Até logo!',
-      description: 'Você foi desconectado.',
-    });
   };
 
   const hasPermission = (requiredRole: string): boolean => {
@@ -137,6 +175,7 @@ export function useAuth() {
 
   return {
     user,
+    session,
     userRole,
     loading,
     signIn,

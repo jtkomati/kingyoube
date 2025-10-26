@@ -5,9 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PasswordInput } from '@/components/ui/password-input';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { signUpSchema, signInSchema, resetPasswordSchema, validateWithFeedback } from '@/lib/validation';
+import { getFriendlyError } from '@/lib/errorMessages';
+import { AlertCircle } from 'lucide-react';
 
 export function AuthForm() {
   const [email, setEmail] = useState('');
@@ -18,22 +23,55 @@ export function AuthForm() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    
+    const validation = validateWithFeedback(signInSchema, { email, password });
+    
+    if (!validation.success) {
+      setErrors(validation.errors);
+      return;
+    }
+    
     setLoading(true);
-    await signIn(email, password);
+    await signIn(validation.data.email, validation.data.password);
     setLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    
+    const validation = validateWithFeedback(signUpSchema, {
+      email,
+      password,
+      fullName,
+      phoneNumber: phoneNumber || undefined,
+    });
+    
+    if (!validation.success) {
+      setErrors(validation.errors);
+      toast({
+        variant: 'destructive',
+        title: 'Dados Inválidos',
+        description: 'Por favor, corrija os erros no formulário.',
+      });
+      return;
+    }
+    
     setLoading(true);
-    const success = await signUp(email, password, fullName, phoneNumber);
+    const success = await signUp(
+      validation.data.email,
+      validation.data.password,
+      validation.data.fullName,
+      validation.data.phoneNumber
+    );
     if (success) {
-      // Limpar formulário
       setEmail('');
       setPassword('');
       setFullName('');
@@ -44,10 +82,19 @@ export function AuthForm() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    
+    const validation = validateWithFeedback(resetPasswordSchema, { email: resetEmail });
+    
+    if (!validation.success) {
+      setErrors(validation.errors);
+      return;
+    }
+    
     setResetLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(validation.data.email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
@@ -61,11 +108,11 @@ export function AuthForm() {
       setShowForgotPassword(false);
       setResetEmail('');
     } catch (error: any) {
-      console.error('Erro ao enviar e-mail de recuperação:', error);
+      const friendlyError = getFriendlyError(error);
       toast({
         variant: 'destructive',
-        title: 'Erro',
-        description: error.message || 'Falha ao enviar e-mail de recuperação.',
+        title: friendlyError.title,
+        description: friendlyError.message,
       });
     } finally {
       setResetLoading(false);
@@ -101,7 +148,14 @@ export function AuthForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    className={errors.email ? 'border-destructive' : ''}
                   />
+                  {errors.email && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha</Label>
@@ -112,7 +166,14 @@ export function AuthForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    className={errors.password ? 'border-destructive' : ''}
                   />
+                  {errors.password && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-2">
@@ -146,7 +207,14 @@ export function AuthForm() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
+                    className={errors.fullName ? 'border-destructive' : ''}
                   />
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.fullName}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefone (opcional)</Label>
@@ -156,7 +224,14 @@ export function AuthForm() {
                     placeholder="+55 11 99999-9999"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
+                    className={errors.phoneNumber ? 'border-destructive' : ''}
                   />
+                  {errors.phoneNumber && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.phoneNumber}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
@@ -167,19 +242,32 @@ export function AuthForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    className={errors.email ? 'border-destructive' : ''}
                   />
+                  {errors.email && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Senha</Label>
-                  <Input
+                  <PasswordInput
                     id="signup-password"
-                    type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    showStrength
+                    className={errors.password ? 'border-destructive' : ''}
                   />
+                  {errors.password && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{errors.password}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </CardContent>
               <CardFooter>
@@ -211,7 +299,14 @@ export function AuthForm() {
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   required
+                  className={errors.email ? 'border-destructive' : ''}
                 />
+                {errors.email && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.email}
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter>

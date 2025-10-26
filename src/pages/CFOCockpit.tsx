@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { LeadsTab } from '@/components/cfo/LeadsTab';
@@ -28,7 +30,8 @@ import {
   Target,
   Sparkles,
   BarChart3,
-  Settings
+  Settings,
+  HelpCircle
 } from 'lucide-react';
 
 interface Alert {
@@ -79,6 +82,7 @@ export default function CFOCockpit() {
   const [reportLoading, setReportLoading] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [generatedReport, setGeneratedReport] = useState('');
+  const [alertToResolve, setAlertToResolve] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -248,13 +252,15 @@ export default function CFOCockpit() {
       
       toast({
         title: 'Alerta Resolvido',
-        description: 'O alerta foi marcado como resolvido.',
+        description: 'O alerta foi marcado como resolvido com sucesso.',
       });
+      
+      setAlertToResolve(null);
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Falha ao resolver alerta',
+        description: 'Falha ao resolver alerta. Tente novamente.',
       });
     }
   };
@@ -340,24 +346,42 @@ export default function CFOCockpit() {
 
   return (
     <DashboardLayout>
+      <TooltipProvider>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gradient-primary">
-              Cockpit Multi-Empresa
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-4xl font-bold text-gradient-primary">
+                Cockpit Multi-Empresa
+              </h1>
+              <Tooltip>
+                <TooltipTrigger>
+                  <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Painel centralizado para monitorar a saúde financeira de todos os seus clientes em tempo real.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground mt-2">
               Painel proativo de monitoramento de clientes
             </p>
           </div>
-          <Button 
-            onClick={handleRunMonitor} 
-            disabled={monitorLoading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${monitorLoading ? 'animate-spin' : ''}`} />
-            {monitorLoading ? 'Analisando...' : 'Executar Análise'}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                onClick={handleRunMonitor} 
+                disabled={monitorLoading}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${monitorLoading ? 'animate-spin' : ''}`} />
+                {monitorLoading ? 'Analisando...' : 'Executar Análise'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Executa uma análise proativa de todos os clientes para detectar problemas financeiros</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* ROI Dashboard Widget - Resposta ao Kevin */}
@@ -520,7 +544,7 @@ export default function CFOCockpit() {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => handleResolveAlert(alert.id)}
+                            onClick={() => setAlertToResolve(alert.id)}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-1" />
                             Resolver
@@ -764,7 +788,20 @@ export default function CFOCockpit() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Confirmation Dialog for Resolving Alerts */}
+        <ConfirmationDialog
+          open={!!alertToResolve}
+          onOpenChange={(open) => !open && setAlertToResolve(null)}
+          title="Confirmar Resolução de Alerta"
+          description="Tem certeza que deseja marcar este alerta como resolvido? Esta ação não pode ser desfeita."
+          onConfirm={() => alertToResolve && handleResolveAlert(alertToResolve)}
+          confirmText="Sim, Resolver"
+          cancelText="Cancelar"
+          variant="default"
+        />
       </div>
+      </TooltipProvider>
     </DashboardLayout>
   );
 }
