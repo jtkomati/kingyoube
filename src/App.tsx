@@ -14,6 +14,7 @@ import Reports from "./pages/Reports";
 import BankIntegrations from "./pages/BankIntegrations";
 import Reconciliation from "./pages/Reconciliation";
 import Invoices from "./pages/Invoices";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => {
           <Sonner />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/dashboard"
               element={
