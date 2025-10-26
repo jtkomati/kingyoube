@@ -48,7 +48,7 @@ interface StartupMetrics {
   cashBalance: number;
 }
 
-type Language = 'pt' | 'en' | 'es';
+type Language = 'pt' | 'en' | 'es' | 'ja';
 
 const translations = {
   pt: {
@@ -279,6 +279,82 @@ const translations = {
     noMetrics: 'No se pudieron cargar las métricas de startup.',
     noMetricsDesc: 'Haga clic en "Actualizar KPIs" para intentar nuevamente.',
   },
+  ja: {
+    title: 'ファイナンシャルダッシュボード',
+    subtitle: 'スタートアップの財務健全性とKPIの完全な概要',
+    refreshKPIs: 'KPIを更新',
+    startupMetrics: 'スタートアップ指標',
+    growth: '成長',
+    healthStatus: 'スタートアップ健全性ステータス',
+    healthBased: 'LTV:CAC、チャーン率、ランウェイに基づく',
+    healthy: '健全',
+    warning: '注意',
+    critical: '危機的',
+    calculating: '計算中...',
+    revenueMetrics: '収益指標',
+    mrr: 'MRR',
+    mrrDesc: '月次経常収益',
+    mrrTooltip: 'Monthly Recurring Revenue：毎月生成される予測可能な経常収益。SaaSおよびサブスクリプションモデルに不可欠です。',
+    arr: 'ARR',
+    arrDesc: '年次経常収益',
+    arrTooltip: 'Annual Recurring Revenue：12ヶ月間のMRR予測。投資家と計画にとって重要な指標です。',
+    avgRevenue: '平均収益',
+    avgRevenueDesc: '顧客/月あたり',
+    avgRevenueTooltip: '顧客あたりの月次平均収益。ビジネスの平均チケットを示します。',
+    currentCash: '現在のキャッシュ',
+    currentCashDesc: '利用可能残高',
+    currentCashTooltip: '現在利用可能な総キャッシュ。運営と成長を維持するために不可欠です。',
+    acquisitionRetention: '獲得と維持',
+    cac: 'CAC',
+    cacDesc: '顧客獲得コスト',
+    cacTooltip: 'Customer Acquisition Cost：各新規顧客を獲得するためにマーケティングと販売に費やす金額。LTVより低くする必要があります。',
+    ltv: 'LTV',
+    ltvDesc: '顧客生涯価値',
+    ltvTooltip: 'Lifetime Value：顧客が会社との関係全体を通じて生成する総収益。理想：LTV > 3x CAC。',
+    ltvCac: 'LTV:CAC',
+    ltvCacDesc: '効率比率',
+    ltvCacTooltip: 'LTVとCACの関係。理想：>3x。<1xの場合、各顧客で損失しています。>5xの場合、獲得にもっと投資すべきです。',
+    payback: 'ペイバック',
+    paybackDesc: '回収期間',
+    paybackTooltip: '月次収益を通じてCACを回収するまでの月数。理想：SaaSの場合<12ヶ月。',
+    growthHealth: '成長と健全性',
+    churnRate: 'チャーン率',
+    churnRateDesc: '解約率',
+    churnRateTooltip: '月次で解約する顧客の割合。理想：B2B SaaSの場合<5%、B2Cの場合<7%。高いチャーンは製品/サービスの問題を示します。',
+    totalCustomers: '総顧客数',
+    totalCustomersDesc: '総ベース',
+    totalCustomersTooltip: '登録されている顧客の総数。一貫した成長は製品の牽引力を示します。',
+    activeCustomers: 'アクティブ顧客',
+    activeCustomersDesc: '最近の取引あり',
+    activeCustomersTooltip: '過去60日間に取引を行った顧客。製品への実際のエンゲージメントを示します。',
+    newThisMonth: '今月の新規',
+    newThisMonthDesc: '獲得顧客',
+    newThisMonthTooltip: '当月に獲得した新規顧客。獲得努力の効果を測定します。',
+    sustainability: '持続可能性',
+    burnRate: 'バーンレート',
+    burnRateDesc: '月次キャッシュバーン',
+    burnRateTooltip: '月あたりの収益を超えて費やす金額。マイナスは利益を示し、プラスは資本消費を示します。',
+    runway: 'ランウェイ',
+    runwayDesc: 'キャッシュが尽きるまでの月数',
+    runwayTooltip: '現在のバーン率で現在のキャッシュで運営できる期間。理想：>18ヶ月。<6ヶ月は危機的です。',
+    months: 'ヶ月',
+    vsPrevMonth: 'vs 前月',
+    chartTitle: 'MRRと顧客の推移',
+    chartDesc: '過去6ヶ月の成長トレンド',
+    mrrGrowth: 'MRR成長',
+    growthRate: '成長率',
+    retention: '維持率',
+    customersKept: '維持された顧客',
+    newCustomersPrev: '新規顧客 / 前月ベース',
+    chartTitleGrowth: 'MRRと顧客ベースの推移',
+    chartDescGrowth: 'スタートアップの成長を追跡',
+    updatingMetrics: '指標を更新中...',
+    updatingDesc: 'KPIを再計算していますのでお待ちください',
+    metricsUpdated: '指標が更新されました！',
+    metricsUpdatedDesc: 'すべてのKPIが正常に再計算されました',
+    noMetrics: 'スタートアップ指標を読み込めませんでした。',
+    noMetricsDesc: '「KPIを更新」をクリックして再試行してください。',
+  },
 };
 
 export default function Dashboard() {
@@ -472,7 +548,7 @@ export default function Dashboard() {
                   className="gap-2"
                 >
                   <Languages className="h-4 w-4" />
-                  {language === 'pt' ? 'Português' : language === 'en' ? 'English' : 'Español'}
+                  {language === 'pt' ? 'Português' : language === 'en' ? 'English' : language === 'es' ? 'Español' : '日本語'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -484,6 +560,9 @@ export default function Dashboard() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setLanguage('es')}>
                   Español
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage('ja')}>
+                  日本語
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
