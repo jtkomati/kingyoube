@@ -16,3 +16,18 @@ verify_jwt = false
 [functions.issue-nfse]
 
 [functions.analyze-contract]
+
+[functions.cfo-get-partner-clients]
+
+[functions.cfo-get-client-vitals]
+
+[functions.cfo-get-uncategorized-count]
+
+[functions.cfo-push-alert]
+verify_jwt = false
+
+[functions.cfo-generate-executive-summary]
+
+[functions.cfo-proactive-monitor]
+verify_jwt = false
+

@@ -195,9 +195,150 @@ export type Database = {
         }
         Relationships: []
       }
+      cfo_alerts: {
+        Row: {
+          cfo_partner_id: string
+          client_company_id: string | null
+          client_name: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+        }
+        Insert: {
+          cfo_partner_id: string
+          client_company_id?: string | null
+          client_name: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+        }
+        Update: {
+          cfo_partner_id?: string
+          client_company_id?: string | null
+          client_name?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cfo_alerts_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cfo_alerts_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cfo_monitoring_config: {
+        Row: {
+          cfo_partner_id: string
+          created_at: string
+          critical_cash_days_threshold: number
+          id: string
+          notification_enabled: boolean
+          notification_hour: number
+          updated_at: string
+          warning_ar_overdue_percentage: number
+          warning_uncategorized_threshold: number
+        }
+        Insert: {
+          cfo_partner_id: string
+          created_at?: string
+          critical_cash_days_threshold?: number
+          id?: string
+          notification_enabled?: boolean
+          notification_hour?: number
+          updated_at?: string
+          warning_ar_overdue_percentage?: number
+          warning_uncategorized_threshold?: number
+        }
+        Update: {
+          cfo_partner_id?: string
+          created_at?: string
+          critical_cash_days_threshold?: number
+          id?: string
+          notification_enabled?: boolean
+          notification_hour?: number
+          updated_at?: string
+          warning_ar_overdue_percentage?: number
+          warning_uncategorized_threshold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cfo_monitoring_config_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: true
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cfo_partners: {
+        Row: {
+          active: boolean
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          company_name: string
+          contact_name: string
+          created_at?: string
+          email: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           address: string | null
+          cfo_partner_id: string | null
           city_code: string | null
           cnpj: string
           company_name: string
@@ -214,6 +355,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cfo_partner_id?: string | null
           city_code?: string | null
           cnpj: string
           company_name: string
@@ -230,6 +372,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cfo_partner_id?: string | null
           city_code?: string | null
           cnpj?: string
           company_name?: string
@@ -244,7 +387,15 @@ export type Database = {
           tax_regime?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contract_clauses: {
         Row: {

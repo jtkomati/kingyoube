@@ -15,6 +15,7 @@ import BankIntegrations from "./pages/BankIntegrations";
 import Reconciliation from "./pages/Reconciliation";
 import Invoices from "./pages/Invoices";
 import ResetPassword from "./pages/ResetPassword";
+import CFOCockpit from "./pages/CFOCockpit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,14 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/cfo-cockpit"
+              element={
+                <ProtectedRoute>
+                  <CFOCockpit />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
