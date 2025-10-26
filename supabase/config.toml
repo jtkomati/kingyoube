@@ -1,1 +1,11 @@
 project_id = "zudmeuoeyskducmubruk"
+
+[functions.get-user-by-phone]
+verify_jwt = false
+
+[functions.tax-impact-preview]
+
+[functions.cash-flow-projection]
+
+[functions.whatsapp-query]
+verify_jwt = false
