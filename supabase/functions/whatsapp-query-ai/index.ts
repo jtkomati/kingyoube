@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,23 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { wa_phone, wa_message } = await req.json()
+    // Validate input
+    const requestSchema = z.object({
+      wa_phone: z.string().min(10).max(15).regex(/^\+?[1-9]\d{1,14}$/, 'Formato de telefone inválido'),
+      wa_message: z.string().min(1).max(500, 'Mensagem muito longa')
+    });
+
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ response: 'Formato de requisição inválido.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const { wa_phone, wa_message } = validation.data;
 
     console.log('Query do WhatsApp com IA:', { wa_phone, wa_message })
 
@@ -67,6 +84,13 @@ Deno.serve(async (req) => {
       .lte('due_date', futureDate.toISOString().split('T')[0])
 
     // 4. Usar Gemini Flash Lite para processar query
+    // Sanitize message to prevent prompt injection
+    const sanitizedMessage = wa_message
+      .replace(/\[SYSTEM\]/gi, '')
+      .replace(/\[INSTRUCTION\]/gi, '')
+      .replace(/ignore previous/gi, '')
+      .slice(0, 500);
+
     const systemPrompt = `Você é o assistente financeiro FAS AI via WhatsApp. 
     
 Você tem acesso aos seguintes dados:
@@ -94,7 +118,7 @@ Sempre termine com: "💬 Posso ajudar com algo mais?"`
         model: 'google/gemini-2.5-flash-lite',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: wa_message }
+          { role: 'user', content: sanitizedMessage }
         ],
         temperature: 0.7,
       }),
