@@ -1099,6 +1099,7 @@ export type Database = {
           ai_analysis: Json | null
           ai_analyzed_at: string | null
           auto_renew: boolean | null
+          company_id: string | null
           compliance_score: number | null
           contract_number: string
           created_at: string
@@ -1124,6 +1125,7 @@ export type Database = {
           ai_analysis?: Json | null
           ai_analyzed_at?: string | null
           auto_renew?: boolean | null
+          company_id?: string | null
           compliance_score?: number | null
           contract_number: string
           created_at?: string
@@ -1149,6 +1151,7 @@ export type Database = {
           ai_analysis?: Json | null
           ai_analyzed_at?: string | null
           auto_renew?: boolean | null
+          company_id?: string | null
           compliance_score?: number | null
           contract_number?: string
           created_at?: string
@@ -1172,6 +1175,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contracts_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -1191,6 +1201,7 @@ export type Database = {
         Row: {
           address: string | null
           cnpj: string | null
+          company_id: string | null
           company_name: string | null
           cpf: string | null
           created_at: string
@@ -1206,6 +1217,7 @@ export type Database = {
         Insert: {
           address?: string | null
           cnpj?: string | null
+          company_id?: string | null
           company_name?: string | null
           cpf?: string | null
           created_at?: string
@@ -1221,6 +1233,7 @@ export type Database = {
         Update: {
           address?: string | null
           cnpj?: string | null
+          company_id?: string | null
           company_name?: string | null
           cpf?: string | null
           created_at?: string
@@ -1235,6 +1248,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customers_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1248,6 +1268,7 @@ export type Database = {
           cnab_generated: boolean | null
           cnab_generated_at: string | null
           cofins_amount: number | null
+          company_id: string | null
           created_at: string
           created_by: string
           csll_amount: number | null
@@ -1274,6 +1295,7 @@ export type Database = {
           cnab_generated?: boolean | null
           cnab_generated_at?: string | null
           cofins_amount?: number | null
+          company_id?: string | null
           created_at?: string
           created_by: string
           csll_amount?: number | null
@@ -1300,6 +1322,7 @@ export type Database = {
           cnab_generated?: boolean | null
           cnab_generated_at?: string | null
           cofins_amount?: number | null
+          company_id?: string | null
           created_at?: string
           created_by?: string
           csll_amount?: number | null
@@ -1322,7 +1345,15 @@ export type Database = {
           supplier_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "incoming_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_prospect_leads: {
         Row: {
@@ -1382,6 +1413,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_id: string | null
           created_at: string
           email: string
           full_name: string
@@ -1390,6 +1422,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           email: string
           full_name: string
@@ -1398,6 +1431,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           email?: string
           full_name?: string
@@ -1405,7 +1439,15 @@ export type Database = {
           phone_number?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_time_entries: {
         Row: {
@@ -1558,6 +1600,7 @@ export type Database = {
         Row: {
           address: string | null
           cnpj: string | null
+          company_id: string | null
           company_name: string | null
           cpf: string | null
           created_at: string
@@ -1573,6 +1616,7 @@ export type Database = {
         Insert: {
           address?: string | null
           cnpj?: string | null
+          company_id?: string | null
           company_name?: string | null
           cpf?: string | null
           created_at?: string
@@ -1588,6 +1632,7 @@ export type Database = {
         Update: {
           address?: string | null
           cnpj?: string | null
+          company_id?: string | null
           company_name?: string | null
           cpf?: string | null
           created_at?: string
@@ -1600,7 +1645,15 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sync_logs: {
         Row: {
@@ -1674,6 +1727,7 @@ export type Database = {
         Row: {
           category_id: string
           cofins_rate: number | null
+          company_id: string | null
           created_at: string
           created_by: string
           csll_rate: number | null
@@ -1704,6 +1758,7 @@ export type Database = {
         Insert: {
           category_id: string
           cofins_rate?: number | null
+          company_id?: string | null
           created_at?: string
           created_by: string
           csll_rate?: number | null
@@ -1734,6 +1789,7 @@ export type Database = {
         Update: {
           category_id?: string
           cofins_rate?: number | null
+          company_id?: string | null
           created_at?: string
           created_by?: string
           csll_rate?: number | null
@@ -1767,6 +1823,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
             referencedColumns: ["id"]
           },
           {
@@ -1826,6 +1889,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role_level: { Args: { _user_id: string }; Returns: number }
       has_role: {
         Args: {
