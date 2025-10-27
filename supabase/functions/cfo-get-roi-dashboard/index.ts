@@ -7,17 +7,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const requestSchema = z.object({
+  cfoPartnerId: z.string().uuid('cfoPartnerId deve ser um UUID válido')
+});
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate request body
-    const requestSchema = z.object({
-      cfoPartnerId: z.string().uuid('cfoPartnerId deve ser um UUID válido')
-    });
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Get user from JWT
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate input
     const body = await req.json();
     const validation = requestSchema.safeParse(body);
 
@@ -30,9 +53,20 @@ serve(async (req) => {
 
     const { cfoPartnerId } = validation.data;
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Verify ownership
+    const { data: partner, error: partnerError } = await supabase
+      .from('cfo_partners')
+      .select('id')
+      .eq('id', cfoPartnerId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (partnerError || !partner) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: You do not have access to this CFO partner' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('Buscando dashboard de ROI para CFO:', cfoPartnerId);
 

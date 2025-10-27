@@ -1,7 +1,15 @@
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const requestSchema = z.object({
+  grossAmount: z.number().positive().max(999999999),
+  category: z.string().min(1).max(100),
+  type: z.enum(['RECEIVABLE', 'PAYABLE'])
+});
 
 // Simulação simplificada de impostos (Reforma Tributária / Split Payment)
 function calculateTaxes(grossAmount: number, category: string, type: 'RECEIVABLE' | 'PAYABLE') {
@@ -45,14 +53,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { grossAmount, category, type } = await req.json()
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
 
-    if (!grossAmount || !category || !type) {
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'grossAmount, category e type são obrigatórios' }),
+        JSON.stringify({ error: validation.error.errors[0].message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const { grossAmount, category, type } = validation.data;
 
     console.log('Calculando preview de impostos:', { grossAmount, category, type })
 

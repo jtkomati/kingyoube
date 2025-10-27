@@ -10,6 +10,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.tax-impact-preview]
+verify_jwt = true
 
 [functions.cash-flow-projection]
 
