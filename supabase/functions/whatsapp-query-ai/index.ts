@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Timing-safe comparison
+const timingSafeEqual = (a: string, b: string): boolean => {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -15,15 +25,52 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!
+    const webhookSecret = Deno.env.get('WHATSAPP_WEBHOOK_SECRET')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Get request body as text for HMAC verification
+    const bodyText = await req.text();
+    const body = JSON.parse(bodyText);
+
+    // Verify HMAC signature
+    const signature = req.headers.get('X-Hub-Signature-256');
+    if (!signature) {
+      console.error('Missing X-Hub-Signature-256 header');
+      return new Response(
+        JSON.stringify({ response: 'Não autorizado.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Compute HMAC
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(webhookSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const hmacBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(bodyText));
+    const hmacArray = Array.from(new Uint8Array(hmacBuffer));
+    const computedSignature = 'sha256=' + hmacArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Timing-safe comparison
+    if (!timingSafeEqual(signature, computedSignature)) {
+      console.error('Invalid HMAC signature');
+      return new Response(
+        JSON.stringify({ response: 'Não autorizado.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
 
     // Validate input
     const requestSchema = z.object({
       wa_phone: z.string().min(10).max(15).regex(/^\+?[1-9]\d{1,14}$/, 'Formato de telefone inválido'),
-      wa_message: z.string().min(1).max(500, 'Mensagem muito longa')
+      wa_message: z.string().min(1).max(500, 'Mensagem muito longa'),
+      timestamp: z.number().optional()
     });
 
-    const body = await req.json();
     const validation = requestSchema.safeParse(body);
 
     if (!validation.success) {
@@ -33,7 +80,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { wa_phone, wa_message } = validation.data;
+    const { wa_phone, wa_message, timestamp } = validation.data;
+
+    // Validate timestamp to prevent replay attacks (5 minute window)
+    if (timestamp) {
+      const now = Date.now() / 1000;
+      const timeDiff = Math.abs(now - timestamp);
+      if (timeDiff > 300) {
+        console.error('Timestamp too old:', timeDiff);
+        return new Response(
+          JSON.stringify({ response: 'Requisição expirada.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+    }
 
     console.log('Query do WhatsApp com IA:', { wa_phone, wa_message })
 
