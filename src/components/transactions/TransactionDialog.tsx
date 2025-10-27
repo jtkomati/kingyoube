@@ -90,6 +90,16 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Buscar company_id do usuário
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      if (!profile?.company_id) throw new Error("Usuário sem empresa associada");
+
       const netAmount = taxPreview?.net_amount || parseFloat(values.gross_amount);
 
       const transactionData = {
@@ -104,6 +114,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
         tax_regime: values.tax_regime,
         discount_amount: 0,
         created_by: user.id,
+        company_id: profile.company_id,
       };
 
       if (transaction) {

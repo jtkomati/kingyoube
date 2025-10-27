@@ -23,18 +23,46 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Extrair company_id do JWT do usuário autenticado
+    const jwt = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt)
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Usuário não autenticado' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Buscar company_id do usuário
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !profile?.company_id) {
+      return new Response(
+        JSON.stringify({ error: 'Usuário sem empresa associada' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const companyId = profile.company_id
+
     const { days = 30 } = await req.json()
 
-    console.log('Calculando projeção de fluxo de caixa para', days, 'dias')
+    console.log('Calculando projeção de fluxo de caixa para', days, 'dias', 'company:', companyId)
 
     const today = new Date()
     const futureDate = new Date()
     futureDate.setDate(today.getDate() + days)
 
-    // Buscar transações futuras
+    // Buscar transações futuras filtradas por company_id
     const { data: transactions, error } = await supabase
       .from('transactions')
       .select('*')
+      .eq('company_id', companyId)
       .gte('due_date', today.toISOString().split('T')[0])
       .lte('due_date', futureDate.toISOString().split('T')[0])
       .order('due_date', { ascending: true })

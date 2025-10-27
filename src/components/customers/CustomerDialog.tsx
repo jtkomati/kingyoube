@@ -58,6 +58,16 @@ export const CustomerDialog = ({ open, onClose, customer }: CustomerDialogProps)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Buscar company_id do usuário
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      if (!profile?.company_id) throw new Error("Usuário sem empresa associada");
+
       const customerData: any = {
         person_type: values.person_type,
         first_name: values.first_name || null,
@@ -69,6 +79,7 @@ export const CustomerDialog = ({ open, onClose, customer }: CustomerDialogProps)
         phone: values.phone || null,
         address: values.address || null,
         created_by: user.id,
+        company_id: profile.company_id,
       };
 
       if (customer) {

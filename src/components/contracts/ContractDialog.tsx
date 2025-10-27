@@ -95,6 +95,16 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Buscar company_id do usuário
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      if (!profile?.company_id) throw new Error("Usuário sem empresa associada");
+
       let fileData = null;
       if (uploadedFile) {
         fileData = await handleFileUpload(uploadedFile);
@@ -111,6 +121,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
         value: values.value ? parseFloat(values.value) : null,
         status: values.status,
         created_by: user.id,
+        company_id: profile.company_id,
         ...(fileData && {
           file_url: fileData.url,
           file_name: fileData.name,

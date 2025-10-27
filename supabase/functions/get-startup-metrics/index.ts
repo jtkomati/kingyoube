@@ -16,7 +16,41 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log("=== Calculating Startup Metrics ===");
+    // Extrair company_id do JWT do usuário autenticado
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authorization header obrigatório" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Usuário não autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Buscar company_id do usuário
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile?.company_id) {
+      return new Response(
+        JSON.stringify({ error: "Usuário sem empresa associada" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const companyId = profile.company_id;
+    console.log("=== Calculating Startup Metrics for company:", companyId, "===");
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -33,6 +67,7 @@ serve(async (req) => {
     const { data: mrrTransactions } = await supabase
       .from("transactions")
       .select("net_amount, is_recurring")
+      .eq("company_id", companyId)
       .eq("type", "RECEIVABLE")
       .eq("is_recurring", true)
       .gte("due_date", startOfMonth.toISOString())
@@ -44,6 +79,7 @@ serve(async (req) => {
     const { data: lastMonthMrrTx } = await supabase
       .from("transactions")
       .select("net_amount")
+      .eq("company_id", companyId)
       .eq("type", "RECEIVABLE")
       .eq("is_recurring", true)
       .gte("due_date", startOfLastMonth.toISOString())
@@ -58,7 +94,8 @@ serve(async (req) => {
     // 3. Calcular número de clientes ativos e novos
     const { data: allCustomers, count: totalCustomers } = await supabase
       .from("customers")
-      .select("id, created_at", { count: "exact" });
+      .select("id, created_at", { count: "exact" })
+      .eq("company_id", companyId);
 
     const newCustomersThisMonth = allCustomers?.filter((c) => {
       const created = new Date(c.created_at);
@@ -75,6 +112,7 @@ serve(async (req) => {
     const { data: acquisitionCosts } = await supabase
       .from("transactions")
       .select("gross_amount, category_id")
+      .eq("company_id", companyId)
       .eq("type", "PAYABLE")
       .gte("due_date", startOfMonth.toISOString())
       .lte("due_date", endOfMonth.toISOString());
@@ -97,6 +135,7 @@ serve(async (req) => {
     const { data: recentTransactions } = await supabase
       .from("transactions")
       .select("customer_id")
+      .eq("company_id", companyId)
       .gte("created_at", sixtyDaysAgo.toISOString())
       .not("customer_id", "is", null);
 
@@ -120,6 +159,7 @@ serve(async (req) => {
     const { data: monthlyExpenses } = await supabase
       .from("transactions")
       .select("net_amount")
+      .eq("company_id", companyId)
       .eq("type", "PAYABLE")
       .gte("due_date", startOfMonth.toISOString())
       .lte("due_date", endOfMonth.toISOString());
@@ -130,7 +170,8 @@ serve(async (req) => {
     // 9. Runway - Meses até acabar o dinheiro
     const { data: currentBalance } = await supabase
       .from("transactions")
-      .select("net_amount, type");
+      .select("net_amount, type")
+      .eq("company_id", companyId);
 
     let cashBalance = 0;
     currentBalance?.forEach((tx) => {
