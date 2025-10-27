@@ -71,37 +71,29 @@ serve(async (req) => {
         console.log(`  Analyzing client: ${client.company_name}`);
 
         // Tool 1: Get Financial Vitals
-        const vitalsResponse = await fetch(`${supabaseUrl}/functions/v1/cfo-get-client-vitals`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${supabaseKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ client_id: client.id }),
-        });
+        const { data: vitals, error: vitalsError } = await supabase.functions.invoke(
+          "cfo-get-client-vitals",
+          {
+            body: { client_id: client.id },
+          }
+        );
 
-        if (!vitalsResponse.ok) {
-          console.error(`  Failed to get vitals for ${client.company_name}`);
+        if (vitalsError || !vitals) {
+          console.error(`  Failed to get vitals for ${client.company_name}:`, vitalsError);
           continue;
         }
-
-        const vitals = await vitalsResponse.json();
         console.log(`  Vitals:`, vitals);
 
         // Tool 2: Get Uncategorized Count
-        const uncategorizedResponse = await fetch(`${supabaseUrl}/functions/v1/cfo-get-uncategorized-count`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${supabaseKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ client_id: client.id }),
-        });
+        const { data: uncategorizedData, error: uncategorizedError } = await supabase.functions.invoke(
+          "cfo-get-uncategorized-count",
+          {
+            body: { client_id: client.id },
+          }
+        );
 
-        let uncategorizedCount = 0;
-        if (uncategorizedResponse.ok) {
-          const uncategorizedData = await uncategorizedResponse.json();
-          uncategorizedCount = uncategorizedData.count;
+        const uncategorizedCount = uncategorizedData?.count || 0;
+        if (!uncategorizedError) {
           console.log(`  Uncategorized: ${uncategorizedCount}`);
         }
 
@@ -111,13 +103,8 @@ serve(async (req) => {
         if (vitals.cash_projection_status === 'CRITICAL' && vitals.days_to_negative !== null) {
           const message = `ALERTA CRÍTICO: Fluxo de caixa de ${client.company_name} ficará negativo em ${vitals.days_to_negative} dias. Saldo projetado: ${vitals.min_projected_balance.toLocaleString('pt-BR')}`;
           
-          await fetch(`${supabaseUrl}/functions/v1/cfo-push-alert`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          const { error: alertError } = await supabase.functions.invoke("cfo-push-alert", {
+            body: {
               cfo_partner_id: partner.id,
               client_company_id: client.id,
               client_name: client.company_name,
@@ -127,11 +114,13 @@ serve(async (req) => {
                 days_to_negative: vitals.days_to_negative,
                 min_balance: vitals.min_projected_balance,
               },
-            }),
+            },
           });
 
-          console.log(`  ⚠️ CRITICAL alert created: Cash flow`);
-          totalAlertsCreated++;
+          if (!alertError) {
+            console.log(`  ⚠️ CRITICAL alert created: Cash flow`);
+            totalAlertsCreated++;
+          }
         }
 
         // CRITICAL: Contas a receber vencidas > 15% do saldo de caixa
@@ -140,13 +129,8 @@ serve(async (req) => {
           if (percentage > thresholds.warning_ar_percentage) {
             const message = `Contas a receber vencidas de ${client.company_name} representam ${percentage.toFixed(1)}% do saldo de caixa (${vitals.ar_overdue_30d.toLocaleString('pt-BR')} vencidos vs ${vitals.cash_balance.toLocaleString('pt-BR')} em caixa)`;
             
-            await fetch(`${supabaseUrl}/functions/v1/cfo-push-alert`, {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${supabaseKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
+            const { error: alertError } = await supabase.functions.invoke("cfo-push-alert", {
+              body: {
                 cfo_partner_id: partner.id,
                 client_company_id: client.id,
                 client_name: client.company_name,
@@ -157,11 +141,13 @@ serve(async (req) => {
                   cash_balance: vitals.cash_balance,
                   percentage: percentage,
                 },
-              }),
+              },
             });
 
-            console.log(`  ⚠️ CRITICAL alert created: AR overdue`);
-            totalAlertsCreated++;
+            if (!alertError) {
+              console.log(`  ⚠️ CRITICAL alert created: AR overdue`);
+              totalAlertsCreated++;
+            }
           }
         }
 
@@ -169,13 +155,8 @@ serve(async (req) => {
         if (uncategorizedCount > thresholds.warning_uncategorized) {
           const message = `${client.company_name} tem ${uncategorizedCount} transações pendentes de categorização, impedindo análise financeira precisa`;
           
-          await fetch(`${supabaseUrl}/functions/v1/cfo-push-alert`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          const { error: alertError } = await supabase.functions.invoke("cfo-push-alert", {
+            body: {
               cfo_partner_id: partner.id,
               client_company_id: client.id,
               client_name: client.company_name,
@@ -184,24 +165,21 @@ serve(async (req) => {
               metadata: {
                 uncategorized_count: uncategorizedCount,
               },
-            }),
+            },
           });
 
-          console.log(`  ⚠️ WARNING alert created: Uncategorized transactions`);
-          totalAlertsCreated++;
+          if (!alertError) {
+            console.log(`  ⚠️ WARNING alert created: Uncategorized transactions`);
+            totalAlertsCreated++;
+          }
         }
 
         // WARNING: Contas a pagar < 7 dias > saldo de caixa
         if (vitals.ap_due_7d > vitals.cash_balance) {
           const message = `${client.company_name} tem ${vitals.ap_due_7d.toLocaleString('pt-BR')} em contas a pagar nos próximos 7 dias, superior ao saldo de caixa de ${vitals.cash_balance.toLocaleString('pt-BR')}`;
           
-          await fetch(`${supabaseUrl}/functions/v1/cfo-push-alert`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          const { error: alertError } = await supabase.functions.invoke("cfo-push-alert", {
+            body: {
               cfo_partner_id: partner.id,
               client_company_id: client.id,
               client_name: client.company_name,
@@ -211,11 +189,13 @@ serve(async (req) => {
                 ap_due_7d: vitals.ap_due_7d,
                 cash_balance: vitals.cash_balance,
               },
-            }),
+            },
           });
 
-          console.log(`  ⚠️ WARNING alert created: AP exceeds cash`);
-          totalAlertsCreated++;
+          if (!alertError) {
+            console.log(`  ⚠️ WARNING alert created: AP exceeds cash`);
+            totalAlertsCreated++;
+          }
         }
       }
     }
