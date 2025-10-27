@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,14 +37,22 @@ serve(async (req) => {
   }
 
   try {
-    const { invoiceIds } = await req.json();
+    // Validate input
+    const requestSchema = z.object({
+      invoiceIds: z.array(z.string().uuid()).min(1, 'invoiceIds deve conter pelo menos um UUID')
+    });
+
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
     
-    if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'invoiceIds deve ser um array não vazio' }),
+        JSON.stringify({ error: validation.error.errors[0].message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const { invoiceIds } = validation.data;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

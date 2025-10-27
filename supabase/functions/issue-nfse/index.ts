@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,14 +17,24 @@ Deno.serve(async (req) => {
     const focusNfeToken = Deno.env.get('FOCUSNFE_API_TOKEN')
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { transaction_id, service_code, service_description } = await req.json()
+    // Validate input
+    const requestSchema = z.object({
+      transaction_id: z.string().uuid('transaction_id deve ser um UUID válido'),
+      service_code: z.string().optional(),
+      service_description: z.string().optional()
+    });
 
-    if (!transaction_id) {
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'ID da transação é obrigatório' }),
+        JSON.stringify({ error: validation.error.errors[0].message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const { transaction_id, service_code, service_description } = validation.data;
 
     console.log('Emitindo NFS-e:', { transaction_id, service_code })
 

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,23 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { contract_id, contract_text } = await req.json()
+    // Validate input
+    const requestSchema = z.object({
+      contract_id: z.string().uuid('contract_id deve ser um UUID válido'),
+      contract_text: z.string().min(1).max(100000, 'Texto do contrato muito longo')
+    });
+
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: validation.error.errors[0].message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { contract_id, contract_text } = validation.data;
 
     console.log('Analisando contrato:', contract_id)
 

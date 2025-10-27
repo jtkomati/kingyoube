@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,14 +16,22 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { phoneNumber } = await req.json()
+    // Validate input
+    const requestSchema = z.object({
+      phoneNumber: z.string().min(10).max(15).regex(/^\+?[1-9]\d{1,14}$/, 'Formato de telefone inválido')
+    });
 
-    if (!phoneNumber) {
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'phoneNumber é obrigatório' }),
+        JSON.stringify({ error: validation.error.errors[0].message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const { phoneNumber } = validation.data;
 
     console.log('Buscando usuário por telefone:', phoneNumber)
 

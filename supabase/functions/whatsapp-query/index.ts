@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,23 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { wa_phone, wa_message } = await req.json()
+    // Validate input
+    const requestSchema = z.object({
+      wa_phone: z.string().min(10).max(15).regex(/^\+?[1-9]\d{1,14}$/, 'Formato de telefone inválido'),
+      wa_message: z.string().min(1).max(500, 'Mensagem muito longa')
+    });
+
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ response: 'Formato de requisição inválido.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    const { wa_phone, wa_message } = validation.data;
 
     console.log('Query do WhatsApp:', { wa_phone, wa_message })
 

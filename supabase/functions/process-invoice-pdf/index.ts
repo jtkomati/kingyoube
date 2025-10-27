@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,14 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    const { filePath, fileName, userId } = await req.json();
+    // Validate input
+    const requestSchema = z.object({
+      filePath: z.string().min(1).max(500),
+      fileName: z.string().min(1).max(255),
+      userId: z.string().uuid('userId deve ser um UUID válido')
+    });
+
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
     
-    if (!filePath || !fileName || !userId) {
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'filePath, fileName e userId são obrigatórios' }),
+        JSON.stringify({ error: validation.error.errors[0].message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const { filePath, fileName, userId } = validation.data;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
