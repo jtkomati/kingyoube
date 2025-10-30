@@ -1,1 +1,4 @@
 project_id = "rvyoumuclbrjiaeurriy"
+
+[functions.ai-assistant-webhook]
+verify_jwt = true

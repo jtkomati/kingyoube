@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
+import { AIAssistantDialog } from './AIAssistantDialog';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -81,6 +82,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="ml-64">
         <main className="p-8">{children}</main>
       </div>
+      
+      <AIAssistantDialog />
     </div>
   );
 }
