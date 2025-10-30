@@ -68,11 +68,14 @@ serve(async (req) => {
       timestamp: new Date().toISOString(),
     }
 
+    const makeApiKey = Deno.env.get('MAKE_WEBHOOK_KEY')
+    
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'x-make-apikey': makeApiKey || '',
       },
       body: JSON.stringify(webhookPayload),
     })
