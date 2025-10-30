@@ -70,6 +70,8 @@ serve(async (req) => {
 
     const makeApiKey = Deno.env.get('MAKE_WEBHOOK_KEY')
     
+    console.log('Make API Key configurada:', makeApiKey ? 'SIM' : 'NÃO')
+    
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
