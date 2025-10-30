@@ -52,34 +52,65 @@ serve(async (req) => {
       details: `Query: ${message.substring(0, 100)}`,
     })
 
-    // Chamar webhook do Make.com (sem autenticação - Make.com usa webhooks públicos)
+    // Chamar webhook do Make.com (webhooks públicos - não requerem autenticação)
     const webhookUrl = 'https://hook.us2.make.com/zjysfc4yoio3kjma1omuqeip0g1z06i5'
+    
+    console.log('Enviando para Make.com webhook:', {
+      url: webhookUrl,
+      user_id: user.id,
+      message_preview: message.substring(0, 50)
+    })
+
+    const webhookPayload = {
+      user_id: user.id,
+      user_email: user.email,
+      message: message,
+      timestamp: new Date().toISOString(),
+    }
+
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        user_id: user.id,
-        user_email: user.email,
-        message: message,
-        timestamp: new Date().toISOString(),
-      }),
+      body: JSON.stringify(webhookPayload),
+    })
+
+    console.log('Resposta do webhook Make.com:', {
+      status: webhookResponse.status,
+      statusText: webhookResponse.statusText,
+      headers: Object.fromEntries(webhookResponse.headers.entries())
     })
 
     if (!webhookResponse.ok) {
       const errorText = await webhookResponse.text()
-      console.error('Erro ao chamar webhook:', webhookResponse.status, errorText)
+      console.error('ERRO DETALHADO do webhook:', {
+        status: webhookResponse.status,
+        statusText: webhookResponse.statusText,
+        body: errorText,
+        payload_sent: webhookPayload
+      })
+      
       return new Response(
         JSON.stringify({ 
-          error: 'Erro ao processar requisição',
-          details: `Webhook retornou status ${webhookResponse.status}`
+          error: 'Erro ao processar requisição no Make.com',
+          details: `Status ${webhookResponse.status}: ${errorText}`,
+          webhook_status: webhookResponse.status
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
 
-    const responseData = await webhookResponse.json()
+    let responseData
+    try {
+      responseData = await webhookResponse.json()
+      console.log('Resposta JSON do Make.com:', responseData)
+    } catch (jsonError) {
+      const textResponse = await webhookResponse.text()
+      console.log('Resposta texto do Make.com:', textResponse)
+      responseData = { response: textResponse }
+    }
 
     return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
