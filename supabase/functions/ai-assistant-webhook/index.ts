@@ -52,7 +52,7 @@ serve(async (req) => {
       details: `Query: ${message.substring(0, 100)}`,
     })
 
-    // Chamar webhook do Make.com
+    // Chamar webhook do Make.com (sem autenticação - Make.com usa webhooks públicos)
     const webhookUrl = 'https://hook.us2.make.com/zjysfc4yoio3kjma1omuqeip0g1z06i5'
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
@@ -68,9 +68,13 @@ serve(async (req) => {
     })
 
     if (!webhookResponse.ok) {
-      console.error('Erro ao chamar webhook:', webhookResponse.status)
+      const errorText = await webhookResponse.text()
+      console.error('Erro ao chamar webhook:', webhookResponse.status, errorText)
       return new Response(
-        JSON.stringify({ error: 'Erro ao processar requisição' }),
+        JSON.stringify({ 
+          error: 'Erro ao processar requisição',
+          details: `Webhook retornou status ${webhookResponse.status}`
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
@@ -83,7 +87,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Erro na função ai-assistant-webhook:', error)
     return new Response(
-      JSON.stringify({ error: 'Erro ao processar requisição' }),
+      JSON.stringify({ 
+        error: 'Erro ao processar requisição',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
