@@ -107,14 +107,17 @@ serve(async (req) => {
       )
     }
 
+    // Ler resposta como texto primeiro (só pode ler uma vez)
+    const responseText = await webhookResponse.text()
+    console.log('Resposta texto do Make.com:', responseText)
+
     let responseData
     try {
-      responseData = await webhookResponse.json()
-      console.log('Resposta JSON do Make.com:', JSON.stringify(responseData, null, 2))
+      responseData = JSON.parse(responseText)
+      console.log('Resposta JSON parseada:', JSON.stringify(responseData, null, 2))
     } catch (jsonError) {
-      const textResponse = await webhookResponse.text()
-      console.log('Resposta texto do Make.com:', textResponse)
-      responseData = { response: textResponse }
+      console.log('Não é JSON válido, usando como texto')
+      responseData = { response: responseText }
     }
 
     // Normalizar resposta para sempre ter um campo 'response'
