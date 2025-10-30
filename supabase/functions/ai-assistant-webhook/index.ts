@@ -110,14 +110,24 @@ serve(async (req) => {
     let responseData
     try {
       responseData = await webhookResponse.json()
-      console.log('Resposta JSON do Make.com:', responseData)
+      console.log('Resposta JSON do Make.com:', JSON.stringify(responseData, null, 2))
     } catch (jsonError) {
       const textResponse = await webhookResponse.text()
       console.log('Resposta texto do Make.com:', textResponse)
       responseData = { response: textResponse }
     }
 
-    return new Response(JSON.stringify(responseData), {
+    // Normalizar resposta para sempre ter um campo 'response'
+    const normalizedResponse = {
+      response: responseData?.response || 
+                responseData?.body || 
+                responseData?.message ||
+                (typeof responseData === 'string' ? responseData : JSON.stringify(responseData))
+    }
+
+    console.log('Resposta normalizada:', normalizedResponse)
+
+    return new Response(JSON.stringify(normalizedResponse), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
