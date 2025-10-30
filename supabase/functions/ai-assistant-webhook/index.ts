@@ -88,27 +88,26 @@ serve(async (req) => {
       headers: Object.fromEntries(webhookResponse.headers.entries())
     })
 
+    // Ler resposta como texto primeiro (só pode ler uma vez)
+    const responseText = await webhookResponse.text()
+    
     if (!webhookResponse.ok) {
-      const errorText = await webhookResponse.text()
       console.error('ERRO DETALHADO do webhook:', {
         status: webhookResponse.status,
         statusText: webhookResponse.statusText,
-        body: errorText,
+        body: responseText,
         payload_sent: webhookPayload
       })
       
       return new Response(
         JSON.stringify({ 
           error: 'Erro ao processar requisição no Make.com',
-          details: `Status ${webhookResponse.status}: ${errorText}`,
+          details: `Status ${webhookResponse.status}: ${responseText}`,
           webhook_status: webhookResponse.status
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
-
-    // Ler resposta como texto primeiro (só pode ler uma vez)
-    const responseText = await webhookResponse.text()
     console.log('Resposta texto do Make.com:', responseText)
 
     let responseData
