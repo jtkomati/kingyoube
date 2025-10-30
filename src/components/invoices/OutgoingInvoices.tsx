@@ -27,7 +27,7 @@ export const OutgoingInvoices = () => {
   const { data: invoices, isLoading } = useQuery({
     queryKey: ["outgoing-invoices"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("transactions")
         .select(`
           *,
@@ -41,16 +41,16 @@ export const OutgoingInvoices = () => {
       if (error) throw error;
 
       // Buscar clientes separadamente
-      const customerIds = data?.filter(t => t.customer_id).map(t => t.customer_id) || [];
-      const { data: customers } = await supabase
+      const customerIds = data?.filter((t: any) => t.customer_id).map((t: any) => t.customer_id) || [];
+      const { data: customers } = await (supabase as any)
         .from("customers")
         .select("*")
         .in("id", customerIds);
 
-      return data?.map(transaction => ({
+      return data?.map((transaction: any) => ({
         ...transaction,
         category: transaction.categories,
-        customer: customers?.find(c => c.id === transaction.customer_id),
+        customer: customers?.find((c: any) => c.id === transaction.customer_id),
       }));
     },
   });
@@ -58,7 +58,7 @@ export const OutgoingInvoices = () => {
   const { data: pendingTransactions } = useQuery({
     queryKey: ["pending-invoices"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("transactions")
         .select("*")
         .eq("type", "RECEIVABLE")

@@ -20,7 +20,7 @@ export const SupplierList = ({ onEdit }: SupplierListProps) => {
   const { data: suppliers, isLoading } = useQuery({
     queryKey: ["suppliers"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("suppliers")
         .select("*")
         .order("created_at", { ascending: false });

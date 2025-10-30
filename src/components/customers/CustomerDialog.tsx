@@ -59,7 +59,7 @@ export const CustomerDialog = ({ open, onClose, customer }: CustomerDialogProps)
       if (!user) throw new Error("Usuário não autenticado");
 
       // Buscar company_id do usuário
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await (supabase as any)
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
@@ -83,7 +83,7 @@ export const CustomerDialog = ({ open, onClose, customer }: CustomerDialogProps)
       };
 
       if (customer) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("customers")
           .update(customerData)
           .eq("id", customer.id);
@@ -91,7 +91,7 @@ export const CustomerDialog = ({ open, onClose, customer }: CustomerDialogProps)
         if (error) throw error;
         toast.success("Cliente atualizado!");
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("customers")
           .insert([customerData]);
 

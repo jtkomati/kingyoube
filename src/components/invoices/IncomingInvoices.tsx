@@ -38,7 +38,7 @@ export const IncomingInvoices = () => {
   }, []);
 
   const fetchInvoices = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('incoming_invoices')
       .select('*')
       .order('created_at', { ascending: false });

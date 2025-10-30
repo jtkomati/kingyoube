@@ -16,12 +16,12 @@ export function AccountingTab() {
   const { data: chartAccounts } = useQuery({
     queryKey: ['chart-of-accounts'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('accounting_chart_of_accounts')
         .select('*')
         .order('code');
       if (error) throw error;
-      return data;
+      return data as any[];
     }
   });
 
@@ -29,12 +29,12 @@ export function AccountingTab() {
   const { data: costCenters } = useQuery({
     queryKey: ['cost-centers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('accounting_cost_centers')
         .select('*')
         .order('code');
       if (error) throw error;
-      return data;
+      return data as any[];
     }
   });
 
@@ -42,12 +42,12 @@ export function AccountingTab() {
   const { data: profitCenters } = useQuery({
     queryKey: ['profit-centers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('accounting_profit_centers')
         .select('*, customers(first_name, last_name, company_name)')
         .order('code');
       if (error) throw error;
-      return data;
+      return data as any[];
     }
   });
 
@@ -55,12 +55,12 @@ export function AccountingTab() {
   const { data: projects } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('accounting_projects')
         .select('*, customers(first_name, last_name, company_name)')
         .order('code');
       if (error) throw error;
-      return data;
+      return data as any[];
     }
   });
 

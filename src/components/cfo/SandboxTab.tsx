@@ -47,7 +47,7 @@ export function SandboxTab() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Usuário não autenticado');
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)
@@ -89,7 +89,7 @@ export function SandboxTab() {
 
   const fetchSandboxes = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('client_sandboxes')
         .select('*')
         .order('created_at', { ascending: false });

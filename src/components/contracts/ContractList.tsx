@@ -33,7 +33,7 @@ export const ContractList = ({ entityType, entityId }: ContractListProps) => {
   const { data: contracts, isLoading } = useQuery({
     queryKey: ["contracts", entityType, entityId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("contracts")
         .select(`
           *,

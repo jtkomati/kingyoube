@@ -58,7 +58,7 @@ export function BudgetTab() {
 
   const fetchBudgets = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('budget_targets')
         .select('*, company_settings(company_name)')
         .order('month', { ascending: false })
@@ -76,7 +76,7 @@ export function BudgetTab() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)
@@ -110,7 +110,7 @@ export function BudgetTab() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Usuário não autenticado');
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)

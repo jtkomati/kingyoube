@@ -40,7 +40,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
   const { data: entities } = useQuery({
     queryKey: [entityType === "customer" ? "customers" : "suppliers"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from(entityType === "customer" ? "customers" : "suppliers")
         .select("*")
         .order("created_at", { ascending: false });
@@ -96,7 +96,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
       if (!user) throw new Error("Usuário não autenticado");
 
       // Buscar company_id do usuário
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await (supabase as any)
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
@@ -129,7 +129,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
         }),
       };
 
-      const { data: newContract, error } = await supabase
+      const { data: newContract, error } = await (supabase as any)
         .from("contracts")
         .insert([contractData])
         .select()

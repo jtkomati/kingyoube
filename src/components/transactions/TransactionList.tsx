@@ -22,7 +22,7 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["transactions"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("transactions")
         .select(`
           *,
@@ -33,21 +33,21 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
       if (error) throw error;
       
       // Buscar clientes e fornecedores separadamente
-      const customerIds = data?.filter(t => t.customer_id).map(t => t.customer_id) || [];
-      const supplierIds = data?.filter(t => t.supplier_id).map(t => t.supplier_id) || [];
+      const customerIds = data?.filter((t: any) => t.customer_id).map((t: any) => t.customer_id) || [];
+      const supplierIds = data?.filter((t: any) => t.supplier_id).map((t: any) => t.supplier_id) || [];
       
-      const { data: customers } = await supabase
+      const { data: customers } = await (supabase as any)
         .from("customers")
         .select("*")
         .in("id", customerIds);
         
-      const { data: suppliers } = await supabase
+      const { data: suppliers } = await (supabase as any)
         .from("suppliers")
         .select("*")
         .in("id", supplierIds);
       
       // Combinar dados
-      return data?.map(transaction => ({
+      return data?.map((transaction: any) => ({
         ...transaction,
         category: transaction.categories,
         customer: customers?.find(c => c.id === transaction.customer_id),

@@ -45,7 +45,7 @@ export function LeadsTab() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Usuário não autenticado');
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)
@@ -82,7 +82,7 @@ export function LeadsTab() {
 
   const fetchLeads = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('partner_prospect_leads')
         .select('*')
         .order('score', { ascending: false })
@@ -97,7 +97,7 @@ export function LeadsTab() {
 
   const updateLeadStatus = async (leadId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('partner_prospect_leads')
         .update({ status: newStatus })
         .eq('id', leadId);

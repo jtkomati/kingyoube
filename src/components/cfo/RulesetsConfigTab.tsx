@@ -38,7 +38,7 @@ export function RulesetsConfigTab({ cfoPartnerId }: { cfoPartnerId: string }) {
   const { data: rulesets, isLoading } = useQuery({
     queryKey: ['cfo-rulesets', cfoPartnerId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('cfo_partner_rulesets')
         .select('*')
         .eq('cfo_partner_id', cfoPartnerId)
@@ -51,7 +51,7 @@ export function RulesetsConfigTab({ cfoPartnerId }: { cfoPartnerId: string }) {
 
   const createMutation = useMutation({
     mutationFn: async (newRule: Partial<Ruleset>) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('cfo_partner_rulesets')
         .insert([{
           cfo_partner_id: cfoPartnerId,
@@ -82,7 +82,7 @@ export function RulesetsConfigTab({ cfoPartnerId }: { cfoPartnerId: string }) {
 
   const updateMutation = useMutation({
     mutationFn: async (rule: Ruleset) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('cfo_partner_rulesets')
         .update({
           threshold_value: rule.threshold_value,
@@ -104,7 +104,7 @@ export function RulesetsConfigTab({ cfoPartnerId }: { cfoPartnerId: string }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ruleId: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('cfo_partner_rulesets')
         .delete()
         .eq('id', ruleId);

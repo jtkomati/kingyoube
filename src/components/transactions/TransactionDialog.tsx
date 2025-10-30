@@ -91,7 +91,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
       if (!user) throw new Error("Usuário não autenticado");
 
       // Buscar company_id do usuário
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await (supabase as any)
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
@@ -118,7 +118,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
       };
 
       if (transaction) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("transactions")
           .update(transactionData)
           .eq("id", transaction.id);
@@ -126,7 +126,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
         if (error) throw error;
         toast.success("Transação atualizada!");
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("transactions")
           .insert(transactionData);
 

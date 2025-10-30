@@ -39,7 +39,7 @@ export function ProjectsTab({ cfoPartnerId }: { cfoPartnerId: string }) {
   const { data: projects, isLoading, refetch } = useQuery({
     queryKey: ['cfo-projects', cfoPartnerId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('accounting_projects')
         .select(`
           id,
@@ -86,7 +86,7 @@ export function ProjectsTab({ cfoPartnerId }: { cfoPartnerId: string }) {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('project_time_entries')
       .insert({
         project_id: selectedProject.id,

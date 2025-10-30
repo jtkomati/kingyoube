@@ -22,7 +22,7 @@ export function ConfigTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from("cfo_partners")
         .select("id")
         .eq("user_id", user.id)
@@ -30,7 +30,7 @@ export function ConfigTab() {
 
       if (!partner) throw new Error("CFO partner not found");
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("cfo_monitoring_config")
         .select("*")
         .eq("cfo_partner_id", partner.id)
@@ -69,7 +69,7 @@ export function ConfigTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from("cfo_partners")
         .select("id")
         .eq("user_id", user.id)
@@ -77,7 +77,7 @@ export function ConfigTab() {
 
       if (!partner) throw new Error("CFO partner not found");
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("cfo_monitoring_config")
         .upsert({
           cfo_partner_id: partner.id,

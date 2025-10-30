@@ -59,7 +59,7 @@ export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps)
       if (!user) throw new Error("Usuário não autenticado");
 
       // Buscar company_id do usuário
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await (supabase as any)
         .from("profiles")
         .select("company_id")
         .eq("id", user.id)
@@ -83,7 +83,7 @@ export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps)
       };
 
       if (supplier) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("suppliers")
           .update(supplierData)
           .eq("id", supplier.id);
@@ -91,7 +91,7 @@ export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps)
         if (error) throw error;
         toast.success("Fornecedor atualizado!");
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("suppliers")
           .insert([supplierData]);
 
