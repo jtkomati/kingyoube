@@ -199,7 +199,7 @@ export default function CFOCockpit() {
       if (!user.user) return;
 
       // Buscar o ID do parceiro CFO
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)
@@ -212,7 +212,7 @@ export default function CFOCockpit() {
       
       setCurrentPartnerId(partner.id);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('cfo_alerts')
         .select('*')
         .eq('cfo_partner_id', partner.id)
@@ -233,7 +233,7 @@ export default function CFOCockpit() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)
@@ -257,7 +257,7 @@ export default function CFOCockpit() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
-      const { data: partner } = await supabase
+      const { data: partner } = await (supabase as any)
         .from('cfo_partners')
         .select('id')
         .eq('user_id', user.user.id)
@@ -302,7 +302,7 @@ export default function CFOCockpit() {
 
   const handleMarkAsRead = async (alertId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('cfo_alerts')
         .update({ is_read: true })
         .eq('id', alertId);
@@ -318,7 +318,7 @@ export default function CFOCockpit() {
     try {
       const { data: user } = await supabase.auth.getUser();
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('cfo_alerts')
         .update({ 
           resolved: true, 

@@ -396,11 +396,11 @@ export default function Dashboard() {
 
   const fetchBasicMetrics = async () => {
     try {
-      const { data: transactions } = await supabase
+      const { data: transactions } = await (supabase as any)
         .from('transactions')
         .select('type, net_amount, payment_date');
 
-      const { data: customers } = await supabase
+      const { data: customers } = await (supabase as any)
         .from('customers')
         .select('id');
 
@@ -408,7 +408,7 @@ export default function Dashboard() {
       let totalPayables = 0;
       const today = new Date().toISOString().split('T')[0];
 
-      transactions?.forEach((tx) => {
+      transactions?.forEach((tx: any) => {
         if (!tx.payment_date || tx.payment_date >= today || 
             new Date(tx.payment_date).getMonth() === new Date().getMonth()) {
           if (tx.type === 'RECEIVABLE') {

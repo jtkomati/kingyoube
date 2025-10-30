@@ -24,7 +24,7 @@ const Reports = () => {
       setLoading(true);
       
       // Buscar transações de janeiro a outubro 2025
-      const { data: transactions, error } = await supabase
+      const { data: transactions, error } = await (supabase as any)
         .from('transactions')
         .select('*')
         .gte('due_date', '2025-01-01')
@@ -42,12 +42,12 @@ const Reports = () => {
         const monthKey = `2025-${monthStr}`;
         const monthLabel = new Date(2025, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
 
-        const monthTransactions = transactions?.filter(t => 
+        const monthTransactions = transactions?.filter((t: any) => 
           t.due_date.startsWith(monthKey)
         ) || [];
 
         const receitas = monthTransactions
-          .filter(t => t.type === 'RECEIVABLE')
+          .filter((t: any) => t.type === 'RECEIVABLE')
           .reduce((sum, t) => sum + Number(t.gross_amount), 0);
         
         const custos = monthTransactions
