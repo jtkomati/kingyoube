@@ -7,6 +7,87 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to process PDF with Lovable AI
+async function processWithLovableAI(fileData: Blob) {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    throw new Error('LOVABLE_API_KEY não configurada');
+  }
+
+  // Convert PDF to base64
+  const arrayBuffer = await fileData.arrayBuffer();
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: `Você é um especialista em extração de dados de notas fiscais brasileiras. 
+Analise a nota fiscal e extraia EXATAMENTE as seguintes informações em formato JSON:
+{
+  "supplier_cnpj": "CNPJ do prestador (apenas números)",
+  "supplier_name": "Razão social do prestador",
+  "invoice_number": "Número da nota fiscal",
+  "invoice_date": "Data de emissão (formato YYYY-MM-DD)",
+  "service_code": "Código do serviço (LC 116/2003)",
+  "gross_amount": valor bruto em número,
+  "irrf_amount": valor retido de IRRF em número (0 se não houver),
+  "pis_amount": valor retido de PIS em número (0 se não houver),
+  "cofins_amount": valor retido de COFINS em número (0 se não houver),
+  "csll_amount": valor retido de CSLL em número (0 se não houver),
+  "iss_amount": valor retido de ISS em número (0 se não houver),
+  "inss_amount": valor retido de INSS em número (0 se não houver)
+}
+
+IMPORTANTE: Retorne APENAS o JSON, sem texto adicional.`
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Extraia os dados desta nota fiscal de serviço:'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:application/pdf;base64,${base64}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0.1,
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    console.error('Erro na API Lovable:', aiResponse.status, errorText);
+    throw new Error(`Erro na API de IA: ${aiResponse.status}`);
+  }
+
+  const aiData = await aiResponse.json();
+  const extractedText = aiData.choices[0].message.content;
+  
+  console.log('Resposta da IA:', extractedText);
+
+  // Parse the JSON response
+  const jsonMatch = extractedText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('Não foi possível extrair JSON da resposta da IA');
+  }
+
+  return JSON.parse(jsonMatch[0]);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -120,12 +201,20 @@ serve(async (req) => {
     // Tentar fazer parse do JSON
     let invoiceData;
     try {
-      invoiceData = JSON.parse(responseText);
-      console.log('Dados extraídos do OCR:', invoiceData);
+      if (!responseText || responseText.trim() === '') {
+        console.log('Resposta vazia do OCR externo, usando Lovable AI como fallback...');
+        // Fallback para Lovable AI
+        invoiceData = await processWithLovableAI(fileData);
+      } else {
+        invoiceData = JSON.parse(responseText);
+        console.log('Dados extraídos do OCR:', invoiceData);
+      }
     } catch (jsonError) {
       console.error('Erro ao fazer parse do JSON:', jsonError);
-      console.error('Resposta recebida:', responseText);
-      throw new Error(`Resposta do OCR não é um JSON válido: ${responseText.substring(0, 200)}`);
+      console.error('Resposta recebida:', responseText.substring(0, 200));
+      console.log('Tentando fallback para Lovable AI...');
+      // Fallback para Lovable AI em caso de erro de parse
+      invoiceData = await processWithLovableAI(fileData);
     }
 
     // Calculate net amount
