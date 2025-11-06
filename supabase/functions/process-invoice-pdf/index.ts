@@ -203,17 +203,25 @@ serve(async (req) => {
     try {
       if (!responseText || responseText.trim() === '') {
         console.log('Resposta vazia do OCR externo, usando Lovable AI como fallback...');
-        // Fallback para Lovable AI
         invoiceData = await processWithLovableAI(fileData);
       } else {
-        const parsedResponse = JSON.parse(responseText);
+        let parsedResponse = JSON.parse(responseText);
+        
+        // Se for um array, pega o primeiro elemento
+        if (Array.isArray(parsedResponse)) {
+          parsedResponse = parsedResponse[0];
+        }
+        
         console.log('Resposta parseada do webhook:', JSON.stringify(parsedResponse, null, 2));
         
         // Verificar se a resposta tem a estrutura do Gemini (candidates)
         if (parsedResponse.candidates && parsedResponse.candidates[0]) {
           console.log('Resposta do webhook no formato Gemini, extraindo dados...');
-          const textContent = parsedResponse.candidates[0].content.parts[0].text;
+          let textContent = parsedResponse.candidates[0].content.parts[0].text;
           console.log('Texto extraído:', textContent);
+          
+          // Remover bloco de código markdown se existir
+          textContent = textContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
           
           // Extrair JSON do texto
           const jsonMatch = textContent.match(/\{[\s\S]*\}/);
@@ -222,8 +230,26 @@ serve(async (req) => {
             throw new Error('Não foi possível extrair JSON da resposta do webhook');
           }
           
-          invoiceData = JSON.parse(jsonMatch[0]);
-          console.log('Dados da nota fiscal extraídos:', JSON.stringify(invoiceData, null, 2));
+          const extractedData = JSON.parse(jsonMatch[0]);
+          console.log('Dados extraídos antes do mapeamento:', JSON.stringify(extractedData, null, 2));
+          
+          // Mapear campos do webhook para o formato esperado
+          invoiceData = {
+            supplier_cnpj: extractedData.cnpj_emitente || extractedData.supplier_cnpj,
+            supplier_name: extractedData.nome_emitente || extractedData.supplier_name,
+            invoice_number: extractedData.numero_nota || extractedData.invoice_number,
+            invoice_date: extractedData.data_emissao || extractedData.invoice_date,
+            service_code: extractedData.codigo_servico || extractedData.service_code || '0000',
+            gross_amount: extractedData.valor_total_nota || extractedData.gross_amount || 0,
+            irrf_amount: extractedData.valor_irrf || extractedData.irrf_amount || 0,
+            pis_amount: extractedData.valor_pis || extractedData.pis_amount || 0,
+            cofins_amount: extractedData.valor_cofins || extractedData.cofins_amount || 0,
+            csll_amount: extractedData.valor_csll || extractedData.csll_amount || 0,
+            iss_amount: extractedData.valor_iss || extractedData.iss_amount || 0,
+            inss_amount: extractedData.valor_inss || extractedData.inss_amount || 0,
+          };
+          
+          console.log('Dados da nota fiscal mapeados:', JSON.stringify(invoiceData, null, 2));
           
           // Validar campos obrigatórios
           if (!invoiceData.supplier_cnpj || !invoiceData.supplier_name) {
@@ -240,7 +266,6 @@ serve(async (req) => {
       console.error('Erro ao fazer parse do JSON:', jsonError);
       console.error('Resposta recebida:', responseText.substring(0, 500));
       console.log('Tentando fallback para Lovable AI...');
-      // Fallback para Lovable AI em caso de erro de parse
       invoiceData = await processWithLovableAI(fileData);
     }
 
