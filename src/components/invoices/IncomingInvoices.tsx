@@ -390,7 +390,7 @@ export const IncomingInvoices = () => {
                       </TableCell>
                       <TableCell>{getStatusBadge(invoice.processing_status)}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {invoice.invoice_date ? invoice.invoice_date : '-'}
+                        {invoice.invoice_number || '-'}
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         {invoice.invoice_date ? formatDate(invoice.invoice_date) : '-'}
