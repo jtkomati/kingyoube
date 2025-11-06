@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, DollarSign, Download } from "lucide-react";
+import { FileText, Upload, DollarSign, Download, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface IncomingInvoice {
   id: string;
@@ -25,6 +26,7 @@ interface IncomingInvoice {
   file_name: string;
   invoice_date: string;
   processing_status: string;
+  ocr_data?: any;
 }
 
 export const IncomingInvoices = () => {
@@ -34,6 +36,7 @@ export const IncomingInvoices = () => {
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingCNAB, setIsGeneratingCNAB] = useState(false);
+  const [selectedInvoiceForOCR, setSelectedInvoiceForOCR] = useState<IncomingInvoice | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -383,6 +386,7 @@ export const IncomingInvoices = () => {
                     <TableHead className="text-right">ISS</TableHead>
                     <TableHead className="text-right">INSS</TableHead>
                     <TableHead className="text-right">Valor Líquido</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -430,6 +434,15 @@ export const IncomingInvoices = () => {
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(invoice.net_amount)}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedInvoiceForOCR(invoice)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -438,6 +451,82 @@ export const IncomingInvoices = () => {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!selectedInvoiceForOCR} onOpenChange={() => setSelectedInvoiceForOCR(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dados do OCR - Nota Fiscal</DialogTitle>
+            <DialogDescription>
+              Informações extraídas automaticamente da nota fiscal
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedInvoiceForOCR && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Fornecedor</h3>
+                  <p className="text-sm">{selectedInvoiceForOCR.supplier_name}</p>
+                  <p className="text-sm font-mono">{selectedInvoiceForOCR.supplier_cnpj}</p>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Nota Fiscal</h3>
+                  <p className="text-sm">Nº {selectedInvoiceForOCR.invoice_number || 'N/A'}</p>
+                  <p className="text-sm">{selectedInvoiceForOCR.invoice_date ? formatDate(selectedInvoiceForOCR.invoice_date) : 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-sm text-muted-foreground mb-2">Valores</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Valor Bruto:</span>
+                    <span className="font-semibold">{formatCurrency(selectedInvoiceForOCR.gross_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>IRRF:</span>
+                    <span>{formatCurrency(selectedInvoiceForOCR.irrf_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>PIS:</span>
+                    <span>{formatCurrency(selectedInvoiceForOCR.pis_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>COFINS:</span>
+                    <span>{formatCurrency(selectedInvoiceForOCR.cofins_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>CSLL:</span>
+                    <span>{formatCurrency(selectedInvoiceForOCR.csll_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>ISS:</span>
+                    <span>{formatCurrency(selectedInvoiceForOCR.iss_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>INSS:</span>
+                    <span>{formatCurrency(selectedInvoiceForOCR.inss_amount)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="font-semibold">Valor Líquido:</span>
+                    <span className="font-semibold">{formatCurrency(selectedInvoiceForOCR.net_amount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedInvoiceForOCR.ocr_data && (
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-2">Dados Brutos do OCR</h3>
+                  <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto max-h-64">
+                    {JSON.stringify(selectedInvoiceForOCR.ocr_data, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
