@@ -207,20 +207,29 @@ serve(async (req) => {
         invoiceData = await processWithLovableAI(fileData);
       } else {
         const parsedResponse = JSON.parse(responseText);
+        console.log('Resposta parseada do webhook:', JSON.stringify(parsedResponse, null, 2));
         
         // Verificar se a resposta tem a estrutura do Gemini (candidates)
         if (parsedResponse.candidates && parsedResponse.candidates[0]) {
           console.log('Resposta do webhook no formato Gemini, extraindo dados...');
           const textContent = parsedResponse.candidates[0].content.parts[0].text;
+          console.log('Texto extraído:', textContent);
           
           // Extrair JSON do texto
           const jsonMatch = textContent.match(/\{[\s\S]*\}/);
           if (!jsonMatch) {
+            console.error('Não encontrou JSON no texto:', textContent);
             throw new Error('Não foi possível extrair JSON da resposta do webhook');
           }
           
           invoiceData = JSON.parse(jsonMatch[0]);
-          console.log('Dados extraídos do webhook:', invoiceData);
+          console.log('Dados da nota fiscal extraídos:', JSON.stringify(invoiceData, null, 2));
+          
+          // Validar campos obrigatórios
+          if (!invoiceData.supplier_cnpj || !invoiceData.supplier_name) {
+            console.error('Dados incompletos extraídos:', invoiceData);
+            throw new Error('Campos obrigatórios não foram extraídos corretamente');
+          }
         } else {
           // Resposta já está no formato esperado
           invoiceData = parsedResponse;
@@ -229,7 +238,7 @@ serve(async (req) => {
       }
     } catch (jsonError) {
       console.error('Erro ao fazer parse do JSON:', jsonError);
-      console.error('Resposta recebida:', responseText.substring(0, 200));
+      console.error('Resposta recebida:', responseText.substring(0, 500));
       console.log('Tentando fallback para Lovable AI...');
       // Fallback para Lovable AI em caso de erro de parse
       invoiceData = await processWithLovableAI(fileData);
