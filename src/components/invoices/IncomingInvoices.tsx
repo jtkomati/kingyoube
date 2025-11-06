@@ -47,9 +47,15 @@ export const IncomingInvoices = () => {
 
     if (error) {
       console.error('Erro ao buscar notas fiscais:', error);
+      toast({
+        title: "Erro ao carregar notas",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
 
+    console.log('Notas fiscais carregadas:', data);
     setInvoices(data || []);
   };
 
