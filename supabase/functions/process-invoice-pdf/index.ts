@@ -96,9 +96,19 @@ serve(async (req) => {
       console.error('Erro no serviço de OCR:', {
         status: ocrResponse.status,
         statusText: ocrResponse.statusText,
-        body: responseText
+        bodyPreview: responseText.substring(0, 500)
       });
-      throw new Error(`Erro no serviço de OCR: ${ocrResponse.status} - ${responseText}`);
+      
+      // Mensagens de erro específicas por status
+      if (ocrResponse.status === 502) {
+        throw new Error('Serviço de OCR está temporariamente indisponível (502 Bad Gateway). Por favor, tente novamente em alguns minutos ou verifique se o servidor está online.');
+      } else if (ocrResponse.status === 403) {
+        throw new Error('Acesso negado ao serviço de OCR (403). Verifique as credenciais do Cloudflare Access.');
+      } else if (ocrResponse.status === 503) {
+        throw new Error('Serviço de OCR está em manutenção (503). Tente novamente mais tarde.');
+      } else {
+        throw new Error(`Erro no serviço de OCR (${ocrResponse.status}): ${ocrResponse.statusText}`);
+      }
     }
 
     // Tentar fazer parse do JSON
