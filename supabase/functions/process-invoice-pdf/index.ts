@@ -65,12 +65,18 @@ serve(async (req) => {
       throw new Error('Credenciais do Cloudflare Access não configuradas');
     }
 
-    // Get the public URL for the file
-    const { data: { publicUrl } } = supabase.storage
+    // Create a signed URL that expires in 10 minutes (600 seconds)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('invoices-pdf')
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 600);
 
-    console.log('URL do arquivo para OCR:', publicUrl);
+    if (signedUrlError || !signedUrlData) {
+      console.error('Erro ao criar URL assinada:', signedUrlError);
+      throw new Error('Erro ao gerar URL temporária para o arquivo');
+    }
+
+    const temporaryUrl = signedUrlData.signedUrl;
+    console.log('URL temporária criada (válida por 10 minutos)');
 
     // Call external OCR service
     const ocrResponse = await fetch('https://automacao-nova.secureblueteam.com.br/webhook/CFO-Upload', {
@@ -81,7 +87,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        file_url: publicUrl
+        file_url: temporaryUrl
       }),
     });
 
@@ -133,7 +139,7 @@ serve(async (req) => {
       .from('incoming_invoices')
       .insert({
         file_name: fileName,
-        file_url: publicUrl,
+        file_url: temporaryUrl,
         file_type: 'pdf',
         supplier_cnpj: invoiceData.supplier_cnpj,
         supplier_name: invoiceData.supplier_name,
