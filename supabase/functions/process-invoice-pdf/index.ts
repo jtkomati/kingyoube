@@ -234,20 +234,20 @@ serve(async (req) => {
           console.log('Dados extraídos antes do mapeamento:', JSON.stringify(extractedData, null, 2));
           
           // Mapear campos do webhook para o formato esperado
-          // O webhook retorna estrutura NFe com issuer/tax_summary
+          // O webhook retorna estrutura com sender_cnpj, sender_corporate_name, etc.
           invoiceData = {
-            supplier_cnpj: extractedData.issuer?.cnpj || extractedData.cnpj_emitente || extractedData.supplier_cnpj,
-            supplier_name: extractedData.issuer?.name || extractedData.nome_emitente || extractedData.supplier_name,
-            invoice_number: extractedData.nfe_number || extractedData.numero_nota || extractedData.invoice_number,
+            supplier_cnpj: extractedData.sender_cnpj || extractedData.issuer?.cnpj || extractedData.cnpj_emitente || extractedData.supplier_cnpj,
+            supplier_name: extractedData.sender_corporate_name || extractedData.issuer?.name || extractedData.nome_emitente || extractedData.supplier_name,
+            invoice_number: extractedData.invoice_number || extractedData.nfe_number || extractedData.numero_nota,
             invoice_date: extractedData.issue_date?.split('T')[0] || extractedData.data_emissao || extractedData.invoice_date,
             service_code: extractedData.codigo_servico || extractedData.service_code || '0000',
-            gross_amount: extractedData.tax_summary?.total_invoice || extractedData.valor_total_nota || extractedData.gross_amount || 0,
+            gross_amount: extractedData.total_invoice || extractedData.total_products || extractedData.tax_summary?.total_invoice || extractedData.valor_total_nota || extractedData.gross_amount || 0,
             irrf_amount: extractedData.tax_summary?.irrf || extractedData.valor_irrf || extractedData.irrf_amount || 0,
-            pis_amount: extractedData.tax_summary?.value_pis || extractedData.valor_pis || extractedData.pis_amount || 0,
-            cofins_amount: extractedData.tax_summary?.value_cofins || extractedData.valor_cofins || extractedData.cofins_amount || 0,
-            csll_amount: extractedData.tax_summary?.csll_retained || extractedData.valor_csll || extractedData.csll_amount || 0,
-            iss_amount: extractedData.tax_summary?.total_issqn || extractedData.valor_iss || extractedData.iss_amount || 0,
-            inss_amount: extractedData.tax_summary?.social_security_contribution || extractedData.valor_inss || extractedData.inss_amount || 0,
+            pis_amount: extractedData.value_pis || extractedData.tax_summary?.value_pis || extractedData.valor_pis || extractedData.pis_amount || 0,
+            cofins_amount: extractedData.value_cofins || extractedData.tax_summary?.value_cofins || extractedData.valor_cofins || extractedData.cofins_amount || 0,
+            csll_amount: extractedData.csll_retained || extractedData.tax_summary?.csll_retained || extractedData.valor_csll || extractedData.csll_amount || 0,
+            iss_amount: extractedData.total_issqn || extractedData.tax_summary?.total_issqn || extractedData.valor_iss || extractedData.iss_amount || 0,
+            inss_amount: extractedData.social_security_contribution || extractedData.tax_summary?.social_security_contribution || extractedData.valor_inss || extractedData.inss_amount || 0,
           };
           
           console.log('Dados da nota fiscal mapeados:', JSON.stringify(invoiceData, null, 2));
