@@ -206,8 +206,26 @@ serve(async (req) => {
         // Fallback para Lovable AI
         invoiceData = await processWithLovableAI(fileData);
       } else {
-        invoiceData = JSON.parse(responseText);
-        console.log('Dados extraídos do OCR:', invoiceData);
+        const parsedResponse = JSON.parse(responseText);
+        
+        // Verificar se a resposta tem a estrutura do Gemini (candidates)
+        if (parsedResponse.candidates && parsedResponse.candidates[0]) {
+          console.log('Resposta do webhook no formato Gemini, extraindo dados...');
+          const textContent = parsedResponse.candidates[0].content.parts[0].text;
+          
+          // Extrair JSON do texto
+          const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            throw new Error('Não foi possível extrair JSON da resposta do webhook');
+          }
+          
+          invoiceData = JSON.parse(jsonMatch[0]);
+          console.log('Dados extraídos do webhook:', invoiceData);
+        } else {
+          // Resposta já está no formato esperado
+          invoiceData = parsedResponse;
+          console.log('Dados extraídos do OCR:', invoiceData);
+        }
       }
     } catch (jsonError) {
       console.error('Erro ao fazer parse do JSON:', jsonError);
