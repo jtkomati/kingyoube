@@ -269,6 +269,17 @@ serve(async (req) => {
       invoiceData = await processWithLovableAI(fileData);
     }
 
+    // Get user's company_id from profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Erro ao buscar perfil do usuário:', profileError);
+    }
+
     // Calculate net amount
     const netAmount = invoiceData.gross_amount - 
       (invoiceData.irrf_amount + invoiceData.pis_amount + 
@@ -298,6 +309,7 @@ serve(async (req) => {
         processing_status: 'completed',
         ocr_data: invoiceData,
         created_by: userId,
+        company_id: profile?.company_id,
       })
       .select()
       .single();
