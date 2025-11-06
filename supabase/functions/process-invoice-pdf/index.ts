@@ -85,15 +85,32 @@ serve(async (req) => {
       }),
     });
 
+    console.log('Status da resposta do OCR:', ocrResponse.status);
+    console.log('Headers da resposta:', Object.fromEntries(ocrResponse.headers.entries()));
+
+    // Ler resposta como texto primeiro (só pode ler uma vez)
+    const responseText = await ocrResponse.text();
+    console.log('Resposta do OCR (texto):', responseText);
+
     if (!ocrResponse.ok) {
-      const errorText = await ocrResponse.text();
-      console.error('Erro no serviço de OCR:', ocrResponse.status, errorText);
-      throw new Error(`Erro no serviço de OCR: ${ocrResponse.status}`);
+      console.error('Erro no serviço de OCR:', {
+        status: ocrResponse.status,
+        statusText: ocrResponse.statusText,
+        body: responseText
+      });
+      throw new Error(`Erro no serviço de OCR: ${ocrResponse.status} - ${responseText}`);
     }
 
-    const invoiceData = await ocrResponse.json();
-    
-    console.log('Dados extraídos do OCR:', invoiceData);
+    // Tentar fazer parse do JSON
+    let invoiceData;
+    try {
+      invoiceData = JSON.parse(responseText);
+      console.log('Dados extraídos do OCR:', invoiceData);
+    } catch (jsonError) {
+      console.error('Erro ao fazer parse do JSON:', jsonError);
+      console.error('Resposta recebida:', responseText);
+      throw new Error(`Resposta do OCR não é um JSON válido: ${responseText.substring(0, 200)}`);
+    }
 
     // Calculate net amount
     const netAmount = invoiceData.gross_amount - 
