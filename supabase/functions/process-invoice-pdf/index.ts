@@ -251,10 +251,16 @@ serve(async (req) => {
           
           console.log('Dados da nota fiscal mapeados:', JSON.stringify(invoiceData, null, 2));
           
-          // Validar campos obrigatórios
-          if (!invoiceData.supplier_cnpj || !invoiceData.supplier_name) {
-            console.error('Dados incompletos extraídos:', invoiceData);
-            throw new Error('Campos obrigatórios não foram extraídos corretamente');
+          // Validar apenas CNPJ obrigatório - aceitar supplier_name vazio temporariamente
+          if (!invoiceData.supplier_cnpj) {
+            console.error('CNPJ não foi extraído:', invoiceData);
+            throw new Error('CNPJ obrigatório não foi extraído corretamente');
+          }
+
+          // Se supplier_name estiver vazio, usar o CNPJ como nome temporário
+          if (!invoiceData.supplier_name) {
+            console.log('Supplier name vazio, usando CNPJ como nome temporário');
+            invoiceData.supplier_name = `Fornecedor ${invoiceData.supplier_cnpj}`;
           }
         } else {
           // Resposta já está no formato esperado
@@ -265,8 +271,9 @@ serve(async (req) => {
     } catch (jsonError) {
       console.error('Erro ao fazer parse do JSON:', jsonError);
       console.error('Resposta recebida:', responseText.substring(0, 500));
-      console.log('Tentando fallback para Lovable AI...');
-      invoiceData = await processWithLovableAI(fileData);
+      
+      // Se não conseguiu extrair dados do webhook, retornar erro
+      throw new Error('Não foi possível processar os dados da nota fiscal. Por favor, tente novamente.');
     }
 
     // Get user's company_id from profile
