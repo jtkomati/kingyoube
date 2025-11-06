@@ -6,11 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface IncomingInvoice {
   id: string;
   supplier_cnpj: string;
   supplier_name: string;
+  invoice_number: string;
   service_code: string;
   gross_amount: number;
   irrf_amount: number;
@@ -217,6 +219,24 @@ export const IncomingInvoices = () => {
     }).format(value);
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge variant="default" className="bg-green-500">Processado</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">Pendente</Badge>;
+      case 'error':
+        return <Badge variant="destructive">Erro</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   const totalReceived = invoices.reduce((sum, inv) => sum + Number(inv.gross_amount), 0);
   const totalNet = invoices.reduce((sum, inv) => sum + Number(inv.net_amount), 0);
 
@@ -343,6 +363,9 @@ export const IncomingInvoices = () => {
                         }}
                       />
                     </TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Nº Nota</TableHead>
+                    <TableHead>Data</TableHead>
                     <TableHead>CNPJ</TableHead>
                     <TableHead>Razão Social</TableHead>
                     <TableHead>Cód. Serviço</TableHead>
@@ -364,6 +387,13 @@ export const IncomingInvoices = () => {
                           checked={selectedInvoices.has(invoice.id)}
                           onCheckedChange={() => toggleInvoiceSelection(invoice.id)}
                         />
+                      </TableCell>
+                      <TableCell>{getStatusBadge(invoice.processing_status)}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {invoice.invoice_date ? invoice.invoice_date : '-'}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {invoice.invoice_date ? formatDate(invoice.invoice_date) : '-'}
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         {invoice.supplier_cnpj}
