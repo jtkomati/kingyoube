@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Upload, DollarSign, Download, Eye } from "lucide-react";
@@ -31,6 +31,7 @@ interface IncomingInvoice {
 
 export const IncomingInvoices = () => {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [invoices, setInvoices] = useState<IncomingInvoice[]>([]);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
@@ -140,6 +141,10 @@ export const IncomingInvoices = () => {
       });
     } finally {
       setIsUploading(false);
+      // Reset file input to allow uploading the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -312,6 +317,7 @@ export const IncomingInvoices = () => {
               ou clique no botão abaixo para selecionar
             </p>
             <input
+              ref={fileInputRef}
               type="file"
               accept=".xml,.pdf"
               onChange={(e) => handleFileUpload(e.target.files)}
