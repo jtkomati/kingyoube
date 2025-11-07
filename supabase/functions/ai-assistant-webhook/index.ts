@@ -101,17 +101,17 @@ serve(async (req) => {
 
     const companyId = profile?.company_id
 
-    // Buscar transações do último ano (baseado em due_date)
-    const oneYearAgo = new Date()
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-    
+    console.log('Company ID:', companyId)
+
+    // Buscar transações da empresa
     const { data: transactions } = await supabase
       .from('transactions')
       .select('*, category:categories(name), customer:customers(company_name, first_name, last_name), supplier:suppliers(company_name, first_name, last_name)')
       .eq('company_id', companyId)
-      .gte('due_date', oneYearAgo.toISOString().split('T')[0])
       .order('due_date', { ascending: false })
-      .limit(200)
+      .limit(500)
+
+    console.log('Transações encontradas:', transactions?.length || 0)
 
     erpContext.transactions = transactions || []
 
@@ -159,7 +159,7 @@ serve(async (req) => {
       erpContext.financialSummary.totalReceitas - erpContext.financialSummary.totalDespesas
 
     // Criar resumo da atividade recente
-    erpContext.recentActivity = `No último ano: ${erpContext.transactions.length} transações, ${erpContext.customers.length} clientes cadastrados, ${erpContext.suppliers.length} fornecedores cadastrados.`
+    erpContext.recentActivity = `Total: ${erpContext.transactions.length} transações, ${erpContext.customers.length} clientes cadastrados, ${erpContext.suppliers.length} fornecedores cadastrados.`
 
     console.log('Contexto do ERP carregado:', {
       transacoes: erpContext.transactions.length,
@@ -172,7 +172,7 @@ serve(async (req) => {
     // Preparar prompt para IA com contexto real
     const systemPrompt = `Você é um assistente financeiro inteligente que ajuda o usuário a entender e gerenciar suas finanças empresariais.
 
-DADOS DO ERP (ÚLTIMO ANO):
+DADOS DO ERP:
 
 Resumo Financeiro Total:
 - Total de Receitas: R$ ${erpContext.financialSummary.totalReceitas.toFixed(2)}
@@ -200,14 +200,17 @@ ${JSON.stringify(erpContext.transactions.map(t => ({
 
 INSTRUÇÕES:
 1. Use APENAS os dados reais fornecidos acima para responder
-2. Quando perguntado sobre meses específicos, filtre as transações pela data_vencimento (due_date)
+2. Quando perguntado sobre meses específicos, filtre as transações pela data_vencimento (due_date) - formato YYYY-MM-DD
 3. Forneça respostas precisas, diretas e baseadas em números reais
-4. Calcule totais por mês somando receitas (tipo: 'RECEIVABLE') e despesas (tipo: 'PAYABLE')
+4. Calcule totais por mês somando receitas (tipo: 'Receita') e despesas (tipo: 'Despesa')
 5. Seja profissional e objetivo
 6. Formate valores monetários como R$ XX.XXX,XX
 7. Use exemplos concretos dos dados quando relevante
-8. Para análise de variação, use a ferramenta show_variance_analysis com cálculos de variação percentual mês a mês
-9. Identifique anomalias quando a variação for maior que 20% (positiva ou negativa)`
+8. Para análise de variação, SEMPRE use a ferramenta show_variance_analysis com:
+   - Cálculos de variação percentual mês a mês
+   - Identificação de anomalias quando a variação for maior que 20% (positiva ou negativa)
+   - Insights explicando as variações
+9. Para visualizações gráficas, use a ferramenta show_chart`
 
     // Chamar Lovable AI com tool calling para gráficos
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
