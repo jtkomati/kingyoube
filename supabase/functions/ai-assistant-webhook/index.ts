@@ -194,28 +194,74 @@ INSTRUÇÕES:
 6. Formate valores monetários como R$ XX.XXX,XX
 7. Use exemplos concretos dos dados quando relevante`
 
-    // Chamar Lovable AI
+    // Chamar Lovable AI com tool calling para gráficos
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
     if (!lovableApiKey) {
       throw new Error('LOVABLE_API_KEY não configurada')
     }
 
     console.log('Chamando Lovable AI...')
+    const aiPayload: any = {
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    }
+
+    // Adicionar tool para retornar gráficos
+    aiPayload.tools = [
+      {
+        type: 'function',
+        function: {
+          name: 'show_chart',
+          description: 'Exibe um gráfico para visualizar dados financeiros. Use quando o usuário pedir faturamento, receitas, despesas ou análises mensais/temporais.',
+          parameters: {
+            type: 'object',
+            properties: {
+              chartType: {
+                type: 'string',
+                enum: ['bar', 'line', 'area'],
+                description: 'Tipo do gráfico'
+              },
+              title: {
+                type: 'string',
+                description: 'Título do gráfico'
+              },
+              data: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: 'Nome da categoria (ex: mês)' },
+                    value: { type: 'number', description: 'Valor numérico' },
+                    label: { type: 'string', description: 'Label formatado (ex: R$ 100.000,00)' }
+                  },
+                  required: ['name', 'value'],
+                  additionalProperties: false
+                }
+              },
+              description: {
+                type: 'string',
+                description: 'Breve descrição/análise dos dados'
+              }
+            },
+            required: ['chartType', 'title', 'data', 'description'],
+            additionalProperties: false
+          }
+        }
+      }
+    ]
+
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
-      })
+      body: JSON.stringify(aiPayload)
     })
 
     if (!aiResponse.ok) {
@@ -249,11 +295,32 @@ INSTRUÇÕES:
     }
 
     const aiData = await aiResponse.json()
-    const aiMessage = aiData.choices?.[0]?.message?.content || 'Não foi possível gerar uma resposta.'
-
+    const choice = aiData.choices?.[0]
+    
+    // Verificar se a IA quer mostrar um gráfico
+    if (choice?.message?.tool_calls?.length > 0) {
+      const toolCall = choice.message.tool_calls[0]
+      if (toolCall.function.name === 'show_chart') {
+        const chartData = JSON.parse(toolCall.function.arguments)
+        console.log('IA retornou dados para gráfico:', chartData)
+        
+        return new Response(JSON.stringify({ 
+          type: 'chart',
+          ...chartData
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+    
+    // Resposta de texto normal
+    const aiMessage = choice?.message?.content || 'Não foi possível gerar uma resposta.'
     console.log('Resposta da IA gerada com sucesso')
 
-    return new Response(JSON.stringify({ response: aiMessage }), {
+    return new Response(JSON.stringify({ 
+      type: 'text',
+      response: aiMessage 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {

@@ -11,10 +11,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface ChartData {
+  name: string;
+  value: number;
+  label?: string;
+}
 
 interface Message {
   role: 'user' | 'assistant';
-  content: string;
+  content?: string;
+  type?: 'text' | 'chart';
+  chartType?: 'bar' | 'line' | 'area';
+  chartTitle?: string;
+  chartDescription?: string;
+  chartData?: ChartData[];
 }
 
 export function AIAssistantDialog() {
@@ -29,7 +54,7 @@ export function AIAssistantDialog() {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }]);
     setIsLoading(true);
 
     try {
@@ -39,10 +64,23 @@ export function AIAssistantDialog() {
 
       if (error) throw error;
 
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: data?.response || 'Resposta recebida com sucesso!' 
-      }]);
+      // Verificar se é um gráfico ou texto
+      if (data?.type === 'chart') {
+        setMessages(prev => [...prev, { 
+          role: 'assistant',
+          type: 'chart',
+          chartType: data.chartType,
+          chartTitle: data.title,
+          chartDescription: data.description,
+          chartData: data.data
+        }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant',
+          type: 'text',
+          content: data?.response || 'Resposta recebida com sucesso!' 
+        }]);
+      }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       toast({
@@ -95,15 +133,65 @@ export function AIAssistantDialog() {
                   key={idx}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  </div>
+                  {msg.role === 'user' ? (
+                    <div className="max-w-[80%] rounded-lg px-4 py-2 bg-primary text-primary-foreground">
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  ) : msg.type === 'chart' ? (
+                    <Card className="w-full">
+                      <CardHeader>
+                        <CardTitle>{msg.chartTitle}</CardTitle>
+                        <CardDescription>{msg.chartDescription}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                          {msg.chartType === 'bar' && (
+                            <BarChart data={msg.chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis />
+                              <Tooltip 
+                                formatter={(value: number) => 
+                                  `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                }
+                              />
+                              <Bar dataKey="value" fill="hsl(var(--primary))" />
+                            </BarChart>
+                          )}
+                          {msg.chartType === 'line' && (
+                            <LineChart data={msg.chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis />
+                              <Tooltip 
+                                formatter={(value: number) => 
+                                  `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                }
+                              />
+                              <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
+                            </LineChart>
+                          )}
+                          {msg.chartType === 'area' && (
+                            <AreaChart data={msg.chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis />
+                              <Tooltip 
+                                formatter={(value: number) => 
+                                  `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                }
+                              />
+                              <Area type="monotone" dataKey="value" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" />
+                            </AreaChart>
+                          )}
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="max-w-[80%] rounded-lg px-4 py-2 bg-secondary">
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  )}
                 </div>
               ))
             )}
