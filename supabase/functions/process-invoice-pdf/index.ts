@@ -11,11 +11,12 @@ const corsHeaders = {
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  const chunkSize = 8192; // Process in chunks to avoid stack overflow
+  const chunkSize = 512; // Smaller chunks to avoid stack overflow
   
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-    binary += String.fromCharCode(...chunk);
+    // Use apply to avoid spread operator issues
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
   }
   
   return btoa(binary);
