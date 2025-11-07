@@ -92,6 +92,15 @@ serve(async (req) => {
       }
     }
 
+    // Buscar company_id do usuário
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single()
+
+    const companyId = profile?.company_id
+
     // Buscar transações do último ano (baseado em due_date)
     const oneYearAgo = new Date()
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
@@ -99,6 +108,7 @@ serve(async (req) => {
     const { data: transactions } = await supabase
       .from('transactions')
       .select('*, category:categories(name), customer:customers(company_name, first_name, last_name), supplier:suppliers(company_name, first_name, last_name)')
+      .eq('company_id', companyId)
       .gte('due_date', oneYearAgo.toISOString().split('T')[0])
       .order('due_date', { ascending: false })
       .limit(200)
@@ -109,6 +119,7 @@ serve(async (req) => {
     const { data: customers } = await supabase
       .from('customers')
       .select('*')
+      .eq('company_id', companyId)
       .limit(50)
 
     erpContext.customers = customers || []
@@ -117,6 +128,7 @@ serve(async (req) => {
     const { data: suppliers } = await supabase
       .from('suppliers')
       .select('*')
+      .eq('company_id', companyId)
       .limit(50)
 
     erpContext.suppliers = suppliers || []
@@ -125,7 +137,8 @@ serve(async (req) => {
     const { data: invoices } = await supabase
       .from('transactions')
       .select('*')
-      .eq('type', 'receita')
+      .eq('company_id', companyId)
+      .eq('type', 'RECEIVABLE')
       .not('invoice_number', 'is', null)
       .order('due_date', { ascending: false })
       .limit(50)
@@ -135,10 +148,10 @@ serve(async (req) => {
     // Calcular resumo financeiro
     erpContext.financialSummary = {
       totalReceitas: erpContext.transactions
-        .filter(t => t.type === 'receita')
+        .filter(t => t.type === 'RECEIVABLE')
         .reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
       totalDespesas: erpContext.transactions
-        .filter(t => t.type === 'despesa')
+        .filter(t => t.type === 'PAYABLE')
         .reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
       saldo: 0
     }
@@ -176,7 +189,7 @@ Notas Fiscais Emitidas: ${erpContext.invoices.length} NF-e
 
 DETALHES DAS TRANSAÇÕES:
 ${JSON.stringify(erpContext.transactions.map(t => ({
-  tipo: t.type,
+  tipo: t.type === 'RECEIVABLE' ? 'Receita' : 'Despesa',
   descricao: t.description,
   valor_liquido: t.net_amount,
   data_vencimento: t.due_date,
@@ -189,10 +202,12 @@ INSTRUÇÕES:
 1. Use APENAS os dados reais fornecidos acima para responder
 2. Quando perguntado sobre meses específicos, filtre as transações pela data_vencimento (due_date)
 3. Forneça respostas precisas, diretas e baseadas em números reais
-4. Calcule totais por mês somando receitas (tipo: 'receita') e despesas (tipo: 'despesa')
+4. Calcule totais por mês somando receitas (tipo: 'RECEIVABLE') e despesas (tipo: 'PAYABLE')
 5. Seja profissional e objetivo
 6. Formate valores monetários como R$ XX.XXX,XX
-7. Use exemplos concretos dos dados quando relevante`
+7. Use exemplos concretos dos dados quando relevante
+8. Para análise de variação, use a ferramenta show_variance_analysis com cálculos de variação percentual mês a mês
+9. Identifique anomalias quando a variação for maior que 20% (positiva ou negativa)`
 
     // Chamar Lovable AI com tool calling para gráficos
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
