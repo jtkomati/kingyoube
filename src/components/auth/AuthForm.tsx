@@ -262,6 +262,26 @@ export function AuthForm() {
                     showStrength
                     className={errors.password ? 'border-destructive' : ''}
                   />
+                  <div className="text-xs space-y-1 text-muted-foreground">
+                    <p className="font-medium">Requisitos de segurança:</p>
+                    <ul className="space-y-0.5 ml-4">
+                      <li className={password.length >= 8 ? 'text-success' : ''}>
+                        • Mínimo 8 caracteres
+                      </li>
+                      <li className={/[A-Z]/.test(password) ? 'text-success' : ''}>
+                        • Pelo menos uma letra maiúscula
+                      </li>
+                      <li className={/[a-z]/.test(password) ? 'text-success' : ''}>
+                        • Pelo menos uma letra minúscula
+                      </li>
+                      <li className={/[0-9]/.test(password) ? 'text-success' : ''}>
+                        • Pelo menos um número
+                      </li>
+                      <li className={/[^A-Za-z0-9]/.test(password) ? 'text-success' : ''}>
+                        • Pelo menos um caractere especial (!@#$%^&*)
+                      </li>
+                    </ul>
+                  </div>
                   {errors.password && (
                     <Alert variant="destructive" className="mt-2">
                       <AlertCircle className="h-4 w-4" />
