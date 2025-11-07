@@ -11,6 +11,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate cron secret for security
+  const cronSecret = req.headers.get('X-Cron-Secret');
+  const expectedSecret = Deno.env.get('CRON_SECRET');
+
+  if (!cronSecret || cronSecret !== expectedSecret) {
+    console.error('Unauthorized access attempt to budget variance monitor');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }), 
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
