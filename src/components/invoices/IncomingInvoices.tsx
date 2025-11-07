@@ -437,6 +437,7 @@ export const IncomingInvoices = () => {
                         }}
                       />
                     </TableHead>
+                    <TableHead className="w-24">Ações</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Nº Nota</TableHead>
                     <TableHead>Data</TableHead>
@@ -451,7 +452,6 @@ export const IncomingInvoices = () => {
                     <TableHead className="text-right">ISS</TableHead>
                     <TableHead className="text-right">INSS</TableHead>
                     <TableHead className="text-right">Valor Líquido</TableHead>
-                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -462,6 +462,26 @@ export const IncomingInvoices = () => {
                           checked={selectedInvoices.has(invoice.id)}
                           onCheckedChange={() => toggleInvoiceSelection(invoice.id)}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedInvoiceForOCR(invoice)}
+                            title="Ver detalhes"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setInvoiceToDelete(invoice)}
+                            title="Excluir nota fiscal"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(invoice.processing_status)}</TableCell>
                       <TableCell className="font-mono text-sm">
@@ -498,24 +518,6 @@ export const IncomingInvoices = () => {
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(invoice.net_amount)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedInvoiceForOCR(invoice)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setInvoiceToDelete(invoice)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
