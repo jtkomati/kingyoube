@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,19 +46,9 @@ serve(async (req) => {
       throw new Error(error.error?.message || 'Falha ao gerar áudio')
     }
 
-    // Converter áudio para base64
+    // Converter áudio para base64 usando módulo nativo do Deno
     const arrayBuffer = await response.arrayBuffer()
-    const uint8Array = new Uint8Array(arrayBuffer)
-    
-    // Processar em chunks para evitar stack overflow
-    let binary = ''
-    const chunkSize = 8192
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length))
-      binary += String.fromCharCode.apply(null, Array.from(chunk))
-    }
-    
-    const base64Audio = btoa(binary)
+    const base64Audio = encode(arrayBuffer)
 
     console.log('Áudio gerado com sucesso, tamanho:', base64Audio.length)
 
