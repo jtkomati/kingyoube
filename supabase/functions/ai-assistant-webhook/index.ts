@@ -211,7 +211,7 @@ INSTRUÇÕES:
       max_tokens: 1000
     }
 
-    // Adicionar tool para retornar gráficos
+    // Adicionar tools para retornar gráficos e análises
     aiPayload.tools = [
       {
         type: 'function',
@@ -249,6 +249,48 @@ INSTRUÇÕES:
               }
             },
             required: ['chartType', 'title', 'data', 'description'],
+            additionalProperties: false
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'show_variance_analysis',
+          description: 'Exibe análise detalhada de variação mês a mês com identificação de discrepâncias. Use quando o usuário pedir análise de variação, comparação entre períodos ou identificação de anomalias.',
+          parameters: {
+            type: 'object',
+            properties: {
+              title: {
+                type: 'string',
+                description: 'Título da análise'
+              },
+              periods: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    period: { type: 'string', description: 'Nome do período (ex: Jan/2025)' },
+                    value: { type: 'number', description: 'Valor do período' },
+                    variance: { type: 'number', description: 'Variação percentual em relação ao período anterior' },
+                    isAnomaly: { type: 'boolean', description: 'Se true, indica discrepância significativa' },
+                    insight: { type: 'string', description: 'Explicação sobre o período' }
+                  },
+                  required: ['period', 'value'],
+                  additionalProperties: false
+                }
+              },
+              summary: {
+                type: 'string',
+                description: 'Resumo executivo da análise'
+              },
+              recommendations: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Lista de recomendações baseadas na análise'
+              }
+            },
+            required: ['title', 'periods', 'summary'],
             additionalProperties: false
           }
         }
@@ -297,9 +339,10 @@ INSTRUÇÕES:
     const aiData = await aiResponse.json()
     const choice = aiData.choices?.[0]
     
-    // Verificar se a IA quer mostrar um gráfico
+    // Verificar se a IA quer mostrar um gráfico ou análise
     if (choice?.message?.tool_calls?.length > 0) {
       const toolCall = choice.message.tool_calls[0]
+      
       if (toolCall.function.name === 'show_chart') {
         const chartData = JSON.parse(toolCall.function.arguments)
         console.log('IA retornou dados para gráfico:', chartData)
@@ -307,6 +350,18 @@ INSTRUÇÕES:
         return new Response(JSON.stringify({ 
           type: 'chart',
           ...chartData
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      
+      if (toolCall.function.name === 'show_variance_analysis') {
+        const analysisData = JSON.parse(toolCall.function.arguments)
+        console.log('IA retornou análise de variação:', analysisData)
+        
+        return new Response(JSON.stringify({ 
+          type: 'variance',
+          ...analysisData
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })

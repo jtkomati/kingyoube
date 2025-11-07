@@ -32,14 +32,26 @@ interface ChartData {
   label?: string;
 }
 
+interface VariancePeriod {
+  period: string;
+  value: number;
+  variance?: number;
+  isAnomaly?: boolean;
+  insight?: string;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content?: string;
-  type?: 'text' | 'chart';
+  type?: 'text' | 'chart' | 'variance';
   chartType?: 'bar' | 'line' | 'area';
   chartTitle?: string;
   chartDescription?: string;
   chartData?: ChartData[];
+  varianceTitle?: string;
+  variancePeriods?: VariancePeriod[];
+  varianceSummary?: string;
+  varianceRecommendations?: string[];
 }
 
 export function AIAssistantDialog() {
@@ -64,7 +76,7 @@ export function AIAssistantDialog() {
 
       if (error) throw error;
 
-      // Verificar se é um gráfico ou texto
+      // Verificar se é um gráfico, análise de variação ou texto
       if (data?.type === 'chart') {
         setMessages(prev => [...prev, { 
           role: 'assistant',
@@ -73,6 +85,15 @@ export function AIAssistantDialog() {
           chartTitle: data.title,
           chartDescription: data.description,
           chartData: data.data
+        }]);
+      } else if (data?.type === 'variance') {
+        setMessages(prev => [...prev, { 
+          role: 'assistant',
+          type: 'variance',
+          varianceTitle: data.title,
+          variancePeriods: data.periods,
+          varianceSummary: data.summary,
+          varianceRecommendations: data.recommendations
         }]);
       } else {
         setMessages(prev => [...prev, { 
@@ -185,6 +206,58 @@ export function AIAssistantDialog() {
                             </AreaChart>
                           )}
                         </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  ) : msg.type === 'variance' ? (
+                    <Card className="w-full">
+                      <CardHeader>
+                        <CardTitle>{msg.varianceTitle}</CardTitle>
+                        <CardDescription>{msg.varianceSummary}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          {msg.variancePeriods?.map((period, idx) => (
+                            <div 
+                              key={idx}
+                              className={`p-3 rounded-lg border ${
+                                period.isAnomaly ? 'border-destructive bg-destructive/10' : 'border-border'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="font-medium">{period.period}</span>
+                                <span className="text-lg font-bold">
+                                  R$ {period.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              {period.variance !== undefined && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className={period.variance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                    {period.variance >= 0 ? '↑' : '↓'} {Math.abs(period.variance).toFixed(1)}%
+                                  </span>
+                                  {period.isAnomaly && (
+                                    <span className="text-destructive font-medium">⚠️ Anomalia detectada</span>
+                                  )}
+                                </div>
+                              )}
+                              {period.insight && (
+                                <p className="text-sm text-muted-foreground mt-2">{period.insight}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {msg.varianceRecommendations && msg.varianceRecommendations.length > 0 && (
+                          <div className="pt-4 border-t">
+                            <h4 className="font-semibold mb-2">Recomendações:</h4>
+                            <ul className="space-y-1 text-sm">
+                              {msg.varianceRecommendations.map((rec, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="text-primary">•</span>
+                                  <span>{rec}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ) : (
