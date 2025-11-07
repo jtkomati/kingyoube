@@ -40,7 +40,7 @@ export function ROIMetricsTab({ cfoPartnerId }: { cfoPartnerId: string }) {
       <div className="space-y-2">
         <h2 className="text-2xl font-bold tracking-tight">Seu Valor Gerado Este Mês</h2>
         <p className="text-muted-foreground">
-          Proof, not Promises - Métricas reais do impacto do FAS.AI
+          Proof, not Promises - Métricas reais do impacto do KingYouBe
         </p>
       </div>
 

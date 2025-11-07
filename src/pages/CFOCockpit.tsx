@@ -398,7 +398,7 @@ export default function CFOCockpit() {
 Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.random() * 8).toFixed(1)}%** no próximo trimestre.
 
 ---
-*Relatório gerado automaticamente pelo FAS.AI em ${new Date().toLocaleDateString('pt-BR')}*
+*Relatório gerado automaticamente pelo KingYouBe em ${new Date().toLocaleDateString('pt-BR')}*
     `.trim();
     
     setGeneratedReport(mockReport);
@@ -485,10 +485,10 @@ Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.rand
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-success" />
-                Valor Gerado pelo FAS.AI
+                Valor Gerado pelo KingYouBe
               </CardTitle>
               <CardDescription>
-                Este mês, o FAS.AI já economizou {roiDashboard.this_month_hours_saved.toFixed(1)} horas do seu tempo
+                Este mês, o KingYouBe já economizou {roiDashboard.this_month_hours_saved.toFixed(1)} horas do seu tempo
               </CardDescription>
             </CardHeader>
             <CardContent>
