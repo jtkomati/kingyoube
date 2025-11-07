@@ -7,6 +7,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to convert ArrayBuffer to base64 safely
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192; // Process in chunks to avoid stack overflow
+  
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  
+  return btoa(binary);
+}
+
 // Helper function to process PDF with Lovable AI
 async function processWithLovableAI(fileData: Blob) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -14,9 +28,9 @@ async function processWithLovableAI(fileData: Blob) {
     throw new Error('LOVABLE_API_KEY não configurada');
   }
 
-  // Convert PDF to base64
+  // Convert PDF to base64 safely
   const arrayBuffer = await fileData.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  const base64 = arrayBufferToBase64(arrayBuffer);
 
   const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -131,10 +145,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Convert PDF to base64
-    const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
     console.log('Processando PDF com OCR externo...');
 
