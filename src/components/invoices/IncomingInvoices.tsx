@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, DollarSign, Download, Eye } from "lucide-react";
+import { FileText, Upload, DollarSign, Download, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface IncomingInvoice {
   id: string;
@@ -38,6 +39,8 @@ export const IncomingInvoices = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingCNAB, setIsGeneratingCNAB] = useState(false);
   const [selectedInvoiceForOCR, setSelectedInvoiceForOCR] = useState<IncomingInvoice | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<IncomingInvoice | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -224,6 +227,62 @@ export const IncomingInvoices = () => {
       newSelection.add(invoiceId);
     }
     setSelectedInvoices(newSelection);
+  };
+
+  const handleDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
+
+    setIsDeleting(true);
+
+    try {
+      // Extract file path from file_url if available
+      const invoice = invoiceToDelete;
+      
+      // Delete from storage if file_url exists
+      if (invoice.file_name) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Try to delete the file from storage
+          const filePath = `${user.id}/${invoice.file_name.split('/').pop()}`;
+          await supabase.storage
+            .from('invoices-pdf')
+            .remove([filePath]);
+        }
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('incoming_invoices')
+        .delete()
+        .eq('id', invoice.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Nota fiscal excluída",
+        description: "A nota fiscal foi removida com sucesso.",
+      });
+
+      // Refresh the list and clear selection
+      await fetchInvoices();
+      setInvoiceToDelete(null);
+      
+      // Remove from selected if it was selected
+      if (selectedInvoices.has(invoice.id)) {
+        const newSelection = new Set(selectedInvoices);
+        newSelection.delete(invoice.id);
+        setSelectedInvoices(newSelection);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir nota fiscal:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: error instanceof Error ? error.message : "Erro ao excluir nota fiscal",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -441,13 +500,22 @@ export const IncomingInvoices = () => {
                         {formatCurrency(invoice.net_amount)}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedInvoiceForOCR(invoice)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedInvoiceForOCR(invoice)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setInvoiceToDelete(invoice)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -533,6 +601,17 @@ export const IncomingInvoices = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmationDialog
+        open={!!invoiceToDelete}
+        onOpenChange={(open) => !open && setInvoiceToDelete(null)}
+        title="Excluir Nota Fiscal"
+        description={`Tem certeza que deseja excluir a nota fiscal ${invoiceToDelete?.invoice_number || 'selecionada'}? Esta ação não pode ser desfeita.`}
+        onConfirm={handleDeleteInvoice}
+        confirmText={isDeleting ? 'Excluindo...' : 'Excluir'}
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 };
