@@ -92,17 +92,16 @@ serve(async (req) => {
       }
     }
 
-    // Buscar transações recentes (últimos 30 dias)
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    // Buscar transações do último ano (baseado em due_date)
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
     
     const { data: transactions } = await supabase
       .from('transactions')
       .select('*, category:categories(name), customer:customers(company_name, first_name, last_name), supplier:suppliers(company_name, first_name, last_name)')
-      .eq('created_by', user.id)
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(50)
+      .gte('due_date', oneYearAgo.toISOString().split('T')[0])
+      .order('due_date', { ascending: false })
+      .limit(200)
 
     erpContext.transactions = transactions || []
 
@@ -110,8 +109,7 @@ serve(async (req) => {
     const { data: customers } = await supabase
       .from('customers')
       .select('*')
-      .eq('created_by', user.id)
-      .limit(20)
+      .limit(50)
 
     erpContext.customers = customers || []
 
@@ -119,8 +117,7 @@ serve(async (req) => {
     const { data: suppliers } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('created_by', user.id)
-      .limit(20)
+      .limit(50)
 
     erpContext.suppliers = suppliers || []
 
@@ -128,11 +125,10 @@ serve(async (req) => {
     const { data: invoices } = await supabase
       .from('transactions')
       .select('*')
-      .eq('created_by', user.id)
       .eq('type', 'receita')
       .not('invoice_number', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(20)
+      .order('due_date', { ascending: false })
+      .limit(50)
 
     erpContext.invoices = invoices || []
 
@@ -150,7 +146,7 @@ serve(async (req) => {
       erpContext.financialSummary.totalReceitas - erpContext.financialSummary.totalDespesas
 
     // Criar resumo da atividade recente
-    erpContext.recentActivity = `Nos últimos 30 dias: ${erpContext.transactions.length} transações, ${erpContext.customers.length} clientes cadastrados, ${erpContext.suppliers.length} fornecedores cadastrados.`
+    erpContext.recentActivity = `No último ano: ${erpContext.transactions.length} transações, ${erpContext.customers.length} clientes cadastrados, ${erpContext.suppliers.length} fornecedores cadastrados.`
 
     console.log('Contexto do ERP carregado:', {
       transacoes: erpContext.transactions.length,
@@ -163,28 +159,40 @@ serve(async (req) => {
     // Preparar prompt para IA com contexto real
     const systemPrompt = `Você é um assistente financeiro inteligente que ajuda o usuário a entender e gerenciar suas finanças empresariais.
 
-DADOS DO ERP (ÚLTIMOS 30 DIAS):
+DADOS DO ERP (ÚLTIMO ANO):
 
-Resumo Financeiro:
+Resumo Financeiro Total:
 - Total de Receitas: R$ ${erpContext.financialSummary.totalReceitas.toFixed(2)}
 - Total de Despesas: R$ ${erpContext.financialSummary.totalDespesas.toFixed(2)}
 - Saldo: R$ ${erpContext.financialSummary.saldo.toFixed(2)}
 
-Atividade Recente:
+Atividade:
 ${erpContext.recentActivity}
 
-Transações Recentes: ${erpContext.transactions.length} transações
+Transações: ${erpContext.transactions.length} transações registradas
 Clientes: ${erpContext.customers.length} clientes cadastrados
 Fornecedores: ${erpContext.suppliers.length} fornecedores cadastrados
 Notas Fiscais Emitidas: ${erpContext.invoices.length} NF-e
 
+DETALHES DAS TRANSAÇÕES:
+${JSON.stringify(erpContext.transactions.map(t => ({
+  tipo: t.type,
+  descricao: t.description,
+  valor_liquido: t.net_amount,
+  data_vencimento: t.due_date,
+  categoria: t.category?.name,
+  cliente: t.customer?.company_name || `${t.customer?.first_name} ${t.customer?.last_name}`,
+  fornecedor: t.supplier?.company_name || `${t.supplier?.first_name} ${t.supplier?.last_name}`
+})), null, 2)}
+
 INSTRUÇÕES:
 1. Use APENAS os dados reais fornecidos acima para responder
-2. Forneça respostas precisas, diretas e baseadas em números reais
-3. Se não houver dados suficientes, indique isso claramente
-4. Seja profissional e objetivo
-5. Formate valores monetários como R$ XX.XXX,XX
-6. Use exemplos concretos dos dados quando relevante`
+2. Quando perguntado sobre meses específicos, filtre as transações pela data_vencimento (due_date)
+3. Forneça respostas precisas, diretas e baseadas em números reais
+4. Calcule totais por mês somando receitas (tipo: 'receita') e despesas (tipo: 'despesa')
+5. Seja profissional e objetivo
+6. Formate valores monetários como R$ XX.XXX,XX
+7. Use exemplos concretos dos dados quando relevante`
 
     // Chamar Lovable AI
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
