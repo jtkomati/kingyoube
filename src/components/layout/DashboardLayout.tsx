@@ -33,7 +33,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="mb-10 flex items-center px-3">
             <Zap className="h-8 w-8 text-primary mr-2 -rotate-12" />
             <span className="text-2xl font-bold text-gradient-primary">
-              FAS AI
+              KingYouBe
             </span>
           </div>
           <ul className="space-y-2 font-medium">

@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
       .replace(/ignore previous/gi, '')
       .slice(0, 500);
 
-    const systemPrompt = `Você é o assistente financeiro FAS AI via WhatsApp. 
+    const systemPrompt = `Você é o assistente financeiro KingYouBe via WhatsApp. 
     
 Você tem acesso aos seguintes dados:
 - Transações: ${JSON.stringify(transactions?.slice(0, 20) || [])}
