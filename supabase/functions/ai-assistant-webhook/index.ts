@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface ERPContext {
+  transactions: any[]
+  customers: any[]
+  suppliers: any[]
+  invoices: any[]
+  recentActivity: string
+  financialSummary: {
+    totalReceitas: number
+    totalDespesas: number
+    saldo: number
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -43,7 +56,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('Chamando webhook do Make.com para usuário:', user.id)
+    console.log('Processando consulta de IA para usuário:', user.id)
 
     // Registrar auditoria
     await supabase.from('audit_logs').insert({
@@ -52,84 +65,176 @@ serve(async (req) => {
       details: `Query: ${message.substring(0, 100)}`,
     })
 
-    // Chamar webhook do Make.com (webhooks públicos - não requerem autenticação)
-    const webhookUrl = 'https://hook.us2.make.com/zjysfc4yoio3kjma1omuqeip0g1z06i5'
+    // Buscar dados reais do ERP
+    console.log('Buscando dados do ERP...')
     
-    console.log('Enviando para Make.com webhook:', {
-      url: webhookUrl,
-      user_id: user.id,
-      message_preview: message.substring(0, 50)
-    })
-
-    const webhookPayload = {
-      user_id: user.id,
-      user_email: user.email,
-      message: message,
-      timestamp: new Date().toISOString(),
+    const erpContext: ERPContext = {
+      transactions: [],
+      customers: [],
+      suppliers: [],
+      invoices: [],
+      recentActivity: '',
+      financialSummary: {
+        totalReceitas: 0,
+        totalDespesas: 0,
+        saldo: 0
+      }
     }
 
-    const makeApiKey = Deno.env.get('MAKE_WEBHOOK_KEY')
+    // Buscar transações recentes (últimos 30 dias)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     
-    console.log('Make API Key configurada:', makeApiKey ? 'SIM' : 'NÃO')
-    
-    const webhookResponse = await fetch(webhookUrl, {
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('*, category:categories(name), customer:customers(company_name, first_name, last_name), supplier:suppliers(company_name, first_name, last_name)')
+      .eq('created_by', user.id)
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    erpContext.transactions = transactions || []
+
+    // Buscar clientes
+    const { data: customers } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('created_by', user.id)
+      .limit(20)
+
+    erpContext.customers = customers || []
+
+    // Buscar fornecedores
+    const { data: suppliers } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('created_by', user.id)
+      .limit(20)
+
+    erpContext.suppliers = suppliers || []
+
+    // Buscar notas fiscais de saída
+    const { data: invoices } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('created_by', user.id)
+      .eq('type', 'receita')
+      .not('invoice_number', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    erpContext.invoices = invoices || []
+
+    // Calcular resumo financeiro
+    erpContext.financialSummary = {
+      totalReceitas: erpContext.transactions
+        .filter(t => t.type === 'receita')
+        .reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
+      totalDespesas: erpContext.transactions
+        .filter(t => t.type === 'despesa')
+        .reduce((sum, t) => sum + Number(t.net_amount || 0), 0),
+      saldo: 0
+    }
+    erpContext.financialSummary.saldo = 
+      erpContext.financialSummary.totalReceitas - erpContext.financialSummary.totalDespesas
+
+    // Criar resumo da atividade recente
+    erpContext.recentActivity = `Nos últimos 30 dias: ${erpContext.transactions.length} transações, ${erpContext.customers.length} clientes cadastrados, ${erpContext.suppliers.length} fornecedores cadastrados.`
+
+    console.log('Contexto do ERP carregado:', {
+      transacoes: erpContext.transactions.length,
+      clientes: erpContext.customers.length,
+      fornecedores: erpContext.suppliers.length,
+      receitas: erpContext.financialSummary.totalReceitas,
+      despesas: erpContext.financialSummary.totalDespesas
+    })
+
+    // Preparar prompt para IA com contexto real
+    const systemPrompt = `Você é um assistente financeiro inteligente que ajuda o usuário a entender e gerenciar suas finanças empresariais.
+
+DADOS DO ERP (ÚLTIMOS 30 DIAS):
+
+Resumo Financeiro:
+- Total de Receitas: R$ ${erpContext.financialSummary.totalReceitas.toFixed(2)}
+- Total de Despesas: R$ ${erpContext.financialSummary.totalDespesas.toFixed(2)}
+- Saldo: R$ ${erpContext.financialSummary.saldo.toFixed(2)}
+
+Atividade Recente:
+${erpContext.recentActivity}
+
+Transações Recentes: ${erpContext.transactions.length} transações
+Clientes: ${erpContext.customers.length} clientes cadastrados
+Fornecedores: ${erpContext.suppliers.length} fornecedores cadastrados
+Notas Fiscais Emitidas: ${erpContext.invoices.length} NF-e
+
+INSTRUÇÕES:
+1. Use APENAS os dados reais fornecidos acima para responder
+2. Forneça respostas precisas, diretas e baseadas em números reais
+3. Se não houver dados suficientes, indique isso claramente
+4. Seja profissional e objetivo
+5. Formate valores monetários como R$ XX.XXX,XX
+6. Use exemplos concretos dos dados quando relevante`
+
+    // Chamar Lovable AI
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY não configurada')
+    }
+
+    console.log('Chamando Lovable AI...')
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'x-make-apikey': makeApiKey || '',
       },
-      body: JSON.stringify(webhookPayload),
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      })
     })
 
-    console.log('Resposta do webhook Make.com:', {
-      status: webhookResponse.status,
-      statusText: webhookResponse.statusText,
-      headers: Object.fromEntries(webhookResponse.headers.entries())
-    })
-
-    // Ler resposta como texto primeiro (só pode ler uma vez)
-    const responseText = await webhookResponse.text()
-    
-    if (!webhookResponse.ok) {
-      console.error('ERRO DETALHADO do webhook:', {
-        status: webhookResponse.status,
-        statusText: webhookResponse.statusText,
-        body: responseText,
-        payload_sent: webhookPayload
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text()
+      console.error('Erro na chamada Lovable AI:', {
+        status: aiResponse.status,
+        body: errorText
       })
       
-      return new Response(
-        JSON.stringify({ 
-          error: 'Erro ao processar requisição no Make.com',
-          details: `Status ${webhookResponse.status}: ${responseText}`,
-          webhook_status: webhookResponse.status
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      )
-    }
-    console.log('Resposta texto do Make.com:', responseText)
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Limite de uso da IA excedido. Por favor, tente novamente em alguns instantes.',
+            response: 'Desculpe, o serviço de IA está temporariamente indisponível devido ao alto volume de requisições. Tente novamente em alguns instantes.'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+      }
+      
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Créditos da IA esgotados. Por favor, adicione créditos no workspace.',
+            response: 'Desculpe, os créditos de IA foram esgotados. Entre em contato com o administrador.'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+      }
 
-    let responseData
-    try {
-      responseData = JSON.parse(responseText)
-      console.log('Resposta JSON parseada:', JSON.stringify(responseData, null, 2))
-    } catch (jsonError) {
-      console.log('Não é JSON válido, usando como texto')
-      responseData = { response: responseText }
-    }
-
-    // Normalizar resposta para sempre ter um campo 'response'
-    const normalizedResponse = {
-      response: responseData?.response || 
-                responseData?.body || 
-                responseData?.message ||
-                (typeof responseData === 'string' ? responseData : JSON.stringify(responseData))
+      throw new Error(`Erro na IA: ${aiResponse.status}`)
     }
 
-    console.log('Resposta normalizada:', normalizedResponse)
+    const aiData = await aiResponse.json()
+    const aiMessage = aiData.choices?.[0]?.message?.content || 'Não foi possível gerar uma resposta.'
 
-    return new Response(JSON.stringify(normalizedResponse), {
+    console.log('Resposta da IA gerada com sucesso')
+
+    return new Response(JSON.stringify({ response: aiMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
