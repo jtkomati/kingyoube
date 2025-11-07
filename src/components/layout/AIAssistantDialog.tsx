@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bot, Send, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Bot, Send, X, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,6 +59,8 @@ export function AIAssistantDialog() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   const handleSend = async () => {
@@ -118,6 +120,68 @@ export function AIAssistantDialog() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const playAudio = async (messageIndex: number, text: string) => {
+    try {
+      // Parar áudio atual se estiver tocando
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      setPlayingAudio(messageIndex);
+
+      // Gerar áudio via edge function
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text }
+      });
+
+      if (error) throw error;
+
+      // Criar URL do áudio a partir do base64
+      const audioBlob = new Blob(
+        [Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))],
+        { type: 'audio/mpeg' }
+      );
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Reproduzir áudio
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setPlayingAudio(null);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível reproduzir o áudio',
+          variant: 'destructive',
+        });
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Erro ao reproduzir áudio:', error);
+      setPlayingAudio(null);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível gerar o áudio',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlayingAudio(null);
     }
   };
 
@@ -210,9 +274,30 @@ export function AIAssistantDialog() {
                     </Card>
                   ) : msg.type === 'variance' ? (
                     <Card className="w-full">
-                      <CardHeader>
-                        <CardTitle>{msg.varianceTitle}</CardTitle>
-                        <CardDescription>{msg.varianceSummary}</CardDescription>
+                      <CardHeader className="flex flex-row items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle>{msg.varianceTitle}</CardTitle>
+                          <CardDescription>{msg.varianceSummary}</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (playingAudio === idx) {
+                              stopAudio();
+                            } else {
+                              const textToSpeak = `${msg.varianceTitle}. ${msg.varianceSummary}`;
+                              playAudio(idx, textToSpeak);
+                            }
+                          }}
+                          disabled={isLoading}
+                        >
+                          {playingAudio === idx ? (
+                            <VolumeX className="h-4 w-4" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
@@ -261,8 +346,27 @@ export function AIAssistantDialog() {
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="max-w-[80%] rounded-lg px-4 py-2 bg-secondary">
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <div className="max-w-[80%] rounded-lg px-4 py-2 bg-secondary flex items-start gap-2">
+                      <p className="whitespace-pre-wrap flex-1">{msg.content}</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 flex-shrink-0"
+                        onClick={() => {
+                          if (playingAudio === idx) {
+                            stopAudio();
+                          } else {
+                            playAudio(idx, msg.content || '');
+                          }
+                        }}
+                        disabled={isLoading}
+                      >
+                        {playingAudio === idx ? (
+                          <VolumeX className="h-4 w-4" />
+                        ) : (
+                          <Volume2 className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   )}
                 </div>

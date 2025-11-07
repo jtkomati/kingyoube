@@ -2,3 +2,6 @@ project_id = "rvyoumuclbrjiaeurriy"
 
 [functions.ai-assistant-webhook]
 verify_jwt = true
+
+[functions.text-to-speech]
+verify_jwt = true
