@@ -103,13 +103,17 @@ serve(async (req) => {
 
     console.log('Company ID:', companyId)
 
-    // Buscar transações da empresa
-    const { data: transactions } = await supabase
+    // Buscar transações da empresa (sem joins para evitar RLS)
+    const { data: transactions, error: txError } = await supabase
       .from('transactions')
-      .select('*, category:categories(name), customer:customers(company_name, first_name, last_name), supplier:suppliers(company_name, first_name, last_name)')
+      .select('*')
       .eq('company_id', companyId)
       .order('due_date', { ascending: false })
       .limit(500)
+
+    if (txError) {
+      console.error('Erro ao buscar transações:', txError)
+    }
 
     console.log('Transações encontradas:', transactions?.length || 0)
 
@@ -192,10 +196,7 @@ ${JSON.stringify(erpContext.transactions.map(t => ({
   tipo: t.type === 'RECEIVABLE' ? 'Receita' : 'Despesa',
   descricao: t.description,
   valor_liquido: t.net_amount,
-  data_vencimento: t.due_date,
-  categoria: t.category?.name,
-  cliente: t.customer?.company_name || `${t.customer?.first_name} ${t.customer?.last_name}`,
-  fornecedor: t.supplier?.company_name || `${t.supplier?.first_name} ${t.supplier?.last_name}`
+  data_vencimento: t.due_date
 })), null, 2)}
 
 INSTRUÇÕES:
