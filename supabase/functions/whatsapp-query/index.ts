@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Query do WhatsApp:', { wa_phone, wa_message })
+    console.log('Processing WhatsApp query')
 
     // 1. Autenticar usuário via telefone
     const { data: profile } = await supabase
@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
       response += `✓ Não identifiquei dias com saldo negativo.`
     }
 
-    console.log('Resposta gerada:', response)
+    console.log('Response generated successfully')
 
     return new Response(JSON.stringify({ response }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

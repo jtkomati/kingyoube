@@ -165,12 +165,10 @@ serve(async (req) => {
     // Criar resumo da atividade recente
     erpContext.recentActivity = `Total: ${erpContext.transactions.length} transações, ${erpContext.customers.length} clientes cadastrados, ${erpContext.suppliers.length} fornecedores cadastrados.`
 
-    console.log('Contexto do ERP carregado:', {
-      transacoes: erpContext.transactions.length,
-      clientes: erpContext.customers.length,
-      fornecedores: erpContext.suppliers.length,
-      receitas: erpContext.financialSummary.totalReceitas,
-      despesas: erpContext.financialSummary.totalDespesas
+    console.log('ERP context loaded:', {
+      transactions: erpContext.transactions.length,
+      customers: erpContext.customers.length,
+      suppliers: erpContext.suppliers.length
     })
 
     // Preparar prompt para IA com contexto real

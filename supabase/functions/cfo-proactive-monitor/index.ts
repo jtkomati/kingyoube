@@ -94,7 +94,7 @@ serve(async (req) => {
           console.error(`  Failed to get vitals for ${client.company_name}:`, vitalsError);
           continue;
         }
-        console.log(`  Vitals:`, vitals);
+        console.log(`  Vitals loaded for ${client.company_name}`);
 
         // Tool 2: Get Uncategorized Count
         const { data: uncategorizedData, error: uncategorizedError } = await supabase.functions.invoke(

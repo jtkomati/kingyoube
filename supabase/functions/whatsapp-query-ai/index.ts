@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Query do WhatsApp com IA:', { wa_phone, wa_message })
+    console.log('Processing WhatsApp AI query')
 
     // 1. Autenticar usuário via telefone
     const { data: profile } = await supabase
@@ -191,7 +191,7 @@ Sempre termine com: "💬 Posso ajudar com algo mais?"`
     const aiData = await aiResponse.json()
     const response = aiData.choices[0].message.content
 
-    console.log('Resposta da IA:', response)
+    console.log('AI response generated')
 
     return new Response(JSON.stringify({ response }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
