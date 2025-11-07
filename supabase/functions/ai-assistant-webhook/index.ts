@@ -58,9 +58,20 @@ serve(async (req) => {
 
     console.log('Processando consulta de IA para usuário:', user.id)
 
+    // Buscar role do usuário
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
+
+    const userRole = userRoles?.role || 'VIEWER'
+
     // Registrar auditoria
     await supabase.from('audit_logs').insert({
       user_id: user.id,
+      user_role: userRole,
       action: 'ai_assistant_query',
       details: `Query: ${message.substring(0, 100)}`,
     })
