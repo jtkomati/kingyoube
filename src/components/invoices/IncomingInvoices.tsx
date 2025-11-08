@@ -119,7 +119,22 @@ export const IncomingInvoices = () => {
           }
         );
 
-        if (processError) throw processError;
+        if (processError) {
+          // Tentar extrair mensagem de erro mais detalhada
+          console.error('Erro ao processar PDF:', processError);
+          
+          // Se houver data com erro, usar ela
+          if (data && typeof data === 'object' && 'error' in data) {
+            throw new Error(data.error);
+          }
+          
+          throw processError;
+        }
+
+        // Verificar se houve erro no sucesso false
+        if (data && typeof data === 'object' && 'success' in data && !data.success) {
+          throw new Error(data.error || 'Erro ao processar nota fiscal');
+        }
 
         toast({
           title: "Sucesso!",
