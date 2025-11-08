@@ -137,9 +137,22 @@ export const IncomingInvoices = () => {
       await fetchInvoices();
     } catch (error) {
       console.error('Erro ao processar arquivo:', error);
+      
+      let errorDescription = "Erro ao processar arquivo";
+      if (error instanceof Error) {
+        errorDescription = error.message;
+        
+        // Adicionar dicas para erros comuns
+        if (error.message.includes('Failed to extract') || error.message.includes('imagem')) {
+          errorDescription += "\n\nDica: Verifique se o PDF está legível e não está corrompido. PDFs escaneados com baixa qualidade podem falhar no processamento.";
+        } else if (error.message.includes('company_id')) {
+          errorDescription += "\n\nPor favor, configure sua empresa nas configurações antes de continuar.";
+        }
+      }
+      
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao processar arquivo",
+        title: "Erro ao processar nota fiscal",
+        description: errorDescription,
         variant: "destructive",
       });
     } finally {

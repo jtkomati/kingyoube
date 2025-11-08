@@ -86,18 +86,32 @@ IMPORTANTE: Retorne APENAS o JSON, sem texto adicional.`
   if (!aiResponse.ok) {
     const errorText = await aiResponse.text();
     console.error('Erro na API Lovable:', aiResponse.status, errorText);
-    throw new Error(`Erro na API de IA: ${aiResponse.status}`);
+    
+    // Tentar parsear o erro para mensagem mais específica
+    try {
+      const errorData = JSON.parse(errorText);
+      const errorMsg = errorData?.error?.message || errorText;
+      throw new Error(`Erro ao processar PDF com IA (${aiResponse.status}): ${errorMsg}. O PDF pode estar corrompido ou em formato não suportado.`);
+    } catch (parseError) {
+      throw new Error(`Erro ao processar PDF com IA (${aiResponse.status}). Verifique se o arquivo é um PDF válido.`);
+    }
   }
 
   const aiData = await aiResponse.json();
-  const extractedText = aiData.choices[0].message.content;
   
+  if (!aiData.choices || !aiData.choices[0] || !aiData.choices[0].message) {
+    console.error('Resposta inesperada da IA:', JSON.stringify(aiData));
+    throw new Error('Resposta inválida da IA. Por favor, tente novamente ou use outro arquivo.');
+  }
+  
+  const extractedText = aiData.choices[0].message.content;
   console.log('Resposta da IA:', extractedText);
 
   // Parse the JSON response
   const jsonMatch = extractedText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error('Não foi possível extrair JSON da resposta da IA');
+    console.error('Não encontrou JSON na resposta:', extractedText);
+    throw new Error('A IA não conseguiu extrair dados estruturados do PDF. Tente outro arquivo ou verifique se é uma nota fiscal válida.');
   }
 
   return JSON.parse(jsonMatch[0]);
@@ -284,8 +298,9 @@ serve(async (req) => {
       console.error('Erro ao fazer parse do JSON:', jsonError);
       console.error('Resposta recebida:', responseText.substring(0, 500));
       
-      // Se não conseguiu extrair dados do webhook, retornar erro
-      throw new Error('Não foi possível processar os dados da nota fiscal. Por favor, tente novamente.');
+      // Se não conseguiu extrair dados do webhook e nem com a IA, retornar erro mais específico
+      const errorMessage = jsonError instanceof Error ? jsonError.message : 'Erro desconhecido ao processar PDF';
+      throw new Error(errorMessage);
     }
 
     // Get user's company_id from profile
