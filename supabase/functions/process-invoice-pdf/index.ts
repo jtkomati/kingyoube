@@ -295,8 +295,9 @@ serve(async (req) => {
       .eq('id', userId)
       .single();
 
-    if (profileError) {
-      console.error('Erro ao buscar perfil do usuário:', profileError);
+    if (profileError || !profile?.company_id) {
+      console.error('Erro ao buscar perfil do usuário ou company_id não encontrado:', profileError);
+      throw new Error('Usuário não está associado a nenhuma empresa. Por favor, configure seu perfil primeiro.');
     }
 
     // Calculate net amount
