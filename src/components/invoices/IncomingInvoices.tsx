@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface IncomingInvoice {
   id: string;
@@ -32,6 +33,7 @@ interface IncomingInvoice {
 
 export const IncomingInvoices = () => {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [invoices, setInvoices] = useState<IncomingInvoice[]>([]);
@@ -387,7 +389,7 @@ export const IncomingInvoices = () => {
         </CardHeader>
         <CardContent>
           <div
-            className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+            className={`border-2 border-dashed rounded-lg p-6 md:p-12 text-center transition-colors ${
               isDragging
                 ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25"
@@ -396,12 +398,12 @@ export const IncomingInvoices = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
           >
-            <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              Arraste arquivos XML ou PDF aqui
+            <Upload className="mx-auto h-8 w-8 md:h-12 md:w-12 text-muted-foreground mb-2 md:mb-4" />
+            <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">
+              {isMobile ? 'Selecione um arquivo' : 'Arraste arquivos XML ou PDF aqui'}
             </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              ou clique no botão abaixo para selecionar
+            <p className="text-xs md:text-sm text-muted-foreground mb-2 md:mb-4">
+              {isMobile ? 'XML ou PDF' : 'ou clique no botão abaixo para selecionar'}
             </p>
             <input
               ref={fileInputRef}
@@ -432,7 +434,7 @@ export const IncomingInvoices = () => {
       {invoices.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <CardTitle>Notas Fiscais Importadas</CardTitle>
                 <CardDescription>
@@ -442,6 +444,7 @@ export const IncomingInvoices = () => {
               <Button 
                 onClick={handleGenerateCNAB}
                 disabled={selectedInvoices.size === 0 || isGeneratingCNAB}
+                className="w-full md:w-auto"
               >
                 <Download className="mr-2 h-4 w-4" />
                 {isGeneratingCNAB ? 'Gerando...' : `Gerar CNAB (${selectedInvoices.size})`}
@@ -449,49 +452,19 @@ export const IncomingInvoices = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedInvoices.size === invoices.length}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedInvoices(new Set(invoices.map(inv => inv.id)));
-                          } else {
-                            setSelectedInvoices(new Set());
-                          }
-                        }}
-                      />
-                    </TableHead>
-                    <TableHead className="w-24">Ações</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Nº Nota</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>CNPJ</TableHead>
-                    <TableHead>Razão Social</TableHead>
-                    <TableHead>Cód. Serviço</TableHead>
-                    <TableHead className="text-right">Valor Bruto</TableHead>
-                    <TableHead className="text-right">IRRF</TableHead>
-                    <TableHead className="text-right">PIS</TableHead>
-                    <TableHead className="text-right">COFINS</TableHead>
-                    <TableHead className="text-right">CSLL</TableHead>
-                    <TableHead className="text-right">ISS</TableHead>
-                    <TableHead className="text-right">INSS</TableHead>
-                    <TableHead className="text-right">Valor Líquido</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedInvoices.has(invoice.id)}
-                          onCheckedChange={() => toggleInvoiceSelection(invoice.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
+            {isMobile ? (
+              <div className="space-y-4">
+                {invoices.map((invoice) => (
+                  <Card key={invoice.id} className="border-2">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={selectedInvoices.has(invoice.id)}
+                            onCheckedChange={() => toggleInvoiceSelection(invoice.id)}
+                          />
+                          {getStatusBadge(invoice.processing_status)}
+                        </div>
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -505,53 +478,147 @@ export const IncomingInvoices = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => setInvoiceToDelete(invoice)}
-                            title="Excluir nota fiscal"
+                            title="Excluir"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(invoice.processing_status)}</TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {invoice.invoice_number || '-'}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {invoice.invoice_date ? formatDate(invoice.invoice_date) : '-'}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {invoice.supplier_cnpj}
-                      </TableCell>
-                      <TableCell>{invoice.supplier_name}</TableCell>
-                      <TableCell>{invoice.service_code || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.gross_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.irrf_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.pis_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.cofins_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.csll_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.iss_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(invoice.inss_amount)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(invoice.net_amount)}
-                      </TableCell>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Nº Nota:</span>
+                          <span className="font-mono font-medium">{invoice.invoice_number || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Data:</span>
+                          <span className="font-mono">{invoice.invoice_date ? formatDate(invoice.invoice_date) : '-'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-muted-foreground">Fornecedor:</span>
+                          <span className="font-medium">{invoice.supplier_name}</span>
+                          <span className="font-mono text-xs">{invoice.supplier_cnpj}</span>
+                        </div>
+                        <div className="border-t pt-2 mt-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Valor Bruto:</span>
+                            <span className="font-semibold">{formatCurrency(invoice.gross_amount)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs mt-1">
+                            <span className="text-muted-foreground">Valor Líquido:</span>
+                            <span className="font-semibold">{formatCurrency(invoice.net_amount)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedInvoices.size === invoices.length}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedInvoices(new Set(invoices.map(inv => inv.id)));
+                            } else {
+                              setSelectedInvoices(new Set());
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      <TableHead className="w-24">Ações</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Nº Nota</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>CNPJ</TableHead>
+                      <TableHead>Razão Social</TableHead>
+                      <TableHead>Cód. Serviço</TableHead>
+                      <TableHead className="text-right">Valor Bruto</TableHead>
+                      <TableHead className="text-right">IRRF</TableHead>
+                      <TableHead className="text-right">PIS</TableHead>
+                      <TableHead className="text-right">COFINS</TableHead>
+                      <TableHead className="text-right">CSLL</TableHead>
+                      <TableHead className="text-right">ISS</TableHead>
+                      <TableHead className="text-right">INSS</TableHead>
+                      <TableHead className="text-right">Valor Líquido</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedInvoices.has(invoice.id)}
+                            onCheckedChange={() => toggleInvoiceSelection(invoice.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedInvoiceForOCR(invoice)}
+                              title="Ver detalhes"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setInvoiceToDelete(invoice)}
+                              title="Excluir nota fiscal"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(invoice.processing_status)}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {invoice.invoice_number || '-'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {invoice.invoice_date ? formatDate(invoice.invoice_date) : '-'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {invoice.supplier_cnpj}
+                        </TableCell>
+                        <TableCell>{invoice.supplier_name}</TableCell>
+                        <TableCell>{invoice.service_code || '-'}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.gross_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.irrf_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.pis_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.cofins_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.csll_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.iss_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.inss_amount)}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(invoice.net_amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -567,7 +634,7 @@ export const IncomingInvoices = () => {
           
           {selectedInvoiceForOCR && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold text-sm text-muted-foreground">Fornecedor</h3>
                   <p className="text-sm">{selectedInvoiceForOCR.supplier_name}</p>
@@ -583,7 +650,7 @@ export const IncomingInvoices = () => {
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-sm text-muted-foreground mb-2">Valores</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   <div className="flex justify-between">
                     <span>Valor Bruto:</span>
                     <span className="font-semibold">{formatCurrency(selectedInvoiceForOCR.gross_amount)}</span>
