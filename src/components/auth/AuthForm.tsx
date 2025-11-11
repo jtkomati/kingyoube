@@ -39,7 +39,18 @@ export function AuthForm() {
     }
     
     setLoading(true);
-    await signIn(validation.data.email, validation.data.password);
+    const success = await signIn(validation.data.email, validation.data.password);
+    
+    // Se o login falhou, pode ser que o usuário não tenha conta
+    if (!success) {
+      toast({
+        variant: 'destructive',
+        title: 'Não foi possível entrar',
+        description: 'Email ou senha incorretos. Se você ainda não tem conta, clique em "Criar Conta" acima.',
+        duration: 6000,
+      });
+    }
+    
     setLoading(false);
   };
 
@@ -139,6 +150,13 @@ export function AuthForm() {
           <TabsContent value="signin">
             <form onSubmit={handleSignIn}>
               <CardContent className="space-y-4">
+                <Alert className="border-primary/20 bg-primary/5">
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    <strong>Já tem uma conta?</strong> Entre com seu email e senha. 
+                    <br />
+                    <strong>Novo por aqui?</strong> Clique em <strong>"Criar Conta"</strong> acima.
+                  </AlertDescription>
+                </Alert>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -198,6 +216,11 @@ export function AuthForm() {
           <TabsContent value="signup">
             <form onSubmit={handleSignUp}>
               <CardContent className="space-y-4">
+                <Alert className="border-success/20 bg-success/5">
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Crie sua conta gratuita e comece a gerenciar suas finanças agora mesmo!
+                  </AlertDescription>
+                </Alert>
                 <div className="space-y-2">
                   <Label htmlFor="fullname">Nome Completo</Label>
                   <Input
