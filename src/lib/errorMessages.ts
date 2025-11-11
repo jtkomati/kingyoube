@@ -24,6 +24,22 @@ const errorMap: Record<string, FriendlyError> = {
     title: 'Conta Já Existe',
     message: 'Este email já está cadastrado. Faça login ou use "Esqueci minha senha" se não lembrar.',
   },
+  'Signup requires a valid password': {
+    title: 'Senha Inválida',
+    message: 'A senha deve ter pelo menos 8 caracteres com letras maiúsculas, minúsculas, números e caracteres especiais.',
+  },
+  'Unable to validate email address': {
+    title: 'Email Inválido',
+    message: 'O formato do email está incorreto. Verifique e tente novamente.',
+  },
+  'Database error saving new user': {
+    title: 'Erro ao Criar Conta',
+    message: 'Não foi possível criar sua conta. Tente novamente em alguns instantes.',
+  },
+  'Failed to create user': {
+    title: 'Erro ao Criar Conta',
+    message: 'Ocorreu um erro ao criar sua conta. Verifique os dados e tente novamente.',
+  },
   'Email not confirmed': {
     title: 'Email Não Confirmado',
     message: 'Verifique sua caixa de entrada e confirme seu email antes de fazer login.',

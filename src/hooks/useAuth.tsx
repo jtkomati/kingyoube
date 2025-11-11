@@ -95,7 +95,7 @@ export function useAuth() {
 
   const signUp = async (email: string, password: string, fullName: string, phoneNumber?: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -107,7 +107,19 @@ export function useAuth() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        });
+        throw error;
+      }
+
+      // Verificar se o usuário foi criado com sucesso
+      if (!data.user) {
+        throw new Error('Failed to create user');
+      }
 
       toast({
         title: 'Conta criada com sucesso!',
@@ -117,10 +129,22 @@ export function useAuth() {
     } catch (error: any) {
       const friendlyError = getFriendlyError(error);
       
+      // Mensagem mais específica baseada no erro
+      let errorDescription = friendlyError.message;
+      
+      if (error?.message?.includes('already registered')) {
+        errorDescription = 'Este email já está em uso. Tente fazer login ou usar outro email.';
+      } else if (error?.message?.includes('password')) {
+        errorDescription = 'A senha não atende aos requisitos de segurança. Use pelo menos 8 caracteres com letras maiúsculas, minúsculas, números e caracteres especiais.';
+      } else if (error?.message?.includes('email')) {
+        errorDescription = 'O email informado é inválido. Verifique e tente novamente.';
+      }
+      
       toast({
         variant: 'destructive',
         title: friendlyError.title,
-        description: friendlyError.message,
+        description: errorDescription,
+        duration: 7000,
       });
       
       // Only log non-sensitive errors
