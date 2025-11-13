@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -32,7 +32,13 @@ const navigation = [
 export function AppSidebar() {
   const { signOut, userRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { open } = useSidebar();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -81,7 +87,7 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             className="w-full justify-start"
-            onClick={signOut}
+            onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
             <span className="ml-2">Sair</span>
