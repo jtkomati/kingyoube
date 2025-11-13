@@ -340,6 +340,36 @@ export type Database = {
           },
         ]
       }
+      ai_feedback: {
+        Row: {
+          created_at: string
+          feedback_tags: string[] | null
+          feedback_type: string
+          id: string
+          message_content: string
+          message_index: number
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          feedback_tags?: string[] | null
+          feedback_type: string
+          id?: string
+          message_content: string
+          message_index: number
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          feedback_tags?: string[] | null
+          feedback_type?: string
+          id?: string
+          message_content?: string
+          message_index?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_feedback_corrections: {
         Row: {
           alert_id: string | null

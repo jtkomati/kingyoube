@@ -40,12 +40,24 @@ export function MessageFeedback({ messageIndex, messageContent }: MessageFeedbac
 
   const saveFeedback = async (type: 'up' | 'down', tags: string[]) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: 'Erro',
+          description: 'Você precisa estar autenticado para enviar feedback',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Salvar no banco de dados para RLHF
       const { error } = await supabase.from('ai_feedback').insert({
         message_index: messageIndex,
         message_content: messageContent,
         feedback_type: type,
         feedback_tags: tags,
+        user_id: user.id,
       });
 
       if (error) throw error;
