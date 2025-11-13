@@ -158,14 +158,29 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Use scope 'local' to ensure localStorage is cleared
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      
+      // Clear local state regardless of server response
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      
+      // Only show error if it's not a "session not found" error
+      if (error && !error.message?.includes('session')) {
+        throw error;
+      }
 
       toast({
         title: 'Até logo!',
         description: 'Você foi desconectado.',
       });
     } catch (error: any) {
+      // Even if there's an error, ensure local state is cleared
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      
       const friendlyError = getFriendlyError(error);
       
       toast({
