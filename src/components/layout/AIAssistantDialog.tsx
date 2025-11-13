@@ -25,6 +25,11 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRotatingPlaceholder } from '@/components/chat/useRotatingPlaceholder';
+import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
+import { MessageFeedback } from '@/components/chat/MessageFeedback';
+import { detectAndRenderEntities } from '@/components/chat/SmartCopy';
+import { VoiceInput } from '@/components/chat/VoiceInput';
 
 interface ChartData {
   name: string;
@@ -62,6 +67,7 @@ export function AIAssistantDialog() {
   const [playingAudio, setPlayingAudio] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const placeholder = useRotatingPlaceholder('general');
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -345,30 +351,35 @@ export function AIAssistantDialog() {
                         )}
                       </CardContent>
                     </Card>
-                  ) : (
-                    <div className="max-w-[80%] rounded-lg px-4 py-2 bg-secondary flex items-start gap-2">
-                      <p className="whitespace-pre-wrap flex-1">{msg.content}</p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 flex-shrink-0"
-                        onClick={() => {
-                          if (playingAudio === idx) {
-                            stopAudio();
-                          } else {
-                            playAudio(idx, msg.content || '');
-                          }
-                        }}
-                        disabled={isLoading}
-                      >
-                        {playingAudio === idx ? (
-                          <VolumeX className="h-4 w-4" />
-                        ) : (
-                          <Volume2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                   ) : (
+                    <div className="max-w-[80%] space-y-2">
+                      <div className="rounded-lg px-4 py-2 bg-secondary flex items-start gap-2">
+                        <div className="whitespace-pre-wrap flex-1">
+                          {detectAndRenderEntities(msg.content || '')}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 flex-shrink-0"
+                          onClick={() => {
+                            if (playingAudio === idx) {
+                              stopAudio();
+                            } else {
+                              playAudio(idx, msg.content || '');
+                            }
+                          }}
+                          disabled={isLoading}
+                        >
+                          {playingAudio === idx ? (
+                            <VolumeX className="h-4 w-4" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <MessageFeedback messageIndex={idx} messageContent={msg.content || ''} />
                     </div>
-                  )}
+                   )}
                 </div>
               ))
             )}
@@ -381,23 +392,38 @@ export function AIAssistantDialog() {
             )}
           </div>
 
-          <div className="flex gap-2 pt-4 border-t">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Digite sua pergunta..."
-              className="min-h-[60px]"
-              disabled={isLoading}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-              size="icon"
-              className="h-[60px] w-[60px]"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
+          <div className="pt-4 border-t space-y-3">
+            {messages.length === 0 && (
+              <QuickPromptChips 
+                onSelect={(prompt) => {
+                  setInput(prompt);
+                }} 
+                role="general"
+              />
+            )}
+            <div className="flex gap-2">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={placeholder}
+                className="min-h-[60px]"
+                disabled={isLoading}
+              />
+              <VoiceInput
+                onTranscript={(text) => {
+                  setInput(text);
+                }}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                size="icon"
+                className="h-[60px] w-[60px]"
+              >
+                <Send className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
