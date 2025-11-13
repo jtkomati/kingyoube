@@ -157,40 +157,26 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    // IMMEDIATELY clear all local state first
+    setSession(null);
+    setUser(null);
+    setUserRole(null);
+    setLoading(false);
+    
+    // Then call Supabase to clear server session
     try {
-      // signOut will trigger onAuthStateChange which will clear the states
       await supabase.auth.signOut();
-
-      toast({
-        title: 'Até logo!',
-        description: 'Você foi desconectado.',
-      });
     } catch (error: any) {
-      // Force clear states on error
-      setSession(null);
-      setUser(null);
-      setUserRole(null);
-      
-      const friendlyError = getFriendlyError(error);
-      
-      // Don't show error for "session not found" - it means logout succeeded
-      if (!error?.message?.includes('session')) {
-        toast({
-          variant: 'destructive',
-          title: friendlyError.title,
-          description: friendlyError.message,
-        });
-      } else {
-        toast({
-          title: 'Até logo!',
-          description: 'Você foi desconectado.',
-        });
-      }
-      
+      // Ignore errors - we already cleared local state
       if (shouldLogError(error) && !error?.message?.includes('session')) {
         console.error('Sign out error:', error);
       }
     }
+    
+    toast({
+      title: 'Até logo!',
+      description: 'Você foi desconectado.',
+    });
   };
 
   const hasPermission = (requiredRole: string): boolean => {
