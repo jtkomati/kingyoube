@@ -436,6 +436,56 @@ export function AIAssistantDialog() {
               <VoiceInput
                 onTranscript={(text) => {
                   setInput(text);
+                  // Envia automaticamente após transcrição
+                  setTimeout(() => {
+                    const userMessage = text.trim();
+                    if (!userMessage) return;
+                    
+                    setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }]);
+                    setInput('');
+                    setIsLoading(true);
+
+                    supabase.functions.invoke('ai-assistant-webhook', {
+                      body: { message: userMessage }
+                    }).then(({ data, error }) => {
+                      if (error) throw error;
+
+                      if (data?.type === 'chart') {
+                        setMessages(prev => [...prev, { 
+                          role: 'assistant',
+                          type: 'chart',
+                          chartType: data.chartType,
+                          chartTitle: data.title,
+                          chartDescription: data.description,
+                          chartData: data.data
+                        }]);
+                      } else if (data?.type === 'variance') {
+                        setMessages(prev => [...prev, { 
+                          role: 'assistant',
+                          type: 'variance',
+                          varianceTitle: data.title,
+                          variancePeriods: data.periods,
+                          varianceSummary: data.summary,
+                          varianceRecommendations: data.recommendations
+                        }]);
+                      } else {
+                        setMessages(prev => [...prev, { 
+                          role: 'assistant',
+                          type: 'text',
+                          content: data?.response || 'Resposta recebida com sucesso!' 
+                        }]);
+                      }
+                    }).catch((error) => {
+                      console.error('Erro ao enviar mensagem:', error);
+                      toast({
+                        title: 'Erro',
+                        description: 'Não foi possível processar sua mensagem',
+                        variant: 'destructive',
+                      });
+                    }).finally(() => {
+                      setIsLoading(false);
+                    });
+                  }, 100);
                 }}
               />
               <Button
