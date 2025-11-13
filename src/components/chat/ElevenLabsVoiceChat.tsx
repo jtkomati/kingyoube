@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useConversation } from '@11labs/react';
-import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { VoiceVisualizer } from './VoiceVisualizer';
 
 interface ElevenLabsVoiceChatProps {
   agentId: string;
@@ -107,37 +108,46 @@ export function ElevenLabsVoiceChat({ agentId, onTranscript }: ElevenLabsVoiceCh
   const isSpeaking = conversation.isSpeaking;
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        variant={isConnected ? 'destructive' : 'default'}
-        size="icon"
-        onClick={toggleConversation}
-        disabled={isConnecting}
-        className="h-[60px] w-[60px]"
-        title={isConnected ? 'Encerrar conversa' : 'Iniciar conversa por voz'}
-      >
-        {isConnected ? (
-          <MicOff className="h-5 w-5" />
-        ) : (
-          <Mic className="h-5 w-5" />
-        )}
-      </Button>
-
+    <div className="flex flex-col items-center gap-6 w-full">
+      {/* Visualizador de voz estilo "Her" */}
       {isConnected && (
-        <div className="flex items-center gap-2 text-sm">
-          {isSpeaking ? (
-            <>
-              <Volume2 className="h-4 w-4 animate-pulse text-primary" />
-              <span className="text-muted-foreground">Falando...</span>
-            </>
-          ) : (
-            <>
-              <Mic className="h-4 w-4 text-green-500" />
-              <span className="text-muted-foreground">Escutando...</span>
-            </>
-          )}
+        <div className="w-full max-w-2xl">
+          <VoiceVisualizer isActive={isConnected} isSpeaking={isSpeaking} />
         </div>
       )}
+
+      {/* Botão central grande */}
+      <div className="relative flex flex-col items-center gap-4">
+        <Button
+          variant={isConnected ? 'destructive' : 'default'}
+          size="icon"
+          onClick={toggleConversation}
+          disabled={isConnecting}
+          className={`h-24 w-24 rounded-full transition-all duration-300 ${
+            isConnected && isSpeaking 
+              ? 'scale-110 shadow-lg shadow-red-500/50' 
+              : isConnected 
+                ? 'scale-105' 
+                : ''
+          }`}
+          title={isConnected ? 'Encerrar conversa' : 'Iniciar conversa por voz'}
+        >
+          <Mic className={`h-10 w-10 ${isSpeaking ? 'animate-pulse' : ''}`} />
+        </Button>
+
+        {/* Status text */}
+        <div className="text-center">
+          {isConnecting ? (
+            <p className="text-sm text-muted-foreground animate-pulse">Conectando...</p>
+          ) : isConnected ? (
+            <p className="text-sm text-muted-foreground">
+              {isSpeaking ? 'Falando...' : 'Escutando...'}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Clique para conversar</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

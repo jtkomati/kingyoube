@@ -309,6 +309,16 @@ export function AIAssistantDialog() {
                 role="general"
               />
             )}
+            
+            {/* Interface de voz estilo "Her" */}
+            <div className="flex flex-col items-center gap-4 py-4">
+              <ElevenLabsVoiceChat 
+                agentId={ELEVENLABS_AGENT_ID}
+                onTranscript={handleVoiceTranscript}
+              />
+            </div>
+
+            {/* Input de texto alternativo */}
             <div className="flex gap-2">
               <Textarea
                 value={input}
@@ -317,10 +327,6 @@ export function AIAssistantDialog() {
                 placeholder={placeholder}
                 className="min-h-[60px]"
                 disabled={isLoading}
-              />
-              <ElevenLabsVoiceChat 
-                agentId={ELEVENLABS_AGENT_ID}
-                onTranscript={handleVoiceTranscript}
               />
               <Button
                 onClick={handleSend}
