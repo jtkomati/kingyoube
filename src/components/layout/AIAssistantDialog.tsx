@@ -131,6 +131,8 @@ export function AIAssistantDialog() {
 
   const playAudio = async (messageIndex: number, text: string) => {
     try {
+      console.log('🎵 Iniciando reprodução de áudio para mensagem:', messageIndex);
+      
       // Parar áudio atual se estiver tocando
       if (audioRef.current) {
         audioRef.current.pause();
@@ -139,12 +141,24 @@ export function AIAssistantDialog() {
 
       setPlayingAudio(messageIndex);
 
+      console.log('🎵 Chamando edge function text-to-speech...');
+      
       // Gerar áudio via edge function
       const { data, error } = await supabase.functions.invoke('text-to-speech', {
         body: { text }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('🎵 Erro da edge function:', error);
+        throw error;
+      }
+
+      if (!data?.audioContent) {
+        console.error('🎵 Resposta sem audioContent:', data);
+        throw new Error('Resposta da API sem conteúdo de áudio');
+      }
+
+      console.log('🎵 Áudio recebido, criando blob...');
 
       // Criar URL do áudio a partir do base64
       const audioBlob = new Blob(
@@ -153,16 +167,20 @@ export function AIAssistantDialog() {
       );
       const audioUrl = URL.createObjectURL(audioBlob);
 
+      console.log('🎵 Reproduzindo áudio...');
+
       // Reproduzir áudio
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
       audio.onended = () => {
+        console.log('🎵 Áudio finalizado');
         setPlayingAudio(null);
         URL.revokeObjectURL(audioUrl);
       };
 
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error('🎵 Erro ao reproduzir áudio:', e);
         setPlayingAudio(null);
         toast({
           title: 'Erro',
@@ -172,13 +190,18 @@ export function AIAssistantDialog() {
       };
 
       await audio.play();
+      console.log('🎵 Áudio iniciado com sucesso');
     } catch (error) {
-      console.error('Erro ao reproduzir áudio:', error);
+      console.error('🎵 Erro geral ao reproduzir áudio:', error);
       setPlayingAudio(null);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
       toast({
-        title: 'Erro',
-        description: 'Não foi possível gerar o áudio',
+        title: 'Erro ao gerar áudio',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 5000,
       });
     }
   };

@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,13 +41,21 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error?.message || 'Falha ao gerar áudio')
+      const errorText = await response.text()
+      console.error('Erro da OpenAI API:', errorText)
+      throw new Error('Falha ao gerar áudio: ' + errorText)
     }
 
-    // Converter áudio para base64 usando módulo nativo do Deno
+    // Converter áudio para base64
     const arrayBuffer = await response.arrayBuffer()
-    const base64Audio = encode(arrayBuffer)
+    const bytes = new Uint8Array(arrayBuffer)
+    
+    // Converter para base64 usando btoa nativo
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64Audio = btoa(binary);
 
     console.log('Áudio gerado com sucesso, tamanho:', base64Audio.length)
 
@@ -60,8 +67,9 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Erro ao gerar áudio:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
