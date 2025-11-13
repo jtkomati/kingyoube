@@ -1,86 +1,29 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from './AppSidebar';
 import { AIAssistantDialog } from './AIAssistantDialog';
+import { Separator } from '@/components/ui/separator';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { signOut, userRole, hasPermission } = useAuth();
-  const location = useLocation();
-
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
-    { name: 'Transações', href: '/transactions', icon: FileText },
-    { name: 'Notas Fiscais', href: '/invoices', icon: Receipt },
-    { name: 'Fluxo de Caixa', href: '/cash-flow', icon: TrendingUp },
-    { name: 'Clientes', href: '/customers', icon: Users },
-    { name: 'Fornecedores', href: '/suppliers', icon: Users },
-    { name: 'Relatórios', href: '/reports', icon: BarChart3 },
-    { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
-    { name: 'Conciliação', href: '/reconciliation', icon: GitCompare },
-  ];
-
   return (
-    <div className="min-h-screen bg-background">
-      <aside className="fixed top-0 left-0 z-40 w-64 h-screen border-r border-border bg-card">
-        <div className="h-full px-3 py-4 overflow-y-auto">
-          <div className="mb-10 flex items-center px-3">
-            <Zap className="h-8 w-8 text-primary mr-2 -rotate-12" />
-            <span className="text-2xl font-bold text-gradient-primary">
-              KingYouBe
-            </span>
-          </div>
-          <ul className="space-y-2 font-medium">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-
-              return (
-                <li key={item.name}>
-                  <Link
-                    to={item.href}
-                    className={`flex items-center p-2 rounded-lg group transition-colors ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-foreground hover:bg-secondary'
-                    }`}
-                  >
-                    <item.icon className={`w-5 h-5 transition duration-75 ${
-                      isActive ? '' : 'text-muted-foreground group-hover:text-foreground'
-                    }`} />
-                    <span className="ml-3">{item.name}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="absolute bottom-4 left-0 w-full px-3">
-            <div className="px-3 py-2 mb-2 rounded-lg bg-secondary">
-              <p className="text-xs text-muted-foreground">Permissão</p>
-              <p className="text-sm font-medium">{userRole}</p>
-            </div>
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={signOut}
-            >
-              <LogOut className="w-5 h-5 mr-3" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </aside>
-
-      <div className="ml-64">
-        <main className="p-8">{children}</main>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        <SidebarInset className="flex-1">
+          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-6" />
+          </header>
+          <main className="p-4 md:p-6 lg:p-8">
+            {children}
+          </main>
+        </SidebarInset>
+        <AIAssistantDialog />
       </div>
-      
-      <AIAssistantDialog />
-    </div>
+    </SidebarProvider>
   );
 }

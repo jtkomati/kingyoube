@@ -89,21 +89,22 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
   };
 
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Cliente/Fornecedor</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead className="text-right">Valor Bruto</TableHead>
-            <TableHead className="text-right">Valor Líquido</TableHead>
-            <TableHead>NF</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[100px]">Data</TableHead>
+              <TableHead className="min-w-[80px]">Tipo</TableHead>
+              <TableHead className="min-w-[150px]">Descrição</TableHead>
+              <TableHead className="min-w-[150px]">Cliente/Fornecedor</TableHead>
+              <TableHead className="min-w-[120px]">Categoria</TableHead>
+              <TableHead className="text-right min-w-[100px]">Valor Bruto</TableHead>
+              <TableHead className="text-right min-w-[100px]">Valor Líquido</TableHead>
+              <TableHead className="min-w-[100px]">NF</TableHead>
+              <TableHead className="text-right min-w-[100px]">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
         <TableBody>
           {transactions?.map((transaction) => (
             <TableRow key={transaction.id}>
@@ -165,7 +166,8 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
             </TableRow>
           )}
         </TableBody>
-      </Table>
+        </Table>
+      </div>
     </div>
   );
 };
