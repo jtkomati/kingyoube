@@ -67,8 +67,8 @@ export function AIAssistantDialog() {
   const { toast } = useToast();
   const placeholder = useRotatingPlaceholder('general');
 
-  // Agent ID do ElevenLabs - substitua pelo seu Agent ID
-  const ELEVENLABS_AGENT_ID = "YOUR_AGENT_ID_HERE";
+  // Agent ID do ElevenLabs
+  const ELEVENLABS_AGENT_ID = "agent_5601k9xdtss3edwta7htzjq1gv70";
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
