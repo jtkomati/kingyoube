@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { VoiceVisualizer } from './VoiceVisualizer';
+import { useERPData } from '@/hooks/useERPData';
 
 interface ElevenLabsVoiceChatProps {
   agentId: string;
@@ -14,8 +15,41 @@ interface ElevenLabsVoiceChatProps {
 export function ElevenLabsVoiceChat({ agentId, onTranscript }: ElevenLabsVoiceChatProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
+  const erpData = useERPData();
 
   const conversation = useConversation({
+    clientTools: {
+      get_transactions_summary: async () => {
+        console.log('🎙️ Buscando resumo de transações...');
+        const result = await erpData.getTransactionsSummary();
+        console.log('🎙️ Resultado:', result);
+        return result;
+      },
+      get_recent_transactions: async (parameters: { limit?: number }) => {
+        console.log('🎙️ Buscando transações recentes...');
+        const result = await erpData.getRecentTransactions(parameters.limit || 5);
+        console.log('🎙️ Resultado:', result);
+        return result;
+      },
+      get_customers: async () => {
+        console.log('🎙️ Buscando clientes...');
+        const result = await erpData.getCustomers();
+        console.log('🎙️ Resultado:', result);
+        return result;
+      },
+      get_suppliers: async () => {
+        console.log('🎙️ Buscando fornecedores...');
+        const result = await erpData.getSuppliers();
+        console.log('🎙️ Resultado:', result);
+        return result;
+      },
+      get_cash_flow_summary: async () => {
+        console.log('🎙️ Buscando resumo de fluxo de caixa...');
+        const result = await erpData.getCashFlowSummary();
+        console.log('🎙️ Resultado:', result);
+        return result;
+      },
+    },
     onConnect: () => {
       console.log('🎙️ Conectado ao agente ElevenLabs');
       toast({
