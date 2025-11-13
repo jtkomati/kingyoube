@@ -17,13 +17,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
     { name: 'Transações', href: '/transactions', icon: FileText },
-    { name: 'Notas Fiscais', href: '/invoices', icon: Receipt, permission: 'FISCAL' },
+    { name: 'Notas Fiscais', href: '/invoices', icon: Receipt },
     { name: 'Fluxo de Caixa', href: '/cash-flow', icon: TrendingUp },
     { name: 'Clientes', href: '/customers', icon: Users },
-    { name: 'Fornecedores', href: '/suppliers', icon: Users, permission: 'FINANCEIRO' },
+    { name: 'Fornecedores', href: '/suppliers', icon: Users },
     { name: 'Relatórios', href: '/reports', icon: BarChart3 },
-    { name: 'Integrações', href: '/bank-integrations', icon: Link2, permission: 'ADMIN' },
-    { name: 'Conciliação', href: '/reconciliation', icon: GitCompare, permission: 'FINANCEIRO' },
+    { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
+    { name: 'Conciliação', href: '/reconciliation', icon: GitCompare },
   ];
 
   return (
@@ -39,9 +39,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <ul className="space-y-2 font-medium">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
-              const canView = !item.permission || hasPermission(item.permission);
-              
-              if (!canView) return null;
 
               return (
                 <li key={item.name}>
