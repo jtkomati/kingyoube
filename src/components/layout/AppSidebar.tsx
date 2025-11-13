@@ -81,11 +81,10 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             className="w-full justify-start"
-            size={open ? "default" : "icon"}
             onClick={signOut}
           >
             <LogOut className="h-4 w-4" />
-            {open && <span className="ml-2">Sair</span>}
+            <span className="ml-2">Sair</span>
           </Button>
         </div>
       </SidebarFooter>
