@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, CheckCircle2 } from "lucide-react";
-import { BradescoConsentModal } from "./BradescoConsentModal";
+import { PluggyConnectButton } from "./PluggyConnectButton";
+import { AccountBalanceCard } from "./AccountBalanceCard";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BankConnectionHubProps {
   connectedBanks: string[];
@@ -55,20 +57,63 @@ const availableBanks = [
 ];
 
 export function BankConnectionHub({ connectedBanks, onBankConnected }: BankConnectionHubProps) {
-  const [selectedBank, setSelectedBank] = useState<string | null>(null);
+  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
 
   const isConnected = (bankId: string) => connectedBanks.includes(bankId);
 
+  // Load connected accounts from Supabase
+  useEffect(() => {
+    loadConnectedAccounts();
+  }, []);
+
+  const loadConnectedAccounts = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('bank_accounts')
+      .select('*')
+      .eq('open_finance_status', 'connected');
+
+    if (!error && data) {
+      setConnectedAccounts(data);
+    }
+  };
+
+  const handleConnectionSuccess = (itemId: string) => {
+    onBankConnected("bradesco");
+    loadConnectedAccounts();
+  };
+
   return (
     <>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* Connected Accounts Display */}
+      {connectedAccounts.length > 0 && (
+        <div className="mb-6 space-y-4">
+          <h2 className="text-xl font-semibold">Contas Conectadas</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {connectedAccounts.map((account) => (
+              <AccountBalanceCard
+                key={account.id}
+                bankName={account.bank_name}
+                accountType="Conta Corrente PJ"
+                balance={15450.00}
+                lastUpdate="Atualizado há 2 min"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Bancos Disponíveis</h2>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {availableBanks.map((bank) => (
           <Card 
             key={bank.id}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
+            className={`transition-all hover:shadow-lg ${
               bank.featured ? 'md:col-span-2 lg:col-span-3' : ''
             } ${isConnected(bank.id) ? 'border-green-500 border-2' : ''}`}
-            onClick={() => !isConnected(bank.id) && setSelectedBank(bank.id)}
           >
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -94,38 +139,34 @@ export function BankConnectionHub({ connectedBanks, onBankConnected }: BankConne
                 )}
               </div>
             </CardHeader>
-            {bank.featured && (
+            {bank.featured && !isConnected(bank.id) && (
               <CardContent>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    Saldos em tempo real
+                <div className="grid gap-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      Saldos em tempo real
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      Extratos automáticos
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      Conciliação inteligente
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    Extratos automáticos
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    Conciliação inteligente
-                  </div>
+                  <PluggyConnectButton 
+                    bankId={bank.id}
+                    onSuccess={handleConnectionSuccess}
+                  />
                 </div>
               </CardContent>
             )}
           </Card>
         ))}
+        </div>
       </div>
-
-      {selectedBank === "bradesco" && (
-        <BradescoConsentModal
-          open={true}
-          onClose={() => setSelectedBank(null)}
-          onSuccess={() => {
-            onBankConnected("bradesco");
-            setSelectedBank(null);
-          }}
-        />
-      )}
     </>
   );
 }
