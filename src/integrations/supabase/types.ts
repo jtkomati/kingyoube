@@ -1074,6 +1074,50 @@ export type Database = {
           },
         ]
       }
+      config_fiscal: {
+        Row: {
+          api_status: string | null
+          client_id: string
+          client_secret: string
+          company_id: string | null
+          created_at: string
+          id: string
+          last_connection_test: string | null
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          api_status?: string | null
+          client_id: string
+          client_secret: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          last_connection_test?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          api_status?: string | null
+          client_id?: string
+          client_secret?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          last_connection_test?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_fiscal_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_clauses: {
         Row: {
           ai_explanation: string
@@ -1619,6 +1663,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sci_integrations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes_apuracao: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          periodo_apuracao: string
+          resultado_url: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          periodo_apuracao: string
+          resultado_url?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          periodo_apuracao?: string
+          resultado_url?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_apuracao_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company_settings"
