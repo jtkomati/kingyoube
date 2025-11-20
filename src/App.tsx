@@ -16,6 +16,7 @@ import Reconciliation from "./pages/Reconciliation";
 import Invoices from "./pages/Invoices";
 import ResetPassword from "./pages/ResetPassword";
 import CFOCockpit from "./pages/CFOCockpit";
+import ReformaTributaria from "./pages/ReformaTributaria";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -127,6 +128,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Invoices />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reforma-tributaria"
+              element={
+                <ProtectedRoute>
+                  <ReformaTributaria />
                 </ProtectedRoute>
               }
             />

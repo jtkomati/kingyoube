@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt, Calculator } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
@@ -27,6 +27,7 @@ const navigation = [
   { name: 'Relatórios', href: '/reports', icon: BarChart3 },
   { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
   { name: 'Conciliação', href: '/reconciliation', icon: GitCompare },
+  { name: 'Reforma Tributária', href: '/reforma-tributaria', icon: Calculator },
 ];
 
 export function AppSidebar() {
