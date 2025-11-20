@@ -479,9 +479,13 @@ export type Database = {
           client_id: string | null
           client_secret: string | null
           company_id: string | null
+          consent_expires_at: string | null
           created_at: string
           id: string
           last_sync_at: string | null
+          open_finance_consent_id: string | null
+          open_finance_status: string | null
+          permissions_granted: string[] | null
           refresh_token: string | null
           token_expires_at: string | null
           updated_at: string
@@ -498,9 +502,13 @@ export type Database = {
           client_id?: string | null
           client_secret?: string | null
           company_id?: string | null
+          consent_expires_at?: string | null
           created_at?: string
           id?: string
           last_sync_at?: string | null
+          open_finance_consent_id?: string | null
+          open_finance_status?: string | null
+          permissions_granted?: string[] | null
           refresh_token?: string | null
           token_expires_at?: string | null
           updated_at?: string
@@ -517,9 +525,13 @@ export type Database = {
           client_id?: string | null
           client_secret?: string | null
           company_id?: string | null
+          consent_expires_at?: string | null
           created_at?: string
           id?: string
           last_sync_at?: string | null
+          open_finance_consent_id?: string | null
+          open_finance_status?: string | null
+          permissions_granted?: string[] | null
           refresh_token?: string | null
           token_expires_at?: string | null
           updated_at?: string
@@ -1425,6 +1437,59 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      open_finance_transactions: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          status: string | null
+          transaction_date: string
+          transaction_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          transaction_date: string
+          transaction_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          transaction_date?: string
+          transaction_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "open_finance_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
         ]
