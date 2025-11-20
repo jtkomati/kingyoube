@@ -33,15 +33,33 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
 
   // Load Pluggy script
   useEffect(() => {
+    console.log('PluggyConnectButton: Checking if Pluggy is already loaded...');
+    
     if (window.PluggyConnect) {
+      console.log('PluggyConnectButton: Pluggy already loaded');
       setIsPluggyLoaded(true);
       return;
     }
 
+    console.log('PluggyConnectButton: Loading Pluggy script...');
     const script = document.createElement('script');
     script.src = 'https://cdn.pluggy.ai/pluggy-connect/v2/pluggy-connect.js';
     script.async = true;
-    script.onload = () => setIsPluggyLoaded(true);
+    
+    script.onload = () => {
+      console.log('PluggyConnectButton: Pluggy script loaded successfully');
+      setIsPluggyLoaded(true);
+    };
+    
+    script.onerror = (error) => {
+      console.error('PluggyConnectButton: Error loading Pluggy script:', error);
+      toast({
+        title: "Erro ao carregar Pluggy",
+        description: "Não foi possível carregar o widget de conexão. Verifique sua conexão.",
+        variant: "destructive",
+      });
+    };
+    
     document.body.appendChild(script);
 
     return () => {
@@ -49,7 +67,7 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
         script.parentNode.removeChild(script);
       }
     };
-  }, []);
+  }, [toast]);
 
   const fetchConnectToken = async (): Promise<string> => {
     try {
