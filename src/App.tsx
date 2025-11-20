@@ -17,6 +17,7 @@ import Invoices from "./pages/Invoices";
 import ResetPassword from "./pages/ResetPassword";
 import CFOCockpit from "./pages/CFOCockpit";
 import ReformaTributaria from "./pages/ReformaTributaria";
+import OpenFinance from "./pages/OpenFinance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -136,6 +137,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <ReformaTributaria />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/open-finance"
+              element={
+                <ProtectedRoute>
+                  <OpenFinance />
                 </ProtectedRoute>
               }
             />
