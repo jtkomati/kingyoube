@@ -52,15 +52,24 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
   }, []);
 
   const fetchConnectToken = async (): Promise<string> => {
-    // TODO: Implement backend call to get Pluggy connect token
-    // For now, return a placeholder that would work in sandbox mode
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // In production, this would be: 
-        // const { data } = await supabase.functions.invoke('get-pluggy-token')
-        resolve('MOCK_CONNECT_TOKEN_' + Date.now());
-      }, 500);
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('create-pluggy-token');
+      
+      if (error) {
+        console.error('Error calling create-pluggy-token:', error);
+        throw new Error('Falha ao obter token de conexão');
+      }
+
+      if (!data?.accessToken) {
+        throw new Error('Token não retornado pela API');
+      }
+
+      console.log('Successfully obtained Pluggy token');
+      return data.accessToken;
+    } catch (error) {
+      console.error('Error in fetchConnectToken:', error);
+      throw error;
+    }
   };
 
   const handleConnect = async () => {
@@ -75,6 +84,12 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
 
     try {
       setIsLoading(true);
+      
+      toast({
+        title: "Conectando...",
+        description: "Obtendo credenciais seguras da Pluggy...",
+      });
+
       const connectToken = await fetchConnectToken();
 
       const pluggyConnect = window.PluggyConnect.init({
@@ -130,8 +145,8 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
     } catch (error) {
       console.error('Error connecting:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível iniciar a conexão.",
+        title: "Falha ao iniciar conexão segura",
+        description: error instanceof Error ? error.message : "Não foi possível obter credenciais da Pluggy.",
         variant: "destructive",
       });
       setIsLoading(false);
