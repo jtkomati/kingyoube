@@ -28,7 +28,6 @@ declare global {
 
 export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isPluggyLoaded, setIsPluggyLoaded] = useState(false);
   const { toast } = useToast();
 
   // Load Pluggy script
@@ -37,7 +36,6 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
     
     if (window.PluggyConnect) {
       console.log('PluggyConnectButton: Pluggy already loaded');
-      setIsPluggyLoaded(true);
       return;
     }
 
@@ -48,7 +46,6 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
     
     script.onload = () => {
       console.log('PluggyConnectButton: Pluggy script loaded successfully');
-      setIsPluggyLoaded(true);
     };
     
     script.onerror = (error) => {
@@ -91,7 +88,7 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
   };
 
   const handleConnect = async () => {
-    if (!isPluggyLoaded) {
+    if (!window.PluggyConnect) {
       toast({
         title: "Erro",
         description: "Widget de conexão ainda está carregando...",
@@ -174,7 +171,7 @@ export function PluggyConnectButton({ bankId, onSuccess }: PluggyConnectButtonPr
   return (
     <Button
       onClick={handleConnect}
-      disabled={isLoading || !isPluggyLoaded}
+      disabled={isLoading}
       className="w-full"
     >
       {isLoading ? (
