@@ -2064,6 +2064,42 @@ export type Database = {
           },
         ]
       }
+      waitlist_leads: {
+        Row: {
+          city: string
+          company: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          job_title: string
+          selected_plan: string
+          state: string
+        }
+        Insert: {
+          city: string
+          company: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          job_title: string
+          selected_plan: string
+          state: string
+        }
+        Update: {
+          city?: string
+          company?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          job_title?: string
+          selected_plan?: string
+          state?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
