@@ -35,12 +35,6 @@ export function LandingHeader() {
             >
               Preços
             </button>
-            <button 
-              onClick={() => scrollToSection('team')}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Time
-            </button>
           </div>
 
           <div className="flex items-center gap-3">

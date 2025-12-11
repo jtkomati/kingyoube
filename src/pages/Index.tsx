@@ -6,7 +6,6 @@ import { ProblemSection } from '@/components/landing/ProblemSection';
 import { SolutionSection } from '@/components/landing/SolutionSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { PricingSection } from '@/components/landing/PricingSection';
-import { TeamSection } from '@/components/landing/TeamSection';
 import { CTASection } from '@/components/landing/CTASection';
 
 export default function Index() {
@@ -34,7 +33,6 @@ export default function Index() {
       <SolutionSection />
       <FeaturesSection />
       <PricingSection />
-      <TeamSection />
       <CTASection />
     </div>
   );
