@@ -367,14 +367,48 @@ INSTRUÇÕES:
     }
 
     const aiData = await aiResponse.json()
+    
+    // === LOGS DETALHADOS PARA DEBUG ===
+    console.log('=== RESPOSTA DO ENDPOINT EXTERNO ===')
+    console.log('Tipo da resposta:', typeof aiData)
+    console.log('Resposta bruta (JSON):', JSON.stringify(aiData, null, 2))
+    console.log('Chaves do objeto:', Object.keys(aiData || {}))
+    
+    // Log de estruturas específicas para identificar o formato
+    if (aiData.choices) console.log('Formato OpenAI detectado - choices:', JSON.stringify(aiData.choices))
+    if (aiData.response) console.log('Formato direto detectado - response:', typeof aiData.response === 'string' ? aiData.response.substring(0, 200) : JSON.stringify(aiData.response))
+    if (aiData.output) console.log('Formato n8n/Make detectado - output:', typeof aiData.output === 'string' ? aiData.output.substring(0, 200) : JSON.stringify(aiData.output))
+    if (aiData.message) console.log('Formato message detectado:', typeof aiData.message === 'string' ? aiData.message.substring(0, 200) : JSON.stringify(aiData.message))
+    if (aiData.text) console.log('Formato text detectado:', typeof aiData.text === 'string' ? aiData.text.substring(0, 200) : JSON.stringify(aiData.text))
+    if (aiData.content) console.log('Formato content detectado:', typeof aiData.content === 'string' ? aiData.content.substring(0, 200) : JSON.stringify(aiData.content))
+    if (aiData.result) console.log('Formato result detectado:', typeof aiData.result === 'string' ? aiData.result.substring(0, 200) : JSON.stringify(aiData.result))
+    if (aiData.data) console.log('Formato data detectado:', typeof aiData.data === 'string' ? aiData.data.substring(0, 200) : JSON.stringify(aiData.data))
+    console.log('=== FIM DOS LOGS DE DEBUG ===')
+    
+    // === PARSING FLEXÍVEL ===
+    // Tentar formato OpenAI primeiro
     const choice = aiData.choices?.[0]
     
-    // Verificar se a IA quer mostrar um gráfico ou análise
-    if (choice?.message?.tool_calls?.length > 0) {
-      const toolCall = choice.message.tool_calls[0]
+    // Verificar tool_calls em múltiplos formatos
+    const toolCalls = 
+      choice?.message?.tool_calls ||           // OpenAI padrão
+      aiData.tool_calls ||                     // Formato direto
+      aiData.tools ||                          // Alternativo
+      aiData.function_calls ||                 // Outro formato
+      null
+    
+    console.log('Tool calls detectados:', toolCalls ? JSON.stringify(toolCalls) : 'Nenhum')
+    
+    if (toolCalls?.length > 0) {
+      const toolCall = toolCalls[0]
+      const functionName = toolCall.function?.name || toolCall.name
+      const functionArgs = toolCall.function?.arguments || toolCall.arguments
       
-      if (toolCall.function.name === 'show_chart') {
-        const chartData = JSON.parse(toolCall.function.arguments)
+      console.log('Executando tool:', functionName)
+      console.log('Argumentos:', functionArgs)
+      
+      if (functionName === 'show_chart') {
+        const chartData = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs
         console.log('IA retornou dados para gráfico:', chartData)
         
         return new Response(JSON.stringify({ 
@@ -385,8 +419,8 @@ INSTRUÇÕES:
         })
       }
       
-      if (toolCall.function.name === 'show_variance_analysis') {
-        const analysisData = JSON.parse(toolCall.function.arguments)
+      if (functionName === 'show_variance_analysis') {
+        const analysisData = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs
         console.log('IA retornou análise de variação:', analysisData)
         
         return new Response(JSON.stringify({ 
@@ -398,8 +432,84 @@ INSTRUÇÕES:
       }
     }
     
-    // Resposta de texto normal
-    const aiMessage = choice?.message?.content || 'Não foi possível gerar uma resposta.'
+    // === EXTRAÇÃO DE MENSAGEM COM MÚLTIPLOS FORMATOS ===
+    let aiMessage: string | null = null
+    
+    // 1. Formato OpenAI padrão
+    if (!aiMessage && choice?.message?.content) {
+      aiMessage = choice.message.content
+      console.log('Mensagem extraída de: choice.message.content')
+    }
+    
+    // 2. Formato resposta direta (string)
+    if (!aiMessage && typeof aiData.response === 'string') {
+      aiMessage = aiData.response
+      console.log('Mensagem extraída de: aiData.response (string)')
+    }
+    
+    // 3. Formato resposta objeto com texto
+    if (!aiMessage && typeof aiData.response === 'object' && aiData.response?.text) {
+      aiMessage = aiData.response.text
+      console.log('Mensagem extraída de: aiData.response.text')
+    }
+    
+    // 4. Formato output (n8n/Make/webhook comum)
+    if (!aiMessage && aiData.output) {
+      aiMessage = typeof aiData.output === 'string' ? aiData.output : JSON.stringify(aiData.output)
+      console.log('Mensagem extraída de: aiData.output')
+    }
+    
+    // 5. Formato message direto
+    if (!aiMessage && typeof aiData.message === 'string') {
+      aiMessage = aiData.message
+      console.log('Mensagem extraída de: aiData.message')
+    }
+    
+    // 6. Formato text direto
+    if (!aiMessage && typeof aiData.text === 'string') {
+      aiMessage = aiData.text
+      console.log('Mensagem extraída de: aiData.text')
+    }
+    
+    // 7. Formato content direto
+    if (!aiMessage && typeof aiData.content === 'string') {
+      aiMessage = aiData.content
+      console.log('Mensagem extraída de: aiData.content')
+    }
+    
+    // 8. Formato result
+    if (!aiMessage && aiData.result) {
+      aiMessage = typeof aiData.result === 'string' ? aiData.result : JSON.stringify(aiData.result)
+      console.log('Mensagem extraída de: aiData.result')
+    }
+    
+    // 9. Formato data com texto
+    if (!aiMessage && aiData.data) {
+      if (typeof aiData.data === 'string') {
+        aiMessage = aiData.data
+      } else if (aiData.data.text) {
+        aiMessage = aiData.data.text
+      } else if (aiData.data.message) {
+        aiMessage = aiData.data.message
+      } else if (aiData.data.response) {
+        aiMessage = aiData.data.response
+      }
+      if (aiMessage) console.log('Mensagem extraída de: aiData.data')
+    }
+    
+    // 10. Se aiData for uma string direta
+    if (!aiMessage && typeof aiData === 'string') {
+      aiMessage = aiData
+      console.log('Mensagem extraída de: aiData (string direta)')
+    }
+    
+    // Fallback final
+    if (!aiMessage) {
+      console.error('Não foi possível extrair mensagem. Estrutura completa:', JSON.stringify(aiData))
+      aiMessage = 'Não foi possível processar a resposta da IA. Verifique os logs para mais detalhes.'
+    }
+    
+    console.log('Resposta final extraída:', aiMessage.substring(0, 200) + '...')
     console.log('Resposta da IA gerada com sucesso')
 
     return new Response(JSON.stringify({ 
