@@ -1,5 +1,3 @@
-import { Button } from '@/components/ui/button';
-
 const plans = [
   {
     name: 'MICRO',
@@ -57,20 +55,10 @@ export function PricingSection() {
                 </div>
               )}
 
-              <div className="mb-6">
+              <div>
                 <h3 className="text-lg font-bold text-foreground mb-1">{plan.name}</h3>
                 <p className="text-sm text-muted-foreground">{plan.description}</p>
               </div>
-
-              <Button
-                className={`w-full ${
-                  plan.highlighted
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                Escolher {plan.name}
-              </Button>
             </div>
           ))}
         </div>
