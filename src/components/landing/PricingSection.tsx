@@ -1,4 +1,3 @@
-import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const plans = [
@@ -7,13 +6,6 @@ const plans = [
     description: 'Para MEIs e pequenos negócios',
     priceFrom: 99,
     priceTo: 49,
-    features: [
-      '1 empresa',
-      'Até 100 transações/mês',
-      'IA Assistente básico',
-      'Conciliação automática',
-      'Relatórios essenciais',
-    ],
     highlighted: false,
   },
   {
@@ -21,14 +13,6 @@ const plans = [
     description: 'Para PMEs em crescimento',
     priceFrom: 299,
     priceTo: 149,
-    features: [
-      'Até 3 empresas',
-      'Transações ilimitadas',
-      'IA Assistente avançado',
-      'Multi-usuários (3)',
-      'Alertas proativos',
-      'API de integração',
-    ],
     highlighted: true,
   },
   {
@@ -36,14 +20,6 @@ const plans = [
     description: 'Para escritórios contábeis',
     priceFrom: 599,
     priceTo: 299,
-    features: [
-      'Até 10 empresas',
-      'Transações ilimitadas',
-      'IA Assistente completo',
-      'Multi-usuários (10)',
-      'White-label disponível',
-      'Suporte prioritário',
-    ],
     highlighted: false,
   },
   {
@@ -52,14 +28,6 @@ const plans = [
     priceFrom: null,
     priceTo: null,
     customPrice: 'Sob consulta',
-    features: [
-      'Empresas ilimitadas',
-      'Customização completa',
-      'IA treinada para você',
-      'Usuários ilimitados',
-      'SLA dedicado',
-      'Onboarding exclusivo',
-    ],
     highlighted: false,
   },
 ];
@@ -120,15 +88,6 @@ export function PricingSection() {
                   </div>
                 )}
               </div>
-
-              <ul className="space-y-3 mb-6">
-                {plan.features.map((feature, featureIndex) => (
-                  <li key={featureIndex} className="flex items-start gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">{feature}</span>
-                  </li>
-                ))}
-              </ul>
 
               <Button
                 className={`w-full ${
