@@ -93,9 +93,20 @@ export const IncomingInvoices = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      // Upload file to storage
+      // Get company_id from profile for tenant isolation
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile?.company_id) {
+        throw new Error('Usuário sem empresa associada. Configure sua empresa nas configurações.');
+      }
+
+      // Upload file to storage using company_id for tenant isolation
       const fileExt = fileName.split('.').pop();
-      const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${profile.company_id}/${crypto.randomUUID()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('invoices-pdf')
@@ -272,11 +283,20 @@ export const IncomingInvoices = () => {
       if (invoice.file_name) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Try to delete the file from storage
-          const filePath = `${user.id}/${invoice.file_name.split('/').pop()}`;
-          await supabase.storage
-            .from('invoices-pdf')
-            .remove([filePath]);
+          // Get company_id for correct path
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile?.company_id) {
+            // Try to delete the file from storage using company_id path
+            const filePath = `${profile.company_id}/${invoice.file_name.split('/').pop()}`;
+            await supabase.storage
+              .from('invoices-pdf')
+              .remove([filePath]);
+          }
         }
       }
 
