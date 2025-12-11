@@ -8,7 +8,6 @@ import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { TeamSection } from '@/components/landing/TeamSection';
 import { CTASection } from '@/components/landing/CTASection';
-import { Footer } from '@/components/landing/Footer';
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -37,7 +36,6 @@ export default function Index() {
       <PricingSection />
       <TeamSection />
       <CTASection />
-      <Footer />
     </div>
   );
 }
