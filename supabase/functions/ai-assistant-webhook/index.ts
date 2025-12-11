@@ -211,114 +211,127 @@ INSTRUÇÕES:
    - Insights explicando as variações
 9. Para visualizações gráficas, use a ferramenta show_chart`
 
-    // Chamar Lovable AI com tool calling para gráficos
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY não configurada')
+    // Chamar API externa com bypass Cloudflare
+    const cfAccessClientId = Deno.env.get('CF_ACCESS_CLIENT_ID')
+    const cfAccessClientSecret = Deno.env.get('CF_ACCESS_CLIENT_SECRET')
+    
+    if (!cfAccessClientId || !cfAccessClientSecret) {
+      throw new Error('Credenciais Cloudflare não configuradas')
     }
 
-    console.log('Chamando Lovable AI...')
-    const aiPayload: any = {
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: message }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
-    }
+    const externalEndpoint = 'https://automacao-nova.secureblueteam.com.br/webhook/IaCFOAgent'
 
-    // Adicionar tools para retornar gráficos e análises
-    aiPayload.tools = [
-      {
-        type: 'function',
-        function: {
-          name: 'show_chart',
-          description: 'Exibe um gráfico para visualizar dados financeiros. Use quando o usuário pedir faturamento, receitas, despesas ou análises mensais/temporais.',
-          parameters: {
-            type: 'object',
-            properties: {
-              chartType: {
-                type: 'string',
-                enum: ['bar', 'line', 'area'],
-                description: 'Tipo do gráfico'
-              },
-              title: {
-                type: 'string',
-                description: 'Título do gráfico'
-              },
-              data: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string', description: 'Nome da categoria (ex: mês)' },
-                    value: { type: 'number', description: 'Valor numérico' },
-                    label: { type: 'string', description: 'Label formatado (ex: R$ 100.000,00)' }
-                  },
-                  required: ['name', 'value'],
-                  additionalProperties: false
-                }
-              },
-              description: {
-                type: 'string',
-                description: 'Breve descrição/análise dos dados'
-              }
-            },
-            required: ['chartType', 'title', 'data', 'description'],
-            additionalProperties: false
-          }
+    console.log('Chamando endpoint externo de IA...')
+    
+    // Preparar payload para o endpoint externo
+    const aiPayload = {
+      message: message,
+      systemPrompt: systemPrompt,
+      context: {
+        userId: user.id,
+        userEmail: user.email,
+        companyId: companyId,
+        erpData: {
+          transactions: erpContext.transactions,
+          customers: erpContext.customers,
+          suppliers: erpContext.suppliers,
+          invoices: erpContext.invoices,
+          financialSummary: erpContext.financialSummary,
+          recentActivity: erpContext.recentActivity
         }
       },
-      {
-        type: 'function',
-        function: {
-          name: 'show_variance_analysis',
-          description: 'Exibe análise detalhada de variação mês a mês com identificação de discrepâncias. Use quando o usuário pedir análise de variação, comparação entre períodos ou identificação de anomalias.',
-          parameters: {
-            type: 'object',
-            properties: {
-              title: {
-                type: 'string',
-                description: 'Título da análise'
-              },
-              periods: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    period: { type: 'string', description: 'Nome do período (ex: Jan/2025)' },
-                    value: { type: 'number', description: 'Valor do período' },
-                    variance: { type: 'number', description: 'Variação percentual em relação ao período anterior' },
-                    isAnomaly: { type: 'boolean', description: 'Se true, indica discrepância significativa' },
-                    insight: { type: 'string', description: 'Explicação sobre o período' }
-                  },
-                  required: ['period', 'value'],
-                  additionalProperties: false
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'show_chart',
+            description: 'Exibe um gráfico para visualizar dados financeiros. Use quando o usuário pedir faturamento, receitas, despesas ou análises mensais/temporais.',
+            parameters: {
+              type: 'object',
+              properties: {
+                chartType: {
+                  type: 'string',
+                  enum: ['bar', 'line', 'area'],
+                  description: 'Tipo do gráfico'
+                },
+                title: {
+                  type: 'string',
+                  description: 'Título do gráfico'
+                },
+                data: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Nome da categoria (ex: mês)' },
+                      value: { type: 'number', description: 'Valor numérico' },
+                      label: { type: 'string', description: 'Label formatado (ex: R$ 100.000,00)' }
+                    },
+                    required: ['name', 'value'],
+                    additionalProperties: false
+                  }
+                },
+                description: {
+                  type: 'string',
+                  description: 'Breve descrição/análise dos dados'
                 }
               },
-              summary: {
-                type: 'string',
-                description: 'Resumo executivo da análise'
+              required: ['chartType', 'title', 'data', 'description'],
+              additionalProperties: false
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'show_variance_analysis',
+            description: 'Exibe análise detalhada de variação mês a mês com identificação de discrepâncias. Use quando o usuário pedir análise de variação, comparação entre períodos ou identificação de anomalias.',
+            parameters: {
+              type: 'object',
+              properties: {
+                title: {
+                  type: 'string',
+                  description: 'Título da análise'
+                },
+                periods: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      period: { type: 'string', description: 'Nome do período (ex: Jan/2025)' },
+                      value: { type: 'number', description: 'Valor do período' },
+                      variance: { type: 'number', description: 'Variação percentual em relação ao período anterior' },
+                      isAnomaly: { type: 'boolean', description: 'Se true, indica discrepância significativa' },
+                      insight: { type: 'string', description: 'Explicação sobre o período' }
+                    },
+                    required: ['period', 'value'],
+                    additionalProperties: false
+                  }
+                },
+                summary: {
+                  type: 'string',
+                  description: 'Resumo executivo da análise'
+                },
+                recommendations: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Lista de recomendações baseadas na análise'
+                }
               },
-              recommendations: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Lista de recomendações baseadas na análise'
-              }
-            },
-            required: ['title', 'periods', 'summary'],
-            additionalProperties: false
+              required: ['title', 'periods', 'summary'],
+              additionalProperties: false
+            }
           }
         }
-      }
-    ]
+      ]
+    }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch(externalEndpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
+        'CF-Access-Client-Id': cfAccessClientId,
+        'CF-Access-Client-Secret': cfAccessClientSecret,
       },
       body: JSON.stringify(aiPayload)
     })
