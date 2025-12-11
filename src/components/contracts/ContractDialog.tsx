@@ -64,10 +64,11 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
     },
   });
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, companyId: string) => {
     setUploading(true);
     try {
-      const filePath = `${Date.now()}-${file.name}`;
+      // Use company_id in path for tenant isolation
+      const filePath = `${companyId}/${Date.now()}-${file.name}`;
       
       const { error: uploadError } = await supabase.storage
         .from("contracts")
@@ -81,7 +82,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
 
       setUploadedFile(file);
       toast.success("Arquivo enviado com sucesso!");
-      return { url: publicUrl, name: file.name, size: file.size };
+      return { url: publicUrl, name: file.name, size: file.size, path: filePath };
     } catch (error: any) {
       toast.error("Erro ao enviar arquivo: " + error.message);
       return null;
@@ -107,7 +108,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
 
       let fileData = null;
       if (uploadedFile) {
-        fileData = await handleFileUpload(uploadedFile);
+        fileData = await handleFileUpload(uploadedFile, profile.company_id);
       }
 
       const contractData: any = {
