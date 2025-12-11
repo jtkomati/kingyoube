@@ -114,6 +114,18 @@ const errorMap: Record<string, FriendlyError> = {
     title: 'Limite Excedido',
     message: 'Você atingiu o limite de requisições. Por favor, aguarde um momento.',
   },
+  'For security purposes': {
+    title: 'Aguarde um Momento',
+    message: 'Por segurança, aguarde alguns segundos antes de solicitar outro e-mail.',
+  },
+  'over_email_send_rate_limit': {
+    title: 'Limite de E-mails',
+    message: 'Você já solicitou um e-mail recentemente. Aguarde alguns minutos e verifique sua caixa de entrada.',
+  },
+  'Email rate limit exceeded': {
+    title: 'Limite de E-mails',
+    message: 'Muitas solicitações de e-mail. Aguarde alguns minutos antes de tentar novamente.',
+  },
 
   // Erros de AI
   '402': {

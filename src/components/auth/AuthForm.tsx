@@ -109,7 +109,26 @@ export function AuthForm() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Verificar especificamente rate limit
+        const errorMessage = error.message?.toLowerCase() || '';
+        const isRateLimit = 
+          errorMessage.includes('security purposes') || 
+          errorMessage.includes('rate limit') ||
+          errorMessage.includes('over_email_send_rate_limit') ||
+          error.status === 429;
+
+        if (isRateLimit) {
+          toast({
+            title: 'Aguarde um Momento',
+            description: 'Por segurança, aguarde alguns segundos antes de solicitar outro e-mail. Se já solicitou, verifique sua caixa de entrada.',
+          });
+          setResetLoading(false);
+          return; // NÃO fechar o modal, não lançar erro
+        }
+        
+        throw error;
+      }
 
       toast({
         title: 'E-mail enviado!',
@@ -125,6 +144,7 @@ export function AuthForm() {
         title: friendlyError.title,
         description: friendlyError.message,
       });
+      // Manter modal aberto para usuário ver o erro
     } finally {
       setResetLoading(false);
     }
