@@ -8,34 +8,34 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Financial Platform Color Palette - Professional & Modern */
-    --background: 220 15% 5%;
-    --foreground: 220 10% 95%;
+    /* KingYouBe Brand Color Palette */
+    --background: 220 56% 8%;
+    --foreground: 0 0% 98%;
     
-    --card: 220 12% 8%;
-    --card-foreground: 220 10% 95%;
+    --card: 220 56% 12%;
+    --card-foreground: 0 0% 98%;
     
-    --popover: 220 12% 8%;
-    --popover-foreground: 220 10% 95%;
+    --popover: 220 56% 10%;
+    --popover-foreground: 0 0% 98%;
     
-    --primary: 217 91% 60%;
-    --primary-foreground: 220 10% 98%;
+    --primary: 165 65% 54%;
+    --primary-foreground: 220 56% 8%;
     
-    --secondary: 220 10% 15%;
-    --secondary-foreground: 220 10% 95%;
+    --secondary: 220 40% 18%;
+    --secondary-foreground: 0 0% 98%;
     
-    --muted: 220 10% 15%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 220 40% 15%;
+    --muted-foreground: 220 10% 70%;
     
-    --accent: 142 76% 36%;
-    --accent-foreground: 220 10% 98%;
+    --accent: 165 65% 54%;
+    --accent-foreground: 220 56% 8%;
     
     --destructive: 0 84% 60%;
-    --destructive-foreground: 220 10% 98%;
+    --destructive-foreground: 0 0% 98%;
     
-    --border: 220 10% 20%;
-    --input: 220 10% 20%;
-    --ring: 217 91% 60%;
+    --border: 220 40% 20%;
+    --input: 220 40% 20%;
+    --ring: 165 65% 54%;
     
     --radius: 0.5rem;
     
@@ -44,24 +44,31 @@ All colors MUST be HSL.
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
     
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
+    /* KingYouBe specific */
+    --kingyoube-navy: 220 56% 13%;
+    --kingyoube-mint: 165 65% 54%;
+    --kingyoube-mint-dark: 165 65% 40%;
+    --kingyoube-navy-light: 220 45% 22%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(165 65% 54%), hsl(165 65% 40%));
+    --gradient-hero: linear-gradient(180deg, hsl(220 56% 13%), hsl(220 56% 6%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(158 64% 52%));
     --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 72% 51%));
     
-    --shadow-sm: 0 1px 2px 0 hsl(220 15% 5% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(220 15% 5% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(220 15% 5% / 0.2);
-    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.3);
+    --shadow-sm: 0 1px 2px 0 hsl(220 56% 5% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(220 56% 5% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(220 56% 5% / 0.2);
+    --shadow-glow: 0 0 30px hsl(165 65% 54% / 0.3);
     
     /* Sidebar colors */
-    --sidebar-background: 220 12% 8%;
-    --sidebar-foreground: 220 10% 95%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 220 10% 98%;
-    --sidebar-accent: 220 10% 15%;
-    --sidebar-accent-foreground: 220 10% 95%;
-    --sidebar-border: 220 10% 20%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 220 56% 10%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 165 65% 54%;
+    --sidebar-primary-foreground: 220 56% 8%;
+    --sidebar-accent: 220 40% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 220 40% 20%;
+    --sidebar-ring: 165 65% 54%;
   }
 
   .light {
