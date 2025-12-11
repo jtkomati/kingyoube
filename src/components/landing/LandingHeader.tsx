@@ -33,7 +33,7 @@ export function LandingHeader() {
               onClick={() => scrollToSection('pricing')}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Preços
+              Planos
             </button>
           </div>
 

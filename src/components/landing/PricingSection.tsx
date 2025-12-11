@@ -4,30 +4,21 @@ const plans = [
   {
     name: 'MICRO',
     description: 'Para MEIs e pequenos negócios',
-    priceFrom: 99,
-    priceTo: 49,
     highlighted: false,
   },
   {
     name: 'BUSINESS',
     description: 'Para PMEs em crescimento',
-    priceFrom: 299,
-    priceTo: 149,
     highlighted: true,
   },
   {
     name: 'PRO',
     description: 'Para escritórios contábeis',
-    priceFrom: 599,
-    priceTo: 299,
     highlighted: false,
   },
   {
     name: 'ENTERPRISE',
     description: 'Para grandes operações',
-    priceFrom: null,
-    priceTo: null,
-    customPrice: 'Sob consulta',
     highlighted: false,
   },
 ];
@@ -38,7 +29,7 @@ export function PricingSection() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <p className="text-primary font-medium mb-4 uppercase tracking-wider text-sm">
-            Preços
+            Planos
           </p>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Planos que crescem com você
@@ -69,24 +60,6 @@ export function PricingSection() {
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-foreground mb-1">{plan.name}</h3>
                 <p className="text-sm text-muted-foreground">{plan.description}</p>
-              </div>
-
-              <div className="mb-6">
-                {plan.customPrice ? (
-                  <span className="text-2xl font-bold text-foreground">{plan.customPrice}</span>
-                ) : (
-                  <div>
-                    <span className="text-sm text-muted-foreground line-through">
-                      R$ {plan.priceFrom}
-                    </span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-foreground">
-                        R$ {plan.priceTo}
-                      </span>
-                      <span className="text-muted-foreground text-sm">/mês</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <Button
