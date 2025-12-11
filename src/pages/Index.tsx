@@ -1,6 +1,14 @@
 import { useAuth } from '@/hooks/useAuth';
-import { AuthForm } from '@/components/auth/AuthForm';
 import { Navigate } from 'react-router-dom';
+import { LandingHeader } from '@/components/landing/LandingHeader';
+import { HeroSection } from '@/components/landing/HeroSection';
+import { ProblemSection } from '@/components/landing/ProblemSection';
+import { SolutionSection } from '@/components/landing/SolutionSection';
+import { FeaturesSection } from '@/components/landing/FeaturesSection';
+import { PricingSection } from '@/components/landing/PricingSection';
+import { TeamSection } from '@/components/landing/TeamSection';
+import { CTASection } from '@/components/landing/CTASection';
+import { Footer } from '@/components/landing/Footer';
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -19,5 +27,17 @@ export default function Index() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <AuthForm />;
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <LandingHeader />
+      <HeroSection />
+      <ProblemSection />
+      <SolutionSection />
+      <FeaturesSection />
+      <PricingSection />
+      <TeamSection />
+      <CTASection />
+      <Footer />
+    </div>
+  );
 }

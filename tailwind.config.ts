@@ -57,6 +57,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        kingyoube: {
+          navy: "hsl(var(--kingyoube-navy))",
+          "navy-light": "hsl(var(--kingyoube-navy-light))",
+          mint: "hsl(var(--kingyoube-mint))",
+          "mint-dark": "hsl(var(--kingyoube-mint-dark))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
