@@ -76,15 +76,10 @@ export default function AIAgents() {
     <DashboardLayout>
       <div className="relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center overflow-hidden">
         {/* Gradient Background */}
-        <div 
-          className="absolute inset-0 z-0"
-          style={{
-            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #4c1d95 50%, #6b21a8 75%, #be185d 100%)',
-          }}
-        />
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-background via-background to-muted" />
         
-        {/* Overlay for depth */}
-        <div className="absolute inset-0 z-0 bg-black/20" />
+        {/* Subtle glow effect */}
+        <div className="absolute inset-0 z-0 opacity-30 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.15),transparent_70%)]" />
 
         {/* Content */}
         <div className="relative z-10 w-full max-w-3xl px-4 flex flex-col items-center">
