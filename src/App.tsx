@@ -19,6 +19,7 @@ import CFOCockpit from "./pages/CFOCockpit";
 import ReformaTributaria from "./pages/ReformaTributaria";
 import OpenFinance from "./pages/OpenFinance";
 import AIAgents from "./pages/AIAgents";
+import PredictiveAnalytics from "./pages/PredictiveAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -154,6 +155,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <AIAgents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/predictive-analytics"
+              element={
+                <ProtectedRoute>
+                  <PredictiveAnalytics />
                 </ProtectedRoute>
               }
             />

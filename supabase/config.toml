@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.elevenlabs-signed-url]
 verify_jwt = false
+
+[functions.predictive-analytics]
+verify_jwt = true
