@@ -2188,7 +2188,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "SUPERADMIN" | "ADMIN" | "FINANCEIRO" | "FISCAL" | "VIEWER"
+      app_role:
+        | "SUPERADMIN"
+        | "ADMIN"
+        | "FINANCEIRO"
+        | "FISCAL"
+        | "VIEWER"
+        | "CONTADOR"
+        | "USUARIO"
       person_type: "PF" | "PJ"
       transaction_type: "RECEIVABLE" | "PAYABLE"
     }
@@ -2318,7 +2325,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["SUPERADMIN", "ADMIN", "FINANCEIRO", "FISCAL", "VIEWER"],
+      app_role: [
+        "SUPERADMIN",
+        "ADMIN",
+        "FINANCEIRO",
+        "FISCAL",
+        "VIEWER",
+        "CONTADOR",
+        "USUARIO",
+      ],
       person_type: ["PF", "PJ"],
       transaction_type: ["RECEIVABLE", "PAYABLE"],
     },
