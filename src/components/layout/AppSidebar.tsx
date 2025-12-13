@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt, Calculator, Building2, Bot } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, BarChart3, Link2, GitCompare, Receipt, Calculator, Building2, Bot } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
@@ -15,6 +15,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import kingyoubeLogo from '@/assets/kingyoube-logo-full.png';
 
 const navigation = [
   { name: 'Agentes de IA', href: '/ai-agents', icon: Bot },
@@ -40,11 +41,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-4">
+        <div className="flex items-center justify-center px-2 py-4">
           {open && (
-            <span className="text-xl font-bold text-gradient-primary">
-              KingYouBe
-            </span>
+            <img 
+              src={kingyoubeLogo} 
+              alt="KingYouBe" 
+              className="h-10 w-auto"
+            />
           )}
         </div>
       </SidebarHeader>
