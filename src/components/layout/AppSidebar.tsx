@@ -29,7 +29,6 @@ const navigation = [
   { name: 'Análise Preditiva', href: '/predictive-analytics', icon: BrainCircuit },
   { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
   { name: 'Conciliação', href: '/reconciliation', icon: GitCompare },
-  { name: 'Open Finance', href: '/open-finance', icon: Building2 },
   { name: 'Reforma Tributária', href: '/reforma-tributaria', icon: Calculator },
 ];
 
