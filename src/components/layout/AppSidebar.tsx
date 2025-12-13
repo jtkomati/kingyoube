@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt, Calculator, Building2 } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, Zap, BarChart3, Link2, GitCompare, Receipt, Calculator, Building2, Bot } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 const navigation = [
+  { name: 'Agentes de IA', href: '/ai-agents', icon: Bot },
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
   { name: 'Transações', href: '/transactions', icon: FileText },
