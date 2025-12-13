@@ -41,7 +41,6 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-4">
-          <Zap className="h-6 w-6 text-primary -rotate-12 shrink-0" />
           {open && (
             <span className="text-xl font-bold text-gradient-primary">
               KingYouBe
