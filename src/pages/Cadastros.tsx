@@ -8,6 +8,7 @@ import { ReferentialChartTab } from "@/components/cadastros/ReferentialChartTab"
 import { CostCentersTab } from "@/components/cadastros/CostCentersTab";
 import { ProfitCentersTab } from "@/components/cadastros/ProfitCentersTab";
 import { ProjectsTab } from "@/components/cadastros/ProjectsTab";
+import { UserRolesTab } from "@/components/cadastros/UserRolesTab";
 import { 
   Users, 
   Truck, 
@@ -17,7 +18,8 @@ import {
   Target,
   TrendingUp,
   FolderKanban,
-  Database
+  Database,
+  ShieldCheck
 } from "lucide-react";
 
 export default function Cadastros() {
@@ -45,6 +47,10 @@ export default function Cadastros() {
             <TabsTrigger value="suppliers" className="gap-2 data-[state=active]:bg-background">
               <Truck className="h-4 w-4" />
               <span className="hidden sm:inline">Fornecedores</span>
+            </TabsTrigger>
+            <TabsTrigger value="user-roles" className="gap-2 data-[state=active]:bg-background">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Perfis</span>
             </TabsTrigger>
             <TabsTrigger value="chart-accounts" className="gap-2 data-[state=active]:bg-background">
               <BookOpen className="h-4 w-4" />
@@ -78,6 +84,10 @@ export default function Cadastros() {
 
           <TabsContent value="suppliers">
             <SuppliersTab />
+          </TabsContent>
+
+          <TabsContent value="user-roles">
+            <UserRolesTab />
           </TabsContent>
 
           <TabsContent value="chart-accounts">
