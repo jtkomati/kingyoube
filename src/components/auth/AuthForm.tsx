@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PasswordInput } from '@/components/ui/password-input';
+import { ConsentCheckboxes } from '@/components/privacy/ConsentCheckboxes';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,9 @@ export function AuthForm() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [marketingAccepted, setMarketingAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -57,6 +61,15 @@ export function AuthForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+
+    // Validate consent checkboxes
+    const consentErrors: Record<string, string> = {};
+    if (!termsAccepted) {
+      consentErrors.terms = 'Você deve aceitar os Termos de Uso';
+    }
+    if (!privacyAccepted) {
+      consentErrors.privacy = 'Você deve aceitar a Política de Privacidade';
+    }
     
     const validation = validateWithFeedback(signUpSchema, {
       email,
@@ -65,8 +78,8 @@ export function AuthForm() {
       phoneNumber: phoneNumber || undefined,
     });
     
-    if (!validation.success) {
-      setErrors(validation.errors);
+    if (!validation.success || Object.keys(consentErrors).length > 0) {
+      setErrors({ ...validation.errors, ...consentErrors });
       toast({
         variant: 'destructive',
         title: 'Dados Inválidos',
@@ -83,10 +96,30 @@ export function AuthForm() {
       validation.data.phoneNumber
     );
     if (success) {
+      // Record consents after successful signup
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const consentsToInsert = [
+            { user_id: user.id, consent_type: 'terms', consented: true, user_agent: navigator.userAgent },
+            { user_id: user.id, consent_type: 'privacy', consented: true, user_agent: navigator.userAgent },
+          ];
+          if (marketingAccepted) {
+            consentsToInsert.push({ user_id: user.id, consent_type: 'marketing', consented: true, user_agent: navigator.userAgent });
+          }
+          await supabase.from('user_consents').insert(consentsToInsert);
+        }
+      } catch (err) {
+        console.error('Error recording consents:', err);
+      }
+      
       setEmail('');
       setPassword('');
       setFullName('');
       setPhoneNumber('');
+      setTermsAccepted(false);
+      setPrivacyAccepted(false);
+      setMarketingAccepted(false);
     }
     setLoading(false);
   };
@@ -332,6 +365,16 @@ export function AuthForm() {
                     </Alert>
                   )}
                 </div>
+                
+                <ConsentCheckboxes
+                  termsAccepted={termsAccepted}
+                  privacyAccepted={privacyAccepted}
+                  marketingAccepted={marketingAccepted}
+                  onTermsChange={setTermsAccepted}
+                  onPrivacyChange={setPrivacyAccepted}
+                  onMarketingChange={setMarketingAccepted}
+                  errors={{ terms: errors.terms, privacy: errors.privacy }}
+                />
               </CardContent>
               <CardFooter>
                 <Button type="submit" className="w-full" disabled={loading}>

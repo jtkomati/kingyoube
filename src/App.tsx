@@ -18,6 +18,9 @@ import ReformaTributaria from "./pages/ReformaTributaria";
 import AIAgents from "./pages/AIAgents";
 import PredictiveAnalytics from "./pages/PredictiveAnalytics";
 import Cadastros from "./pages/Cadastros";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import PrivacySettings from "./pages/PrivacySettings";
+import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +55,16 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route
+              path="/privacy-settings"
+              element={
+                <ProtectedRoute>
+                  <PrivacySettings />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/cfo-cockpit"
               element={
