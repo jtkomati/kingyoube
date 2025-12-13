@@ -17,7 +17,6 @@ import Invoices from "./pages/Invoices";
 import ResetPassword from "./pages/ResetPassword";
 import CFOCockpit from "./pages/CFOCockpit";
 import ReformaTributaria from "./pages/ReformaTributaria";
-import OpenFinance from "./pages/OpenFinance";
 import AIAgents from "./pages/AIAgents";
 import PredictiveAnalytics from "./pages/PredictiveAnalytics";
 import Cadastros from "./pages/Cadastros";
@@ -140,14 +139,6 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <ReformaTributaria />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/open-finance"
-              element={
-                <ProtectedRoute>
-                  <OpenFinance />
                 </ProtectedRoute>
               }
             />
