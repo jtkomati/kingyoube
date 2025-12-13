@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Users, TrendingUp, LogOut, BarChart3, Link2, GitCompare, Receipt, Calculator, Building2, Bot } from 'lucide-react';
+import { Home, FileText, Users, TrendingUp, LogOut, BarChart3, Link2, GitCompare, Receipt, Calculator, Building2, Bot, BrainCircuit } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
@@ -27,6 +27,7 @@ const navigation = [
   { name: 'Clientes', href: '/customers', icon: Users },
   { name: 'Fornecedores', href: '/suppliers', icon: Users },
   { name: 'Relatórios', href: '/reports', icon: BarChart3 },
+  { name: 'Análise Preditiva', href: '/predictive-analytics', icon: BrainCircuit },
   { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
   { name: 'Conciliação', href: '/reconciliation', icon: GitCompare },
   { name: 'Open Finance', href: '/open-finance', icon: Building2 },
