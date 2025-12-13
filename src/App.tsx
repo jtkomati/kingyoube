@@ -18,6 +18,7 @@ import ResetPassword from "./pages/ResetPassword";
 import CFOCockpit from "./pages/CFOCockpit";
 import ReformaTributaria from "./pages/ReformaTributaria";
 import OpenFinance from "./pages/OpenFinance";
+import AIAgents from "./pages/AIAgents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -145,6 +146,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <OpenFinance />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ai-agents"
+              element={
+                <ProtectedRoute>
+                  <AIAgents />
                 </ProtectedRoute>
               }
             />
