@@ -12,7 +12,6 @@ import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import BankIntegrations from "./pages/BankIntegrations";
-import Reconciliation from "./pages/Reconciliation";
 import Invoices from "./pages/Invoices";
 import ResetPassword from "./pages/ResetPassword";
 import CFOCockpit from "./pages/CFOCockpit";
@@ -115,14 +114,6 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <BankIntegrations />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reconciliation"
-              element={
-                <ProtectedRoute>
-                  <Reconciliation />
                 </ProtectedRoute>
               }
             />
