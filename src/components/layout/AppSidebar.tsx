@@ -41,12 +41,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center justify-center px-2 py-4">
+        <div className="flex items-center justify-center px-3 py-5">
           {open && (
             <img 
               src={kingyoubeLogo} 
               alt="KingYouBe" 
-              className="h-10 w-auto"
+              className="h-14 w-auto object-contain"
+              style={{ imageRendering: 'crisp-edges' }}
             />
           )}
         </div>
