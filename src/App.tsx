@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import CashFlow from "./pages/CashFlow";
 import Transactions from "./pages/Transactions";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
@@ -66,14 +65,6 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cash-flow"
-              element={
-                <ProtectedRoute>
-                  <CashFlow />
                 </ProtectedRoute>
               }
             />
