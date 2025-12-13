@@ -20,6 +20,7 @@ import ReformaTributaria from "./pages/ReformaTributaria";
 import OpenFinance from "./pages/OpenFinance";
 import AIAgents from "./pages/AIAgents";
 import PredictiveAnalytics from "./pages/PredictiveAnalytics";
+import Cadastros from "./pages/Cadastros";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -163,6 +164,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <PredictiveAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cadastros"
+              element={
+                <ProtectedRoute>
+                  <Cadastros />
                 </ProtectedRoute>
               }
             />
