@@ -1441,6 +1441,42 @@ export type Database = {
           },
         ]
       }
+      lgpd_requests: {
+        Row: {
+          completed_at: string | null
+          id: string
+          notes: string | null
+          processed_by: string | null
+          request_type: string
+          requested_at: string | null
+          result_url: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          notes?: string | null
+          processed_by?: string | null
+          request_type: string
+          requested_at?: string | null
+          result_url?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          notes?: string | null
+          processed_by?: string | null
+          request_type?: string
+          requested_at?: string | null
+          result_url?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       open_finance_transactions: {
         Row: {
           amount: number
@@ -2034,6 +2070,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_consents: {
+        Row: {
+          consent_type: string
+          consented: boolean
+          consented_at: string | null
+          id: string
+          ip_address: string | null
+          revoked_at: string | null
+          user_agent: string | null
+          user_id: string
+          version: string
+        }
+        Insert: {
+          consent_type: string
+          consented?: boolean
+          consented_at?: string | null
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          user_agent?: string | null
+          user_id: string
+          version?: string
+        }
+        Update: {
+          consent_type?: string
+          consented?: boolean
+          consented_at?: string | null
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
