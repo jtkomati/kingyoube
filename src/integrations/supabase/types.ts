@@ -2595,35 +2595,65 @@ export type Database = {
         Row: {
           city: string
           company: string
+          company_name: string | null
+          consent_timestamp: string | null
           created_at: string
           email: string
           full_name: string
           id: string
+          ip_address: string | null
           job_title: string
+          marketing_accepted: boolean | null
+          phone: string | null
+          privacy_accepted: boolean
+          role: string | null
           selected_plan: string
+          source: string | null
           state: string
+          synced_to_sheets: boolean | null
+          terms_accepted: boolean
         }
         Insert: {
           city: string
           company: string
+          company_name?: string | null
+          consent_timestamp?: string | null
           created_at?: string
           email: string
           full_name: string
           id?: string
+          ip_address?: string | null
           job_title: string
+          marketing_accepted?: boolean | null
+          phone?: string | null
+          privacy_accepted?: boolean
+          role?: string | null
           selected_plan: string
+          source?: string | null
           state: string
+          synced_to_sheets?: boolean | null
+          terms_accepted?: boolean
         }
         Update: {
           city?: string
           company?: string
+          company_name?: string | null
+          consent_timestamp?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
+          ip_address?: string | null
           job_title?: string
+          marketing_accepted?: boolean | null
+          phone?: string | null
+          privacy_accepted?: boolean
+          role?: string | null
           selected_plan?: string
+          source?: string | null
           state?: string
+          synced_to_sheets?: boolean | null
+          terms_accepted?: boolean
         }
         Relationships: []
       }
