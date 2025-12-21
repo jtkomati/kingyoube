@@ -1122,6 +1122,11 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          accountant_crc: string | null
+          accountant_email: string | null
+          accountant_firm_name: string | null
+          accountant_linked_at: string | null
+          accountant_user_id: string | null
           address: string | null
           cfo_partner_id: string | null
           city_code: string | null
@@ -1141,6 +1146,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accountant_crc?: string | null
+          accountant_email?: string | null
+          accountant_firm_name?: string | null
+          accountant_linked_at?: string | null
+          accountant_user_id?: string | null
           address?: string | null
           cfo_partner_id?: string | null
           city_code?: string | null
@@ -1160,6 +1170,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accountant_crc?: string | null
+          accountant_email?: string | null
+          accountant_firm_name?: string | null
+          accountant_linked_at?: string | null
+          accountant_user_id?: string | null
           address?: string | null
           cfo_partner_id?: string | null
           city_code?: string | null
@@ -1565,6 +1580,66 @@ export type Database = {
           {
             foreignKeyName: "incoming_invoices_company_id_fkey"
             columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          crc: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          firm_name: string | null
+          id: string
+          invited_by: string
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          crc?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          firm_name?: string | null
+          id?: string
+          invited_by: string
+          organization_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          crc?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          firm_name?: string | null
+          id?: string
+          invited_by?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -2489,6 +2564,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invitation: { Args: { p_token: string }; Returns: Json }
       get_current_organization_id: {
         Args: { _user_id: string }
         Returns: string
