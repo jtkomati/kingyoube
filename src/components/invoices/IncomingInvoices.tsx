@@ -126,8 +126,8 @@ export const IncomingInvoices = () => {
           {
             body: { 
               filePath: filePath,
-              fileName: file.name,
-              userId: user.id
+              fileName: file.name
+              // userId removed - now extracted from auth token server-side
             }
           }
         );

@@ -6,6 +6,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper function to get role level
+function getRoleLevel(role: string | null): number {
+  const levels: Record<string, number> = {
+    'SUPERADMIN': 5,
+    'ADMIN': 4,
+    'FINANCEIRO': 3,
+    'CONTADOR': 3,
+    'FISCAL': 2,
+    'USUARIO': 1,
+    'VIEWER': 1
+  };
+  return levels[role || ''] || 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -15,6 +29,44 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // ✅ Require authentication
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Autenticação necessária' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // ✅ Verify user from token
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Token de autenticação inválido' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // ✅ Require ADMIN role minimum for phone lookups
+    const { data: callerRole } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+    
+    const roleLevel = getRoleLevel(callerRole?.role)
+    if (roleLevel < 4) { // ADMIN or higher
+      return new Response(
+        JSON.stringify({ error: 'Permissões insuficientes. Requer role ADMIN ou superior.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // ✅ Add audit logging for phone lookups
+    console.log(`Phone lookup by user ${user.id} (role: ${callerRole?.role})`)
 
     // Validate input
     const requestSchema = z.object({
