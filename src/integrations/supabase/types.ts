@@ -469,11 +469,13 @@ export type Database = {
       bank_accounts: {
         Row: {
           access_token: string | null
+          account_hash: string | null
           account_number: string | null
           account_type: string | null
           agency: string | null
           api_environment: string | null
           auto_sync_enabled: boolean | null
+          balance: number | null
           bank_name: string
           certificate_path: string | null
           client_id: string | null
@@ -481,22 +483,26 @@ export type Database = {
           company_id: string | null
           consent_expires_at: string | null
           created_at: string
+          currency: string | null
           id: string
           last_sync_at: string | null
           open_finance_consent_id: string | null
           open_finance_status: string | null
           permissions_granted: string[] | null
           refresh_token: string | null
+          tecnospeed_item_id: string | null
           token_expires_at: string | null
           updated_at: string
         }
         Insert: {
           access_token?: string | null
+          account_hash?: string | null
           account_number?: string | null
           account_type?: string | null
           agency?: string | null
           api_environment?: string | null
           auto_sync_enabled?: boolean | null
+          balance?: number | null
           bank_name: string
           certificate_path?: string | null
           client_id?: string | null
@@ -504,22 +510,26 @@ export type Database = {
           company_id?: string | null
           consent_expires_at?: string | null
           created_at?: string
+          currency?: string | null
           id?: string
           last_sync_at?: string | null
           open_finance_consent_id?: string | null
           open_finance_status?: string | null
           permissions_granted?: string[] | null
           refresh_token?: string | null
+          tecnospeed_item_id?: string | null
           token_expires_at?: string | null
           updated_at?: string
         }
         Update: {
           access_token?: string | null
+          account_hash?: string | null
           account_number?: string | null
           account_type?: string | null
           agency?: string | null
           api_environment?: string | null
           auto_sync_enabled?: boolean | null
+          balance?: number | null
           bank_name?: string
           certificate_path?: string | null
           client_id?: string | null
@@ -527,12 +537,14 @@ export type Database = {
           company_id?: string | null
           consent_expires_at?: string | null
           created_at?: string
+          currency?: string | null
           id?: string
           last_sync_at?: string | null
           open_finance_consent_id?: string | null
           open_finance_status?: string | null
           permissions_granted?: string[] | null
           refresh_token?: string | null
+          tecnospeed_item_id?: string | null
           token_expires_at?: string | null
           updated_at?: string
         }
@@ -551,40 +563,55 @@ export type Database = {
           amount: number
           balance: number | null
           bank_account_id: string
+          category: string | null
+          category_confidence: number | null
           created_at: string
           description: string | null
+          external_id: string | null
           id: string
           imported_at: string
           imported_by: string
+          linked_transaction_id: string | null
           reconciliation_status: string | null
           statement_date: string
           transaction_id: string | null
+          type: string | null
         }
         Insert: {
           amount: number
           balance?: number | null
           bank_account_id: string
+          category?: string | null
+          category_confidence?: number | null
           created_at?: string
           description?: string | null
+          external_id?: string | null
           id?: string
           imported_at?: string
           imported_by: string
+          linked_transaction_id?: string | null
           reconciliation_status?: string | null
           statement_date: string
           transaction_id?: string | null
+          type?: string | null
         }
         Update: {
           amount?: number
           balance?: number | null
           bank_account_id?: string
+          category?: string | null
+          category_confidence?: number | null
           created_at?: string
           description?: string | null
+          external_id?: string | null
           id?: string
           imported_at?: string
           imported_by?: string
+          linked_transaction_id?: string | null
           reconciliation_status?: string | null
           statement_date?: string
           transaction_id?: string | null
+          type?: string | null
         }
         Relationships: [
           {
@@ -592,6 +619,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_linked_transaction_id_fkey"
+            columns: ["linked_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {
@@ -1906,6 +1940,53 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      sync_protocols: {
+        Row: {
+          bank_account_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          error_message: string | null
+          id: string
+          protocol_number: string | null
+          records_imported: number | null
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          bank_account_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          protocol_number?: string | null
+          records_imported?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          bank_account_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          protocol_number?: string | null
+          records_imported?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_protocols_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transaction_taxes: {
         Row: {
