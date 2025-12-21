@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database } from 'lucide-react';
+import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
@@ -75,6 +76,7 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <div className="px-2 py-2 space-y-2">
+          <OrganizationSwitcher />
           {open && (
             <div className="px-2 py-2 rounded-lg bg-sidebar-accent">
               <p className="text-xs text-sidebar-foreground/70">Permissão</p>
