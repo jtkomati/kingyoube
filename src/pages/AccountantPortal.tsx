@@ -91,25 +91,44 @@ export default function AccountantPortal() {
         return;
       }
 
-      const { data: partner } = await (supabase as any)
-        .from('cfo_partners')
-        .select('id')
+      // Verificar se é SUPERADMIN
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('role')
         .eq('user_id', user.user.id)
         .single();
 
-      if (!partner) {
-        toast({
-          variant: 'destructive',
-          title: 'Acesso negado',
-          description: 'Você não está registrado como parceiro CFO.',
-        });
-        return;
+      const isSuperAdmin = userRole?.role === 'SUPERADMIN';
+
+      let partnerId = null;
+
+      if (!isSuperAdmin) {
+        // Buscar parceiro CFO apenas se não for SUPERADMIN
+        const { data: partner } = await (supabase as any)
+          .from('cfo_partners')
+          .select('id')
+          .eq('user_id', user.user.id)
+          .single();
+
+        if (!partner) {
+          toast({
+            variant: 'destructive',
+            title: 'Acesso negado',
+            description: 'Você não está registrado como parceiro CFO.',
+          });
+          return;
+        }
+        partnerId = partner.id;
       }
 
-      const { data, error } = await (supabase as any)
-        .from('accountant_client_dashboard')
-        .select('*')
-        .eq('cfo_partner_id', partner.id);
+      // SUPERADMIN vê todos os dados, parceiro CFO vê apenas seus clientes
+      let query = (supabase as any).from('accountant_client_dashboard').select('*');
+      
+      if (partnerId) {
+        query = query.eq('cfo_partner_id', partnerId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
