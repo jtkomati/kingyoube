@@ -37,7 +37,14 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         const success = await signIn(email, password);
         if (success) {
           onOpenChange(false);
-          navigate('/dashboard');
+          // Verificar redirecionamento salvo
+          const savedRedirect = sessionStorage.getItem('redirectAfterAuth');
+          if (savedRedirect) {
+            sessionStorage.removeItem('redirectAfterAuth');
+            navigate(savedRedirect);
+          } else {
+            navigate('/dashboard');
+          }
         } else {
           setError('Credenciais inválidas. Tente novamente.');
         }
@@ -46,10 +53,17 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         if (success) {
           toast({
             title: 'Conta criada!',
-            description: 'Você será redirecionado para o dashboard.',
+            description: 'Você será redirecionado.',
           });
           onOpenChange(false);
-          navigate('/dashboard');
+          // Verificar redirecionamento salvo
+          const savedRedirect = sessionStorage.getItem('redirectAfterAuth');
+          if (savedRedirect) {
+            sessionStorage.removeItem('redirectAfterAuth');
+            navigate(savedRedirect);
+          } else {
+            navigate('/dashboard');
+          }
         } else {
           setError('Erro ao criar conta. Tente novamente.');
         }

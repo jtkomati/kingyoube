@@ -1,13 +1,27 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { Play } from 'lucide-react';
 import kingyoubeLogo from '@/assets/kingyoube-logo.png';
+import { supabase } from '@/integrations/supabase/client';
 
 export function LandingHeader() {
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const navigate = useNavigate();
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleTestDemo = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      navigate('/onboarding?demo=true');
+    } else {
+      sessionStorage.setItem('redirectAfterAuth', '/onboarding?demo=true');
+      setShowAuthModal(true);
+    }
   };
 
   return (
@@ -38,6 +52,15 @@ export function LandingHeader() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleTestDemo}
+              className="hidden sm:flex border-primary/50 text-primary hover:bg-primary/10"
+            >
+              <Play className="w-3 h-3 mr-1" />
+              Testar Grátis
+            </Button>
             <Button 
               variant="ghost" 
               size="sm"
