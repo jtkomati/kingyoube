@@ -576,6 +576,7 @@ export type Database = {
           statement_date: string
           transaction_id: string | null
           type: string | null
+          updated_at: string | null
         }
         Insert: {
           amount: number
@@ -594,6 +595,7 @@ export type Database = {
           statement_date: string
           transaction_id?: string | null
           type?: string | null
+          updated_at?: string | null
         }
         Update: {
           amount?: number
@@ -612,6 +614,7 @@ export type Database = {
           statement_date?: string
           transaction_id?: string | null
           type?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -2051,6 +2054,7 @@ export type Database = {
           total_installments: number | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           category_id: string
@@ -2082,6 +2086,7 @@ export type Database = {
           total_installments?: number | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           category_id?: string
@@ -2113,6 +2118,7 @@ export type Database = {
           total_installments?: number | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
