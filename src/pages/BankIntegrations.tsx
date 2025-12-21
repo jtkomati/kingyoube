@@ -4,10 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, RefreshCw, Settings, Building2, BarChart3, List, Link2 } from "lucide-react";
+import { Plus, RefreshCw, Settings, Building2, BarChart3, List, Link2, GitCompare } from "lucide-react";
 import { BankConnectionHub } from "@/components/openfinance/BankConnectionHub";
 import { FinancialDashboard } from "@/components/openfinance/FinancialDashboard";
 import { TransactionsList } from "@/components/openfinance/TransactionsList";
+import { ReconciliationTab } from "@/components/openfinance/ReconciliationTab";
 
 const BankIntegrations = () => {
   const [connectedBanks, setConnectedBanks] = useState<string[]>([]);
@@ -44,6 +45,10 @@ const BankIntegrations = () => {
             <TabsTrigger value="apis" className="gap-2 data-[state=active]:bg-background">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">APIs Bancárias</span>
+            </TabsTrigger>
+            <TabsTrigger value="reconciliation" className="gap-2 data-[state=active]:bg-background">
+              <GitCompare className="h-4 w-4" />
+              <span className="hidden sm:inline">Conciliação</span>
             </TabsTrigger>
           </TabsList>
 
@@ -142,6 +147,10 @@ const BankIntegrations = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="reconciliation">
+            <ReconciliationTab />
           </TabsContent>
         </Tabs>
       </div>

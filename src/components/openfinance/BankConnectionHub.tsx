@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, CheckCircle2 } from "lucide-react";
-import { PluggyConnectButton } from "./PluggyConnectButton";
+import { TecnoSpeedConnectButton } from "./TecnoSpeedConnectButton";
 import { AccountBalanceCard } from "./AccountBalanceCard";
+import { SyncProtocolsList } from "./SyncProtocolsList";
 import { supabase } from "@/integrations/supabase/client";
 
 interface BankConnectionHubProps {
@@ -97,11 +98,15 @@ export function BankConnectionHub({ connectedBanks, onBankConnected }: BankConne
                 key={account.id}
                 bankName={account.bank_name}
                 accountType="Conta Corrente PJ"
-                balance={15450.00}
-                lastUpdate="Atualizado há 2 min"
+                balance={account.balance || 0}
+                lastUpdate={account.last_sync_at ? `Atualizado em ${new Date(account.last_sync_at).toLocaleString('pt-BR')}` : "Nunca sincronizado"}
               />
             ))}
           </div>
+          <SyncProtocolsList 
+            bankAccountId={connectedAccounts[0]?.id} 
+            onSyncComplete={loadConnectedAccounts}
+          />
         </div>
       )}
 
@@ -156,7 +161,7 @@ export function BankConnectionHub({ connectedBanks, onBankConnected }: BankConne
                       Conciliação inteligente
                     </div>
                   </div>
-                  <PluggyConnectButton 
+                  <TecnoSpeedConnectButton 
                     bankId={bank.id}
                     onSuccess={handleConnectionSuccess}
                   />
