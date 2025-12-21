@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useCallback } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { AIAssistantDialog } from './AIAssistantDialog';
@@ -6,13 +6,22 @@ import { GlobalCommandPalette } from './GlobalCommandPalette';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
-import { useState } from 'react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const handleOpenSearch = useCallback(() => {
+    // Dispatch keyboard event to trigger command palette
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+  }, []);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -26,10 +35,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               variant="outline"
               size="sm"
               className="hidden md:flex items-center gap-2 text-muted-foreground"
-              onClick={() => {
-                // Trigger command palette via keyboard event
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
-              }}
+              onClick={handleOpenSearch}
             >
               <Search className="h-4 w-4" />
               <span>Buscar...</span>

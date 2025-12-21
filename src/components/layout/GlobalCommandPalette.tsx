@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CommandDialog,
@@ -8,7 +8,6 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-  CommandShortcut,
 } from "@/components/ui/command";
 import {
   LayoutDashboard,
@@ -56,10 +55,10 @@ const quickActions = [
 ];
 
 export function GlobalCommandPalette() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = React.useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -71,7 +70,7 @@ export function GlobalCommandPalette() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const handleNavigation = useCallback(
+  const handleNavigation = React.useCallback(
     (href: string) => {
       navigate(href);
       setOpen(false);
@@ -79,7 +78,7 @@ export function GlobalCommandPalette() {
     [navigate]
   );
 
-  const handleAction = useCallback(
+  const handleAction = React.useCallback(
     (action: string) => {
       switch (action) {
         case "new-transaction":
