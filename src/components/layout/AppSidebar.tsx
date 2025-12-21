@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database } from 'lucide-react';
+import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -22,6 +22,7 @@ const navigation = [
   { name: 'Agentes de IA', href: '/ai-agents', icon: Bot },
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
+  { name: 'Portal Contador', href: '/accountant-portal', icon: Building2 },
   { name: 'Cadastros', href: '/cadastros', icon: Database },
   { name: 'Transações', href: '/transactions', icon: FileText },
   { name: 'Notas Fiscais', href: '/invoices', icon: Receipt },

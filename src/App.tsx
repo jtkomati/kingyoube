@@ -14,6 +14,7 @@ import BankIntegrations from "./pages/BankIntegrations";
 import Invoices from "./pages/Invoices";
 import ResetPassword from "./pages/ResetPassword";
 import CFOCockpit from "./pages/CFOCockpit";
+import AccountantPortal from "./pages/AccountantPortal";
 import ReformaTributaria from "./pages/ReformaTributaria";
 import AIAgents from "./pages/AIAgents";
 import PredictiveAnalytics from "./pages/PredictiveAnalytics";
@@ -70,6 +71,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <CFOCockpit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accountant-portal"
+              element={
+                <ProtectedRoute>
+                  <AccountantPortal />
                 </ProtectedRoute>
               }
             />
