@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 const cnpjSchema = z.string().regex(/^\d{14}$/, 'CNPJ deve ter 14 dígitos');
 
-const DEMO_COMPANY_CNPJ = '12345678000190';
+const DEMO_COMPANY_CNPJ = '12.345.678/0001-90';
 
 interface CNPJData {
   cnpj: string;
@@ -39,6 +39,7 @@ const Onboarding = () => {
   const [cnpjInput, setCnpjInput] = useState('');
   const [cnpjData, setCnpjData] = useState<CNPJData | null>(null);
   const [demoCompany, setDemoCompany] = useState<{ id: string; company_name: string; nome_fantasia: string } | null>(null);
+  const [demoError, setDemoError] = useState(false);
   
   // Form fields
   const [companyName, setCompanyName] = useState('');
@@ -59,16 +60,24 @@ const Onboarding = () => {
         .from('company_settings')
         .select('id, company_name, nome_fantasia')
         .eq('cnpj', DEMO_COMPANY_CNPJ)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching demo company:', error);
+        setDemoError(true);
+        return;
+      }
+
+      if (!data) {
+        console.error('Demo company not found');
+        setDemoError(true);
         return;
       }
 
       setDemoCompany(data);
     } catch (error) {
       console.error('Error:', error);
+      setDemoError(true);
     }
   };
 
@@ -392,11 +401,22 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* Modo Demo sem empresa encontrada */}
-          {isDemoMode && !demoCompany && (
+          {/* Modo Demo carregando */}
+          {isDemoMode && !demoCompany && !demoError && (
             <div className="text-center py-8">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
               <p className="text-muted-foreground">Carregando empresa demo...</p>
+            </div>
+          )}
+
+          {/* Modo Demo com erro */}
+          {isDemoMode && demoError && (
+            <div className="text-center py-8 space-y-4">
+              <p className="text-destructive">Empresa demo não encontrada</p>
+              <Button onClick={() => navigate('/onboarding')}>
+                <Building2 className="w-4 h-4 mr-2" />
+                Criar Minha Própria Empresa
+              </Button>
             </div>
           )}
 
