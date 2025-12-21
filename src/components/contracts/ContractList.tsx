@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Table,
   TableBody,
@@ -16,7 +17,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractDialog } from "./ContractDialog";
 import { ContractAnalysisDialog } from "./ContractAnalysisDialog";
-import { useAuth } from "@/hooks/useAuth";
 
 interface ContractListProps {
   entityType: "customer" | "supplier";
@@ -27,12 +27,14 @@ export const ContractList = ({ entityType, entityId }: ContractListProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
-  const { hasPermission } = useAuth();
+  const { hasPermission, currentOrganization } = useAuth();
   const canCreate = hasPermission("FINANCEIRO");
 
   const { data: contracts, isLoading } = useQuery({
-    queryKey: ["contracts", entityType, entityId],
+    queryKey: ["contracts", entityType, entityId, currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+
       let query = (supabase as any)
         .from("contracts")
         .select(`
@@ -40,7 +42,8 @@ export const ContractList = ({ entityType, entityId }: ContractListProps) => {
           customers(first_name, last_name, company_name),
           suppliers(first_name, last_name, company_name)
         `)
-        .eq("entity_type", entityType);
+        .eq("entity_type", entityType)
+        .eq("company_id", currentOrganization.id);
 
       if (entityId) {
         query = entityType === "customer"
@@ -53,6 +56,7 @@ export const ContractList = ({ entityType, entityId }: ContractListProps) => {
       if (error) throw error;
       return data;
     },
+    enabled: !!currentOrganization?.id,
   });
 
   const getStatusVariant = (status: string) => {
@@ -92,6 +96,14 @@ export const ContractList = ({ entityType, entityId }: ContractListProps) => {
 
   if (isLoading) {
     return <div className="text-center py-8">Carregando...</div>;
+  }
+
+  if (!currentOrganization?.id) {
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        Selecione uma organização para visualizar os contratos
+      </div>
+    );
   }
 
   return (

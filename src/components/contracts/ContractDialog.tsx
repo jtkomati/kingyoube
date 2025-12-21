@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Upload, Loader2 } from "lucide-react";
@@ -33,21 +34,26 @@ interface ContractDialogProps {
 
 export const ContractDialog = ({ open, onClose, entityType, entityId }: ContractDialogProps) => {
   const queryClient = useQueryClient();
+  const { user, currentOrganization } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const { data: entities } = useQuery({
-    queryKey: [entityType === "customer" ? "customers" : "suppliers"],
+    queryKey: [entityType === "customer" ? "customers" : "suppliers", currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+
       const { data, error } = await (supabase as any)
         .from(entityType === "customer" ? "customers" : "suppliers")
         .select("*")
+        .eq("company_id", currentOrganization.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data;
     },
+    enabled: !!currentOrganization?.id,
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -67,7 +73,6 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
   const handleFileUpload = async (file: File, companyId: string) => {
     setUploading(true);
     try {
-      // Use company_id in path for tenant isolation
       const filePath = `${companyId}/${Date.now()}-${file.name}`;
       
       const { error: uploadError } = await supabase.storage
@@ -93,22 +98,12 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
-
-      // Buscar company_id do usuário
-      const { data: profile, error: profileError } = await (supabase as any)
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) throw profileError;
-      if (!profile?.company_id) throw new Error("Usuário sem empresa associada");
+      if (!currentOrganization?.id) throw new Error("Selecione uma organização");
 
       let fileData = null;
       if (uploadedFile) {
-        fileData = await handleFileUpload(uploadedFile, profile.company_id);
+        fileData = await handleFileUpload(uploadedFile, currentOrganization.id);
       }
 
       const contractData: any = {
@@ -122,7 +117,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
         value: values.value ? parseFloat(values.value) : null,
         status: values.status,
         created_by: user.id,
-        company_id: profile.company_id,
+        company_id: currentOrganization.id,
         ...(fileData && {
           file_url: fileData.url,
           file_name: fileData.name,
@@ -140,7 +135,6 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
 
       toast.success("Contrato criado!");
 
-      // Se for fornecedor, perguntar se quer analisar com IA
       if (entityType === "supplier" && uploadedFile && newContract) {
         const shouldAnalyze = confirm("Deseja analisar o contrato com IA agora?");
         if (shouldAnalyze) {
@@ -160,7 +154,6 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
   const analyzeContract = async (contractId: string) => {
     setAnalyzing(true);
     try {
-      // Ler o arquivo PDF (simplificado - em produção usar parser de PDF)
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target?.result as string;
@@ -168,7 +161,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
         const { error } = await supabase.functions.invoke("analyze-contract", {
           body: {
             contract_id: contractId,
-            contract_text: text.substring(0, 50000), // Limitar tamanho
+            contract_text: text.substring(0, 50000),
           },
         });
 
@@ -356,7 +349,7 @@ export const ContractDialog = ({ open, onClose, entityType, entityId }: Contract
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={uploading || analyzing}>
+              <Button type="submit" disabled={uploading || analyzing || !currentOrganization?.id}>
                 {(uploading || analyzing) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {uploading ? "Enviando..." : analyzing ? "Analisando..." : "Criar"}
               </Button>

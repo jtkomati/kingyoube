@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Upload, DollarSign, Download, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ interface IncomingInvoice {
 
 export const IncomingInvoices = () => {
   const { toast } = useToast();
+  const { currentOrganization } = useAuth();
   const isMobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -45,13 +47,18 @@ export const IncomingInvoices = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    fetchInvoices();
-  }, []);
+    if (currentOrganization?.id) {
+      fetchInvoices();
+    }
+  }, [currentOrganization?.id]);
 
   const fetchInvoices = async () => {
+    if (!currentOrganization?.id) return;
+
     const { data, error } = await (supabase as any)
       .from('incoming_invoices')
       .select('*')
+      .eq('company_id', currentOrganization.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -93,20 +100,13 @@ export const IncomingInvoices = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      // Get company_id from profile for tenant isolation
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError || !profile?.company_id) {
-        throw new Error('Usuário sem empresa associada. Configure sua empresa nas configurações.');
+      if (!currentOrganization?.id) {
+        throw new Error('Selecione uma organização');
       }
 
       // Upload file to storage using company_id for tenant isolation
       const fileExt = fileName.split('.').pop();
-      const filePath = `${profile.company_id}/${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${currentOrganization.id}/${crypto.randomUUID()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('invoices-pdf')
@@ -280,24 +280,12 @@ export const IncomingInvoices = () => {
       const invoice = invoiceToDelete;
       
       // Delete from storage if file_url exists
-      if (invoice.file_name) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Get company_id for correct path
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('company_id')
-            .eq('id', user.id)
-            .single();
-          
-          if (profile?.company_id) {
-            // Try to delete the file from storage using company_id path
-            const filePath = `${profile.company_id}/${invoice.file_name.split('/').pop()}`;
-            await supabase.storage
-              .from('invoices-pdf')
-              .remove([filePath]);
-          }
-        }
+      if (invoice.file_name && currentOrganization?.id) {
+        // Try to delete the file from storage using company_id path
+        const filePath = `${currentOrganization.id}/${invoice.file_name.split('/').pop()}`;
+        await supabase.storage
+          .from('invoices-pdf')
+          .remove([filePath]);
       }
 
       // Delete from database

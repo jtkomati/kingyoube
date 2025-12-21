@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Table,
   TableBody,
@@ -24,14 +25,18 @@ const PAGE_SIZE = 20;
 
 export const TransactionList = ({ onEdit }: TransactionListProps) => {
   const [page, setPage] = useState(0);
+  const { currentOrganization } = useAuth();
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["transactions", page],
+    queryKey: ["transactions", page, currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization?.id) {
+        return { transactions: [], totalCount: 0, totalPages: 0 };
+      }
+
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Optimized single query with JOINs instead of chained queries
       const { data, error, count } = await (supabase as any)
         .from("transactions")
         .select(`
@@ -52,12 +57,12 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
           customers:customer_id(id, first_name, last_name, company_name),
           suppliers:supplier_id(id, first_name, last_name, company_name)
         `, { count: "exact" })
+        .eq("company_id", currentOrganization.id)
         .order("due_date", { ascending: false })
         .range(from, to);
 
       if (error) throw error;
 
-      // Map the response to a cleaner format
       const transactions = data?.map((t: any) => ({
         ...t,
         category: t.categories,
@@ -71,7 +76,8 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
         totalPages: Math.ceil((count || 0) / PAGE_SIZE),
       };
     },
-    placeholderData: (previousData) => previousData, // Keep previous data while loading
+    enabled: !!currentOrganization?.id,
+    placeholderData: (previousData) => previousData,
   });
 
   const getTypeLabel = (type: string) => {
@@ -117,6 +123,14 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (!currentOrganization?.id) {
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        Selecione uma organização para visualizar as transações
       </div>
     );
   }
@@ -214,7 +228,6 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
         </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-2">
           <p className="text-sm text-muted-foreground">

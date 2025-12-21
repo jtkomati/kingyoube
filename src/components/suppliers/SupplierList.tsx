@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Table,
   TableBody,
@@ -17,21 +18,35 @@ interface SupplierListProps {
 }
 
 export const SupplierList = ({ onEdit }: SupplierListProps) => {
+  const { currentOrganization } = useAuth();
+
   const { data: suppliers, isLoading } = useQuery({
-    queryKey: ["suppliers"],
+    queryKey: ["suppliers", currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+
       const { data, error } = await (supabase as any)
         .from("suppliers")
         .select("*")
+        .eq("company_id", currentOrganization.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data;
     },
+    enabled: !!currentOrganization?.id,
   });
 
   if (isLoading) {
     return <div className="text-center py-8">Carregando...</div>;
+  }
+
+  if (!currentOrganization?.id) {
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        Selecione uma organização para visualizar os fornecedores
+      </div>
+    );
   }
 
   return (
