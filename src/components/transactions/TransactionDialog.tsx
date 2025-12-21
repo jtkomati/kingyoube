@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
@@ -33,6 +34,7 @@ interface TransactionDialogProps {
 
 export const TransactionDialog = ({ open, onClose, transaction }: TransactionDialogProps) => {
   const queryClient = useQueryClient();
+  const { currentOrganization, user } = useAuth();
   const [isCalculating, setIsCalculating] = useState(false);
   const [taxPreview, setTaxPreview] = useState<any>(null);
 
@@ -85,20 +87,10 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
     }
   };
 
-  // Optimistic Update Mutation
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
-
-      const { data: profile, error: profileError } = await (supabase as any)
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) throw profileError;
-      if (!profile?.company_id) throw new Error("Usuário sem empresa associada");
+      if (!currentOrganization?.id) throw new Error("Selecione uma organização");
 
       const netAmount = taxPreview?.net_amount || parseFloat(values.gross_amount);
 
@@ -114,7 +106,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
         tax_regime: values.tax_regime,
         discount_amount: 0,
         created_by: user.id,
-        company_id: profile.company_id,
+        company_id: currentOrganization.id,
       };
 
       if (transaction) {
@@ -138,15 +130,10 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
         return data;
       }
     },
-    // Optimistic Update
     onMutate: async (newData) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["transactions"] });
-
-      // Snapshot the previous value
       const previousTransactions = queryClient.getQueryData(["transactions"]);
 
-      // Optimistically update to the new value
       const netAmount = taxPreview?.net_amount || parseFloat(newData.gross_amount);
       const optimisticTransaction = {
         id: transaction?.id || `temp-${Date.now()}`,
@@ -160,32 +147,27 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
         supplier_id: newData.supplier_id || null,
         tax_regime: newData.tax_regime,
         invoice_status: "pending",
-        category: { name: "..." }, // Placeholder
+        category: { name: "..." },
       };
 
       queryClient.setQueryData(["transactions"], (old: any[] | undefined) => {
         if (!old) return [optimisticTransaction];
         
         if (transaction) {
-          // Update existing
           return old.map((t) =>
             t.id === transaction.id ? { ...t, ...optimisticTransaction } : t
           );
         } else {
-          // Add new at the top
           return [optimisticTransaction, ...old];
         }
       });
 
-      // Return context with the snapshotted value
       return { previousTransactions };
     },
-    // If the mutation fails, rollback
     onError: (err: any, newData, context) => {
       queryClient.setQueryData(["transactions"], context?.previousTransactions);
       toast.error("Erro: " + err.message);
     },
-    // Always refetch after error or success
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
@@ -363,7 +345,7 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
               <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending || !currentOrganization?.id}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {transaction ? "Atualizar" : "Criar"}
               </Button>

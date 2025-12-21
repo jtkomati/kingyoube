@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ERPDataHook {
   getTransactionsSummary: () => Promise<string>;
@@ -10,32 +10,15 @@ interface ERPDataHook {
 }
 
 export function useERPData(): ERPDataHook {
-  const [companyId, setCompanyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchCompanyId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', user.id)
-          .single();
-        
-        setCompanyId(profile?.company_id || null);
-      }
-    };
-
-    fetchCompanyId();
-  }, []);
+  const { currentOrganization } = useAuth();
 
   const getTransactionsSummary = async (): Promise<string> => {
-    if (!companyId) return 'Dados da empresa não disponíveis';
+    if (!currentOrganization?.id) return 'Selecione uma organização';
 
     const { data: transactions, error } = await supabase
       .from('transactions')
       .select('type, gross_amount, net_amount, due_date')
-      .eq('company_id', companyId)
+      .eq('company_id', currentOrganization.id)
       .order('due_date', { ascending: false })
       .limit(100);
 
@@ -55,12 +38,12 @@ export function useERPData(): ERPDataHook {
   };
 
   const getRecentTransactions = async (limit: number = 5): Promise<string> => {
-    if (!companyId) return 'Dados da empresa não disponíveis';
+    if (!currentOrganization?.id) return 'Selecione uma organização';
 
     const { data: transactions, error } = await supabase
       .from('transactions')
       .select('type, description, gross_amount, due_date')
-      .eq('company_id', companyId)
+      .eq('company_id', currentOrganization.id)
       .order('due_date', { ascending: false })
       .limit(limit);
 
@@ -75,12 +58,12 @@ export function useERPData(): ERPDataHook {
   };
 
   const getCustomers = async (): Promise<string> => {
-    if (!companyId) return 'Dados da empresa não disponíveis';
+    if (!currentOrganization?.id) return 'Selecione uma organização';
 
     const { data: customers, error } = await supabase
       .from('customers')
       .select('first_name, last_name, company_name, email, phone')
-      .eq('company_id', companyId)
+      .eq('company_id', currentOrganization.id)
       .limit(10);
 
     if (error) return `Erro ao buscar clientes: ${error.message}`;
@@ -95,12 +78,12 @@ export function useERPData(): ERPDataHook {
   };
 
   const getSuppliers = async (): Promise<string> => {
-    if (!companyId) return 'Dados da empresa não disponíveis';
+    if (!currentOrganization?.id) return 'Selecione uma organização';
 
     const { data: suppliers, error } = await supabase
       .from('suppliers')
       .select('first_name, last_name, company_name, email, phone')
-      .eq('company_id', companyId)
+      .eq('company_id', currentOrganization.id)
       .limit(10);
 
     if (error) return `Erro ao buscar fornecedores: ${error.message}`;
@@ -115,21 +98,21 @@ export function useERPData(): ERPDataHook {
   };
 
   const getCashFlowSummary = async (): Promise<string> => {
-    if (!companyId) return 'Dados da empresa não disponíveis';
+    if (!currentOrganization?.id) return 'Selecione uma organização';
 
     const hoje = new Date().toISOString().split('T')[0];
 
     const { data: transactionsVencidas } = await supabase
       .from('transactions')
       .select('type, net_amount')
-      .eq('company_id', companyId)
+      .eq('company_id', currentOrganization.id)
       .lt('due_date', hoje)
       .is('payment_date', null);
 
     const { data: transactionsProximas } = await supabase
       .from('transactions')
       .select('type, net_amount')
-      .eq('company_id', companyId)
+      .eq('company_id', currentOrganization.id)
       .gte('due_date', hoje)
       .lte('due_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 

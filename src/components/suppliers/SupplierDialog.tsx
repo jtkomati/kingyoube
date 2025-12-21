@@ -8,6 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -31,6 +32,7 @@ interface SupplierDialogProps {
 
 export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps) => {
   const queryClient = useQueryClient();
+  const { user, currentOrganization } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,18 +57,8 @@ export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps)
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
-
-      // Buscar company_id do usuário
-      const { data: profile, error: profileError } = await (supabase as any)
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) throw profileError;
-      if (!profile?.company_id) throw new Error("Usuário sem empresa associada");
+      if (!currentOrganization?.id) throw new Error("Selecione uma organização");
 
       const supplierData: any = {
         person_type: values.person_type,
@@ -79,7 +71,7 @@ export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps)
         phone: values.phone || null,
         address: values.address || null,
         created_by: user.id,
-        company_id: profile.company_id,
+        company_id: currentOrganization.id,
       };
 
       if (supplier) {
@@ -268,7 +260,7 @@ export const SupplierDialog = ({ open, onClose, supplier }: SupplierDialogProps)
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit">
+              <Button type="submit" disabled={!currentOrganization?.id}>
                 {supplier ? "Atualizar" : "Criar"}
               </Button>
             </div>
