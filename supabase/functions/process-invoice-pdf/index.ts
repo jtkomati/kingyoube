@@ -123,11 +123,39 @@ serve(async (req) => {
   }
 
   try {
-    // Validate input
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // ✅ Validate Authorization header - require authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Autenticação necessária' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ✅ Verify user from token, not from request body
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('Erro de autenticação:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Token de autenticação inválido' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ✅ Use authenticated user.id instead of client-provided userId
+    const userId = user.id;
+    console.log('Usuário autenticado:', userId);
+
+    // Validate input - userId removed from schema, use authenticated user
     const requestSchema = z.object({
       filePath: z.string().min(1).max(500),
-      fileName: z.string().min(1).max(255),
-      userId: z.string().uuid('userId deve ser um UUID válido')
+      fileName: z.string().min(1).max(255)
     });
 
     const body = await req.json();
@@ -140,11 +168,7 @@ serve(async (req) => {
       );
     }
 
-    const { filePath, fileName, userId } = validation.data;
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { filePath, fileName } = validation.data;
 
     console.log('Baixando arquivo PDF do path:', filePath);
     
