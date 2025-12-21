@@ -4,11 +4,22 @@ import { User, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { getFriendlyError, isRetryableError, shouldLogError } from '@/lib/errorMessages';
 
+export interface Organization {
+  id: string;
+  company_name: string;
+  nome_fantasia: string | null;
+  cnpj: string;
+  status: string | null;
+  is_default: boolean;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userOrganizations, setUserOrganizations] = useState<Organization[]>([]);
+  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -23,9 +34,12 @@ export function useAuth() {
       if (newSession?.user) {
         setTimeout(() => {
           fetchUserRole(newSession.user.id);
+          fetchUserOrganizations(newSession.user.id);
         }, 0);
       } else {
         setUserRole(null);
+        setUserOrganizations([]);
+        setCurrentOrganization(null);
       }
       setLoading(false);
     });
@@ -36,6 +50,7 @@ export function useAuth() {
       setUser(currentSession?.user ?? null);
       if (currentSession?.user) {
         fetchUserRole(currentSession.user.id);
+        fetchUserOrganizations(currentSession.user.id);
       }
       setLoading(false);
     });
@@ -59,6 +74,61 @@ export function useAuth() {
     }
 
     setUserRole(data?.role ?? 'VIEWER');
+  };
+
+  const fetchUserOrganizations = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_organizations')
+      .select(`
+        is_default,
+        organization_id,
+        company_settings (
+          id,
+          company_name,
+          nome_fantasia,
+          cnpj,
+          status
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      if (shouldLogError(error)) {
+        console.error('Erro ao buscar organizações:', error);
+      }
+      return;
+    }
+
+    // Map data to Organization interface
+    const organizations: Organization[] = (data ?? [])
+      .filter((item: any) => item.company_settings)
+      .map((item: any) => ({
+        id: item.company_settings.id,
+        company_name: item.company_settings.company_name,
+        nome_fantasia: item.company_settings.nome_fantasia,
+        cnpj: item.company_settings.cnpj,
+        status: item.company_settings.status,
+        is_default: item.is_default ?? false,
+      }));
+
+    setUserOrganizations(organizations);
+
+    // Restore from localStorage or use default
+    const savedOrgId = localStorage.getItem('currentOrganizationId');
+    const savedOrg = savedOrgId ? organizations.find(org => org.id === savedOrgId) : null;
+    const defaultOrg = savedOrg || organizations.find(org => org.is_default) || organizations[0];
+    
+    if (defaultOrg) {
+      setCurrentOrganization(defaultOrg);
+    }
+  };
+
+  const switchOrganization = (organizationId: string) => {
+    const org = userOrganizations.find(o => o.id === organizationId);
+    if (org) {
+      setCurrentOrganization(org);
+      localStorage.setItem('currentOrganizationId', organizationId);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -161,6 +231,9 @@ export function useAuth() {
     setSession(null);
     setUser(null);
     setUserRole(null);
+    setUserOrganizations([]);
+    setCurrentOrganization(null);
+    localStorage.removeItem('currentOrganizationId');
     setLoading(false);
     
     // Then call Supabase to clear server session
@@ -205,5 +278,8 @@ export function useAuth() {
     signUp,
     signOut,
     hasPermission,
+    userOrganizations,
+    currentOrganization,
+    switchOrganization,
   };
 }
