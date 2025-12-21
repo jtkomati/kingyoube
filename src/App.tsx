@@ -23,6 +23,9 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import PrivacySettings from "./pages/PrivacySettings";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
+import Onboarding from "./pages/Onboarding";
+import AccountingSettings from "./pages/AccountingSettings";
+import AcceptInvite from "./pages/AcceptInvite";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +61,23 @@ const App = () => {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting-settings"
+              element={
+                <ProtectedRoute>
+                  <AccountingSettings />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/privacy-settings"
               element={
