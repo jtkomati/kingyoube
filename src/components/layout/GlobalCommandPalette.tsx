@@ -54,28 +54,36 @@ const quickActions = [
   { title: "Calcular Impostos", action: "calculate-taxes", keywords: ["tributação", "simular"] },
 ];
 
-export function GlobalCommandPalette() {
-  const [open, setOpen] = React.useState(false);
+interface GlobalCommandPaletteProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function GlobalCommandPalette({ open: externalOpen, onOpenChange }: GlobalCommandPaletteProps = {}) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
   const navigate = useNavigate();
+
+  const isOpen = externalOpen ?? internalOpen;
+  const setIsOpen = onOpenChange ?? setInternalOpen;
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setIsOpen(!isOpen);
       }
     };
 
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [isOpen, setIsOpen]);
 
   const handleNavigation = React.useCallback(
     (href: string) => {
       navigate(href);
-      setOpen(false);
+      setIsOpen(false);
     },
-    [navigate]
+    [navigate, setIsOpen]
   );
 
   const handleAction = React.useCallback(
@@ -95,13 +103,13 @@ export function GlobalCommandPalette() {
           navigate("/reforma-tributaria");
           break;
       }
-      setOpen(false);
+      setIsOpen(false);
     },
-    [navigate]
+    [navigate, setIsOpen]
   );
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={isOpen} onOpenChange={setIsOpen}>
       <CommandInput placeholder="Buscar páginas, ações ou comandos AI..." />
       <CommandList>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>

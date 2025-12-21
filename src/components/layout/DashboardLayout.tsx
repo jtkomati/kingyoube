@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { AIAssistantDialog } from './AIAssistantDialog';
@@ -12,15 +12,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const handleOpenSearch = useCallback(() => {
-    // Dispatch keyboard event to trigger command palette
-    const event = new KeyboardEvent('keydown', {
-      key: 'k',
-      metaKey: true,
-      bubbles: true,
-    });
-    document.dispatchEvent(event);
-  }, []);
+  const [commandOpen, setCommandOpen] = useState(false);
 
   return (
     <SidebarProvider>
@@ -35,7 +27,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               variant="outline"
               size="sm"
               className="hidden md:flex items-center gap-2 text-muted-foreground"
-              onClick={handleOpenSearch}
+              onClick={() => setCommandOpen(true)}
             >
               <Search className="h-4 w-4" />
               <span>Buscar...</span>
@@ -49,7 +41,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </main>
         </SidebarInset>
         <AIAssistantDialog />
-        <GlobalCommandPalette />
+        <GlobalCommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
       </div>
     </SidebarProvider>
   );
