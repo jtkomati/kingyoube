@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
-import { Calculator } from "lucide-react";
+import { Calculator, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   type: z.enum(["RECEIVABLE", "PAYABLE"]),
@@ -85,12 +85,12 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
+  // Optimistic Update Mutation
+  const mutation = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Buscar company_id do usuário
       const { data: profile, error: profileError } = await (supabase as any)
         .from("profiles")
         .select("company_id")
@@ -118,29 +118,87 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
       };
 
       if (transaction) {
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from("transactions")
           .update(transactionData)
-          .eq("id", transaction.id);
+          .eq("id", transaction.id)
+          .select()
+          .single();
 
         if (error) throw error;
-        toast.success("Transação atualizada!");
+        return { ...transactionData, id: transaction.id, ...data };
       } else {
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from("transactions")
-          .insert(transactionData);
+          .insert(transactionData)
+          .select()
+          .single();
 
         if (error) throw error;
-        toast.success("Transação criada!");
+        return data;
       }
+    },
+    // Optimistic Update
+    onMutate: async (newData) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["transactions"] });
 
+      // Snapshot the previous value
+      const previousTransactions = queryClient.getQueryData(["transactions"]);
+
+      // Optimistically update to the new value
+      const netAmount = taxPreview?.net_amount || parseFloat(newData.gross_amount);
+      const optimisticTransaction = {
+        id: transaction?.id || `temp-${Date.now()}`,
+        type: newData.type,
+        description: newData.description,
+        gross_amount: parseFloat(newData.gross_amount),
+        net_amount: netAmount,
+        due_date: newData.due_date,
+        category_id: newData.category_id,
+        customer_id: newData.customer_id || null,
+        supplier_id: newData.supplier_id || null,
+        tax_regime: newData.tax_regime,
+        invoice_status: "pending",
+        category: { name: "..." }, // Placeholder
+      };
+
+      queryClient.setQueryData(["transactions"], (old: any[] | undefined) => {
+        if (!old) return [optimisticTransaction];
+        
+        if (transaction) {
+          // Update existing
+          return old.map((t) =>
+            t.id === transaction.id ? { ...t, ...optimisticTransaction } : t
+          );
+        } else {
+          // Add new at the top
+          return [optimisticTransaction, ...old];
+        }
+      });
+
+      // Return context with the snapshotted value
+      return { previousTransactions };
+    },
+    // If the mutation fails, rollback
+    onError: (err: any, newData, context) => {
+      queryClient.setQueryData(["transactions"], context?.previousTransactions);
+      toast.error("Erro: " + err.message);
+    },
+    // Always refetch after error or success
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+    onSuccess: () => {
+      toast.success(transaction ? "Transação atualizada!" : "Transação criada!");
       onClose();
       form.reset();
       setTaxPreview(null);
-    } catch (error: any) {
-      toast.error("Erro: " + error.message);
-    }
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    mutation.mutate(values);
   };
 
   return (
@@ -302,10 +360,11 @@ export const TransactionDialog = ({ open, onClose, transaction }: TransactionDia
             />
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
                 Cancelar
               </Button>
-              <Button type="submit">
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {transaction ? "Atualizar" : "Criar"}
               </Button>
             </div>
