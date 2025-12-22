@@ -57,8 +57,8 @@ function PageLoader() {
   );
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
+  const { user, loading, userRole } = useAuth();
 
   if (loading) {
     return <PageLoader />;
@@ -68,13 +68,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/" replace />;
   }
 
+  if (requiredRole && userRole !== requiredRole) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 }
 
 // Wrapper for lazy loaded protected routes
-function LazyProtectedRoute({ children }: { children: React.ReactNode }) {
+function LazyProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole={requiredRole}>
       <Suspense fallback={<PageLoader />}>
         {children}
       </Suspense>
@@ -170,7 +174,7 @@ const App = () => {
             />
             <Route
               path="/observability"
-              element={<LazyProtectedRoute><Observability /></LazyProtectedRoute>}
+              element={<LazyProtectedRoute requiredRole="SUPERADMIN"><Observability /></LazyProtectedRoute>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
