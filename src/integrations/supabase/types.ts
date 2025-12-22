@@ -19,6 +19,7 @@ export type Database = {
           account_subtype: string | null
           account_type: string
           code: string
+          company_id: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
@@ -36,6 +37,7 @@ export type Database = {
           account_subtype?: string | null
           account_type: string
           code: string
+          company_id?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -53,6 +55,7 @@ export type Database = {
           account_subtype?: string | null
           account_type?: string
           code?: string
+          company_id?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -68,6 +71,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "accounting_chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "accounting_chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "accounting_chart_of_accounts_parent_account_id_fkey"
             columns: ["parent_account_id"]
             isOneToOne: false
@@ -79,6 +103,7 @@ export type Database = {
       accounting_cost_centers: {
         Row: {
           code: string
+          company_id: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -89,6 +114,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          company_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -99,6 +125,7 @@ export type Database = {
         }
         Update: {
           code?: string
+          company_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -108,6 +135,27 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "accounting_cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "accounting_cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "accounting_cost_centers_parent_cost_center_id_fkey"
             columns: ["parent_cost_center_id"]
@@ -119,6 +167,7 @@ export type Database = {
       }
       accounting_entries: {
         Row: {
+          company_id: string | null
           created_at: string | null
           created_by: string
           description: string
@@ -132,6 +181,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           created_by: string
           description: string
@@ -145,6 +195,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string
           description?: string
@@ -157,11 +208,34 @@ export type Database = {
           total_amount?: number
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "accounting_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       accounting_entry_items: {
         Row: {
           account_id: string
+          company_id: string | null
           cost_center_id: string | null
           created_at: string | null
           credit_amount: number | null
@@ -174,6 +248,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          company_id?: string | null
           cost_center_id?: string | null
           created_at?: string | null
           credit_amount?: number | null
@@ -186,6 +261,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          company_id?: string | null
           cost_center_id?: string | null
           created_at?: string | null
           credit_amount?: number | null
@@ -202,6 +278,27 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounting_chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -237,6 +334,7 @@ export type Database = {
       accounting_profit_centers: {
         Row: {
           code: string
+          company_id: string | null
           created_at: string | null
           customer_id: string | null
           description: string | null
@@ -247,6 +345,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          company_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           description?: string | null
@@ -257,6 +356,7 @@ export type Database = {
         }
         Update: {
           code?: string
+          company_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           description?: string | null
@@ -266,6 +366,27 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "accounting_profit_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "accounting_profit_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_profit_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "accounting_profit_centers_customer_id_fkey"
             columns: ["customer_id"]
@@ -280,6 +401,7 @@ export type Database = {
           budget_amount: number | null
           budget_hours: number | null
           code: string
+          company_id: string | null
           created_at: string | null
           customer_id: string | null
           description: string | null
@@ -298,6 +420,7 @@ export type Database = {
           budget_amount?: number | null
           budget_hours?: number | null
           code: string
+          company_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           description?: string | null
@@ -316,6 +439,7 @@ export type Database = {
           budget_amount?: number | null
           budget_hours?: number | null
           code?: string
+          company_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           description?: string | null
@@ -331,6 +455,27 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "accounting_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "accounting_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "accounting_projects_customer_id_fkey"
             columns: ["customer_id"]
