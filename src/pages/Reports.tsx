@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,26 +10,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const Reports = () => {
-  const [selectedMonth, setSelectedMonth] = useState<string>("2025-10");
+  const { currentOrganization } = useAuth();
+  const currentDate = new Date();
+  const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
   const [dreData, setDreData] = useState<any>({});
   const [cashFlowData, setCashFlowData] = useState<any[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchFinancialData();
-  }, []);
+    if (currentOrganization?.id) {
+      fetchFinancialData();
+    }
+  }, [currentOrganization?.id]);
 
   const fetchFinancialData = async () => {
+    if (!currentOrganization?.id) return;
+    
     try {
       setLoading(true);
       
-      // Buscar transações de janeiro a outubro 2025
+      // Calcular últimos 12 meses dinamicamente
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 11);
+      
       const { data: transactions, error } = await (supabase as any)
         .from('transactions')
         .select('*')
-        .gte('due_date', '2025-01-01')
-        .lte('due_date', '2025-10-31')
+        .eq('company_id', currentOrganization.id)
+        .gte('due_date', startDate.toISOString().split('T')[0])
+        .lte('due_date', endDate.toISOString().split('T')[0])
         .order('due_date');
 
       if (error) throw error;
@@ -36,46 +51,61 @@ const Reports = () => {
       // Processar dados por mês
       const monthlyData: any = {};
       const cashFlow: any[] = [];
+      const months: string[] = [];
       
-      for (let month = 1; month <= 10; month++) {
-        const monthStr = month.toString().padStart(2, '0');
-        const monthKey = `2025-${monthStr}`;
-        const monthLabel = new Date(2025, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-
-        const monthTransactions = transactions?.filter((t: any) => 
-          t.due_date.startsWith(monthKey)
-        ) || [];
-
-        const receitas = monthTransactions
-          .filter((t: any) => t.type === 'RECEIVABLE')
-          .reduce((sum, t) => sum + Number(t.gross_amount), 0);
-        
-        const custos = monthTransactions
-          .filter(t => t.type === 'PAYABLE')
-          .reduce((sum, t) => sum + Number(t.gross_amount), 0);
-
-        const deducoes = receitas * 0.10; // 10% impostos aproximado
-        const receitaLiquida = receitas - deducoes;
-        const resultado = receitaLiquida - custos;
-
+      // Criar estrutura para os últimos 12 meses
+      for (let i = 0; i < 12; i++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (11 - i));
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        months.push(monthKey);
         monthlyData[monthKey] = {
-          receitaBruta: receitas,
-          deducoes: deducoes,
-          receitaLiquida: receitaLiquida,
-          despesasOperacionais: custos,
-          resultado: resultado
+          receitaBruta: 0,
+          deducoes: 0,
+          receitaLiquida: 0,
+          despesasOperacionais: 0,
+          resultado: 0
         };
-
+      }
+      
+      // Processar transações
+      for (const tx of transactions || []) {
+        const monthKey = tx.due_date.substring(0, 7);
+        if (monthlyData[monthKey]) {
+          if (tx.type === 'RECEIVABLE') {
+            monthlyData[monthKey].receitaBruta += Number(tx.gross_amount || 0);
+          } else {
+            monthlyData[monthKey].despesasOperacionais += Number(tx.gross_amount || 0);
+          }
+        }
+      }
+      
+      // Calcular valores derivados
+      for (const monthKey of months) {
+        const data = monthlyData[monthKey];
+        data.deducoes = data.receitaBruta * 0.10; // 10% impostos aproximado
+        data.receitaLiquida = data.receitaBruta - data.deducoes;
+        data.resultado = data.receitaLiquida - data.despesasOperacionais;
+        
+        const [year, month] = monthKey.split('-');
+        const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        
         cashFlow.push({
           mes: monthLabel.replace('.', ''),
-          entradas: receitas,
-          saidas: custos,
-          saldo: resultado
+          entradas: data.receitaBruta,
+          saidas: data.despesasOperacionais,
+          saldo: data.resultado
         });
       }
 
       setDreData(monthlyData);
       setCashFlowData(cashFlow);
+      setAvailableMonths(months);
+      
+      // Atualizar mês selecionado se não estiver na lista
+      if (!months.includes(selectedMonth)) {
+        setSelectedMonth(months[months.length - 1] || currentMonthKey);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados financeiros:', error);
       toast({
@@ -129,16 +159,15 @@ const Reports = () => {
                   <SelectValue placeholder="Selecione o mês" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2025-01">Janeiro 2025</SelectItem>
-                  <SelectItem value="2025-02">Fevereiro 2025</SelectItem>
-                  <SelectItem value="2025-03">Março 2025</SelectItem>
-                  <SelectItem value="2025-04">Abril 2025</SelectItem>
-                  <SelectItem value="2025-05">Maio 2025</SelectItem>
-                  <SelectItem value="2025-06">Junho 2025</SelectItem>
-                  <SelectItem value="2025-07">Julho 2025</SelectItem>
-                  <SelectItem value="2025-08">Agosto 2025</SelectItem>
-                  <SelectItem value="2025-09">Setembro 2025</SelectItem>
-                  <SelectItem value="2025-10">Outubro 2025</SelectItem>
+                  {availableMonths.map((monthKey) => {
+                    const [year, month] = monthKey.split('-');
+                    const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    return (
+                      <SelectItem key={monthKey} value={monthKey}>
+                        {label.charAt(0).toUpperCase() + label.slice(1)}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

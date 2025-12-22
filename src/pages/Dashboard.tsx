@@ -375,15 +375,10 @@ export default function Dashboard() {
   
   const t = translations[language];
 
-  // Mock data para o gráfico (em produção, viria de um histórico)
-  const chartData = [
-    { month: 'Jan', mrr: 15000, customers: 25 },
-    { month: 'Fev', mrr: 18000, customers: 28 },
-    { month: 'Mar', mrr: 22000, customers: 32 },
-    { month: 'Abr', mrr: 25000, customers: 35 },
-    { month: 'Mai', mrr: 28000, customers: 38 },
-    { month: 'Jun', mrr: startupMetrics?.mrr || 30000, customers: startupMetrics?.totalCustomers || 40 },
-  ];
+  // Gráfico vazio até termos dados históricos reais
+  const chartData = startupMetrics?.mrr > 0 ? [
+    { month: 'Atual', mrr: startupMetrics.mrr, customers: startupMetrics.totalCustomers },
+  ] : [];
 
   useEffect(() => {
     if (currentOrganization?.id) {
@@ -441,34 +436,48 @@ export default function Dashboard() {
   const fetchStartupMetrics = async () => {
     setMetricsLoading(true);
     try {
-      // Dados fictícios para demonstração
-      const mockData: StartupMetrics = {
-        mrr: 45000,
-        mrrGrowth: 15.5,
-        arr: 540000,
-        cac: 850,
-        ltv: 3400,
-        churnRate: 3.2,
-        ltvCacRatio: 4.0,
-        totalCustomers: 42,
-        newCustomersThisMonth: 6,
-        activeCustomers: 38,
-        avgRevenuePerCustomer: 1071.43,
-        burnRate: 12000,
-        runway: 18.5,
-        paybackPeriod: 7.5,
-        cashBalance: 222000,
-      };
+      const { data, error } = await supabase.functions.invoke('get-startup-metrics');
       
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (error) throw error;
       
-      setStartupMetrics(mockData);
+      if (data) {
+        setStartupMetrics({
+          mrr: data.mrr || 0,
+          mrrGrowth: data.mrr_growth || 0,
+          arr: data.arr || 0,
+          cac: data.cac || 0,
+          ltv: data.ltv || 0,
+          churnRate: data.churn_rate || 0,
+          ltvCacRatio: data.ltv_cac_ratio || 0,
+          totalCustomers: data.total_customers || 0,
+          newCustomersThisMonth: data.new_customers || 0,
+          activeCustomers: data.active_customers || 0,
+          avgRevenuePerCustomer: data.arpc || 0,
+          burnRate: data.burn_rate || 0,
+          runway: data.runway || 0,
+          paybackPeriod: data.payback_period || 0,
+          cashBalance: data.cash_balance || 0,
+        });
+      } else {
+        // Sem dados - inicializar com zeros
+        setStartupMetrics({
+          mrr: 0, mrrGrowth: 0, arr: 0, cac: 0, ltv: 0, churnRate: 0,
+          ltvCacRatio: 0, totalCustomers: 0, newCustomersThisMonth: 0,
+          activeCustomers: 0, avgRevenuePerCustomer: 0, burnRate: 0,
+          runway: 0, paybackPeriod: 0, cashBalance: 0,
+        });
+      }
       setError(null);
     } catch (error: any) {
-      const friendlyError = getFriendlyError(error);
-      setError(friendlyError.message);
       console.error('Erro ao buscar métricas de startup:', error);
+      // Inicializar com zeros em caso de erro
+      setStartupMetrics({
+        mrr: 0, mrrGrowth: 0, arr: 0, cac: 0, ltv: 0, churnRate: 0,
+        ltvCacRatio: 0, totalCustomers: 0, newCustomersThisMonth: 0,
+        activeCustomers: 0, avgRevenuePerCustomer: 0, burnRate: 0,
+        runway: 0, paybackPeriod: 0, cashBalance: 0,
+      });
+      setError(null); // Não mostrar erro, apenas dados zerados
     } finally {
       setMetricsLoading(false);
     }
