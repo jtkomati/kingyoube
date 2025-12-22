@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
+import { LeadCaptureDialog } from '@/components/landing/LeadCaptureDialog';
 import { Play, Building2 } from 'lucide-react';
 import kingyoubeLogo from '@/assets/kingyoube-logo.png';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,17 +11,25 @@ import { supabase } from '@/integrations/supabase/client';
 export function LandingHeader() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [showLeadCaptureDialog, setShowLeadCaptureDialog] = useState(false);
   const navigate = useNavigate();
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleTestDemo = async () => {
+  const handleTestDemo = () => {
+    // Abrir formulário de captura de lead
+    setShowLeadCaptureDialog(true);
+  };
+
+  const handleLeadCaptureSuccess = async () => {
+    // Após captura, verificar se já está logado para ir direto ao onboarding
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       navigate('/onboarding?demo=true');
     } else {
+      // Salvar intenção de demo e abrir modal de auth
       sessionStorage.setItem('redirectAfterAuth', '/onboarding?demo=true');
       setShowAuthModal(true);
     }
@@ -111,6 +120,11 @@ export function LandingHeader() {
         </nav>
       </header>
 
+      <LeadCaptureDialog 
+        open={showLeadCaptureDialog} 
+        onOpenChange={setShowLeadCaptureDialog}
+        onSuccess={handleLeadCaptureSuccess}
+      />
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
       <OnboardingModal open={showOnboardingModal} onOpenChange={setShowOnboardingModal} />
     </>
