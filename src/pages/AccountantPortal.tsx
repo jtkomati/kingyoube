@@ -91,14 +91,13 @@ export default function AccountantPortal() {
         return;
       }
 
-      // Verificar se é SUPERADMIN
-      const { data: userRole } = await supabase
+      // Verificar se é SUPERADMIN (usuário pode ter múltiplos roles)
+      const { data: userRoles } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.user.id)
-        .single();
+        .eq('user_id', user.user.id);
 
-      const isSuperAdmin = userRole?.role === 'SUPERADMIN';
+      const isSuperAdmin = userRoles?.some(r => r.role === 'SUPERADMIN') || false;
 
       let partnerId = null;
 
