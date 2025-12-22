@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Shield, Mail, Phone, MapPin } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
@@ -146,29 +146,6 @@ export default function PrivacyPolicy() {
               <li>Backups regulares e planos de recuperação</li>
               <li>Revisões periódicas de segurança</li>
             </ul>
-          </CardContent>
-        </Card>
-
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>9. Contato do Encarregado de Dados (DPO)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 text-muted-foreground">
-              <p>Para dúvidas, solicitações ou reclamações sobre o tratamento de seus dados:</p>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary" />
-                <span>dpo@kingyoube.com.br</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-primary" />
-                <span>+55 (11) 0000-0000</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                <span>São Paulo, SP - Brasil</span>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
