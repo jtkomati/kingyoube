@@ -60,13 +60,17 @@ serve(async (req) => {
     // 2. Check user role/permissions
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: roleData } = await supabase
+    const { data: rolesData } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle();
+      .eq('user_id', user.id);
 
-    const userRole = roleData?.role || 'VIEWER';
+    // Pegar a role de maior nível
+    const userRole = (rolesData || [])
+      .map(r => r.role)
+      .reduce((highest, role) => {
+        return getRoleLevel(role) > getRoleLevel(highest) ? role : highest;
+      }, 'VIEWER');
     const roleLevel = getRoleLevel(userRole);
 
     if (roleLevel < 3) {
