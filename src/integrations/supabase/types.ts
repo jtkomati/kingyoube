@@ -1261,6 +1261,10 @@ export type Database = {
           created_at: string
           id: string
           last_connection_test: string | null
+          plugnotas_environment: string | null
+          plugnotas_last_test: string | null
+          plugnotas_status: string | null
+          plugnotas_token: string | null
           updated_at: string
           webhook_url: string | null
         }
@@ -1272,6 +1276,10 @@ export type Database = {
           created_at?: string
           id?: string
           last_connection_test?: string | null
+          plugnotas_environment?: string | null
+          plugnotas_last_test?: string | null
+          plugnotas_status?: string | null
+          plugnotas_token?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
@@ -1283,6 +1291,10 @@ export type Database = {
           created_at?: string
           id?: string
           last_connection_test?: string | null
+          plugnotas_environment?: string | null
+          plugnotas_last_test?: string | null
+          plugnotas_status?: string | null
+          plugnotas_token?: string | null
           updated_at?: string
           webhook_url?: string | null
         }

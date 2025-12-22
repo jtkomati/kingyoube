@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OutgoingInvoices } from "@/components/invoices/OutgoingInvoices";
 import { IncomingInvoices } from "@/components/invoices/IncomingInvoices";
-import { FileText, FileInput } from "lucide-react";
+import { PlugNotasSettings } from "@/components/fiscal/PlugNotasSettings";
+import { FileText, FileInput, Settings } from "lucide-react";
 
 const Invoices = () => {
   return (
@@ -28,6 +28,10 @@ const Invoices = () => {
               <FileInput className="h-4 w-4" />
               Notas de Entrada
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Configurações
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="outgoing">
@@ -36,6 +40,10 @@ const Invoices = () => {
 
           <TabsContent value="incoming">
             <IncomingInvoices />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <PlugNotasSettings />
           </TabsContent>
         </Tabs>
       </div>
