@@ -120,6 +120,8 @@ export function useAuth() {
     
     if (defaultOrg) {
       setCurrentOrganization(defaultOrg);
+      // Garantir que localStorage esteja sempre sincronizado com a organização atual
+      localStorage.setItem('currentOrganizationId', defaultOrg.id);
     }
   };
 
