@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity } from 'lucide-react';
+import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity, Brain } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -38,6 +38,7 @@ const navigation: NavItem[] = [
   { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
   { name: 'Reforma Tributária', href: '/reforma-tributaria', icon: Calculator },
   { name: 'Observabilidade', href: '/observability', icon: Activity, requiredRole: 'SUPERADMIN' },
+  { name: 'AI Command Center', href: '/ai-command-center', icon: Brain, requiredRole: 'SUPERADMIN' },
 ];
 
 export function AppSidebar() {
