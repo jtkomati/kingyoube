@@ -994,24 +994,49 @@ export type Database = {
       }
       categories: {
         Row: {
+          company_id: string | null
           created_at: string
           description: string | null
           id: string
           name: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_categories_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "fk_categories_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_categories_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cfo_alerts: {
         Row: {
@@ -1473,6 +1498,7 @@ export type Database = {
           clause_number: string | null
           clause_text: string
           clause_title: string | null
+          company_id: string | null
           compliance_status: string
           contract_id: string
           created_at: string
@@ -1486,6 +1512,7 @@ export type Database = {
           clause_number?: string | null
           clause_text: string
           clause_title?: string | null
+          company_id?: string | null
           compliance_status: string
           contract_id: string
           created_at?: string
@@ -1499,6 +1526,7 @@ export type Database = {
           clause_number?: string | null
           clause_text?: string
           clause_title?: string | null
+          company_id?: string | null
           compliance_status?: string
           contract_id?: string
           created_at?: string
@@ -1513,6 +1541,27 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contract_clauses_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "fk_contract_clauses_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contract_clauses_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -2245,6 +2294,36 @@ export type Database = {
           },
         ]
       }
+      secret_references: {
+        Row: {
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          secret_type: string
+          updated_at: string | null
+          vault_secret_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          secret_type: string
+          updated_at?: string | null
+          vault_secret_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          secret_type?: string
+          updated_at?: string | null
+          vault_secret_id?: string
+        }
+        Relationships: []
+      }
       solicitacoes_apuracao: {
         Row: {
           company_id: string | null
@@ -2902,6 +2981,14 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: Json }
+      delete_secret: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_secret_type: string
+        }
+        Returns: boolean
+      }
       get_accountant_dashboard: {
         Args: never
         Returns: {
@@ -2922,6 +3009,14 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      get_secret: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_secret_type: string
+        }
+        Returns: string
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_organization_ids: {
         Args: { _user_id: string }
@@ -2934,6 +3029,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      store_secret: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_secret_type: string
+          p_secret_value: string
+        }
+        Returns: string
       }
     }
     Enums: {
