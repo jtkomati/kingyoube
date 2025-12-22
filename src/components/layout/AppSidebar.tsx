@@ -19,10 +19,10 @@ import { Button } from '@/components/ui/button';
 import kingyoubeLogo from '@/assets/kingyoube-logo-full.png';
 
 const navigation = [
+  { name: 'Portal Contador', href: '/accountant-portal', icon: Building2 },
   { name: 'Agentes de IA', href: '/ai-agents', icon: Bot },
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
-  { name: 'Portal Contador', href: '/accountant-portal', icon: Building2 },
   { name: 'Cadastros', href: '/cadastros', icon: Database },
   { name: 'Transações', href: '/transactions', icon: FileText },
   { name: 'Notas Fiscais', href: '/invoices', icon: Receipt },
