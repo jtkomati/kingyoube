@@ -4,8 +4,14 @@ import { OutgoingInvoices } from "@/components/invoices/OutgoingInvoices";
 import { IncomingInvoices } from "@/components/invoices/IncomingInvoices";
 import { PlugNotasSettings } from "@/components/fiscal/PlugNotasSettings";
 import { FileText, FileInput, Settings } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Invoices = () => {
+  const { userRole } = useAuth();
+  
+  // Apenas SUPERADMIN e CONTADOR podem acessar as configurações
+  const canAccessSettings = userRole === 'SUPERADMIN' || userRole === 'CONTADOR';
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -28,10 +34,12 @@ const Invoices = () => {
               <FileInput className="h-4 w-4" />
               Notas de Entrada
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Configurações
-            </TabsTrigger>
+            {canAccessSettings && (
+              <TabsTrigger value="settings" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Configurações
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="outgoing">
@@ -42,9 +50,11 @@ const Invoices = () => {
             <IncomingInvoices />
           </TabsContent>
 
-          <TabsContent value="settings">
-            <PlugNotasSettings />
-          </TabsContent>
+          {canAccessSettings && (
+            <TabsContent value="settings">
+              <PlugNotasSettings />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
