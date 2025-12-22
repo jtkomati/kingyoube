@@ -639,6 +639,95 @@ export type Database = {
           },
         ]
       }
+      ai_usage_logs: {
+        Row: {
+          cost_estimated_cents: number
+          created_at: string
+          endpoint: string | null
+          error_message: string | null
+          fallback_used: boolean | null
+          id: string
+          intent: string | null
+          latency_ms: number | null
+          model_used: string
+          original_provider: string | null
+          provider_used: string
+          request_metadata: Json | null
+          success: boolean
+          tenant_id: string
+          tokens_input: number
+          tokens_output: number
+          user_id: string
+        }
+        Insert: {
+          cost_estimated_cents?: number
+          created_at?: string
+          endpoint?: string | null
+          error_message?: string | null
+          fallback_used?: boolean | null
+          id?: string
+          intent?: string | null
+          latency_ms?: number | null
+          model_used: string
+          original_provider?: string | null
+          provider_used: string
+          request_metadata?: Json | null
+          success?: boolean
+          tenant_id: string
+          tokens_input?: number
+          tokens_output?: number
+          user_id: string
+        }
+        Update: {
+          cost_estimated_cents?: number
+          created_at?: string
+          endpoint?: string | null
+          error_message?: string | null
+          fallback_used?: boolean | null
+          id?: string
+          intent?: string | null
+          latency_ms?: number | null
+          model_used?: string
+          original_provider?: string | null
+          provider_used?: string
+          request_metadata?: Json | null
+          success?: boolean
+          tenant_id?: string
+          tokens_input?: number
+          tokens_output?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ai_usage_logs_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "fk_ai_usage_logs_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ai_usage_logs_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "fk_ai_usage_logs_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_logs: {
         Row: {
           context: Json | null
@@ -3264,6 +3353,17 @@ export type Database = {
           total_payables: number
           total_receivables: number
           total_transactions: number
+        }[]
+      }
+      get_ai_usage_summary: {
+        Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
+        Returns: {
+          avg_latency_ms: number
+          provider: string
+          total_calls: number
+          total_cost_cents: number
+          total_tokens_input: number
+          total_tokens_output: number
         }[]
       }
       get_cfo_client_summary: {
