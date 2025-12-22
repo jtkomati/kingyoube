@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 function getRoleLevel(role: string): number {
+  const normalizedRole = role?.toUpperCase() || '';
   const roleLevels: Record<string, number> = {
     'SUPERADMIN': 5,
     'ADMIN': 4,
@@ -16,7 +17,7 @@ function getRoleLevel(role: string): number {
     'USUARIO': 1,
     'VIEWER': 1,
   };
-  return roleLevels[role] || 0;
+  return roleLevels[normalizedRole] || 0;
 }
 
 serve(async (req) => {
