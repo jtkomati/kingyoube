@@ -32,6 +32,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const AccountingSettings = lazy(() => import("./pages/AccountingSettings"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const Observability = lazy(() => import("./pages/Observability"));
+const AICommandCenter = lazy(() => import("./pages/AICommandCenter"));
 
 // Global query client with optimized defaults
 const queryClient = new QueryClient({
@@ -175,6 +176,10 @@ const App = () => {
             <Route
               path="/observability"
               element={<LazyProtectedRoute requiredRole="SUPERADMIN"><Observability /></LazyProtectedRoute>}
+            />
+            <Route
+              path="/ai-command-center"
+              element={<LazyProtectedRoute requiredRole="SUPERADMIN"><AICommandCenter /></LazyProtectedRoute>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
