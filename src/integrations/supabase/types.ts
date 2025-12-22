@@ -639,6 +639,60 @@ export type Database = {
           },
         ]
       }
+      application_logs: {
+        Row: {
+          context: Json | null
+          created_at: string
+          duration_ms: number | null
+          error_stack: string | null
+          function_name: string | null
+          id: string
+          level: string
+          message: string
+          organization_id: string | null
+          page_url: string | null
+          request_id: string | null
+          source: string
+          timestamp: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          duration_ms?: number | null
+          error_stack?: string | null
+          function_name?: string | null
+          id?: string
+          level: string
+          message: string
+          organization_id?: string | null
+          page_url?: string | null
+          request_id?: string | null
+          source: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          duration_ms?: number | null
+          error_stack?: string | null
+          function_name?: string | null
+          id?: string
+          level?: string
+          message?: string
+          organization_id?: string | null
+          page_url?: string | null
+          request_id?: string | null
+          source?: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -3187,6 +3241,7 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: Json }
+      check_error_threshold: { Args: never; Returns: undefined }
       delete_secret: {
         Args: {
           p_entity_id: string
@@ -3230,6 +3285,16 @@ export type Database = {
       get_current_organization_id: {
         Args: { _user_id: string }
         Returns: string
+      }
+      get_error_metrics: {
+        Args: { p_hours?: number }
+        Returns: {
+          error_rate_per_hour: Json
+          errors_by_function: Json
+          errors_by_source: Json
+          top_error_messages: Json
+          total_errors: number
+        }[]
       }
       get_secret: {
         Args: {

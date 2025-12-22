@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2 } from 'lucide-react';
+import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -30,6 +30,7 @@ const navigation = [
   { name: 'Análise Preditiva', href: '/predictive-analytics', icon: BrainCircuit },
   { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
   { name: 'Reforma Tributária', href: '/reforma-tributaria', icon: Calculator },
+  { name: 'Observabilidade', href: '/observability', icon: Activity },
 ];
 
 export function AppSidebar() {
