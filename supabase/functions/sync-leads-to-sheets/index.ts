@@ -38,8 +38,38 @@ serve(async (req) => {
       );
     }
 
-    const leadData: LeadData = await req.json();
-    console.log('Received lead data:', { email: leadData.email, full_name: leadData.full_name });
+    const rawBody = await req.json();
+
+    // supabase.functions.invoke may wrap payloads depending on caller/context
+    const leadData = (
+      (rawBody as Record<string, unknown> | null)?.body ??
+      (rawBody as Record<string, unknown> | null)?.data ??
+      rawBody
+    ) as any as LeadData;
+
+    console.log('Received lead payload keys:', {
+      topLevel: rawBody && typeof rawBody === 'object' ? Object.keys(rawBody as Record<string, unknown>) : typeof rawBody,
+      lead: leadData && typeof leadData === 'object' ? Object.keys(leadData as unknown as Record<string, unknown>) : typeof leadData,
+    });
+
+    if (!leadData?.full_name || !leadData?.email) {
+      console.error('Missing required lead fields');
+      return new Response(
+        JSON.stringify({
+          error: 'Missing required fields: full_name and email',
+          received_keys:
+            leadData && typeof leadData === 'object'
+              ? Object.keys(leadData as unknown as Record<string, unknown>)
+              : [],
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    console.log('Received lead:', { email: leadData.email, full_name: leadData.full_name });
 
     // Parse the service account key
     let serviceAccount;
