@@ -25,7 +25,7 @@ const availableBanks = [
     name: "Itaú", 
     color: "bg-orange-500",
     textColor: "text-white",
-    featured: false
+    featured: true
   },
   { 
     id: "bb", 
@@ -81,8 +81,8 @@ export function BankConnectionHub({ connectedBanks, onBankConnected }: BankConne
     }
   };
 
-  const handleConnectionSuccess = (itemId: string) => {
-    onBankConnected("bradesco");
+  const handleConnectionSuccess = (bankId: string) => (itemId: string) => {
+    onBankConnected(bankId);
     loadConnectedAccounts();
   };
 
@@ -163,7 +163,7 @@ export function BankConnectionHub({ connectedBanks, onBankConnected }: BankConne
                   </div>
                   <TecnoSpeedConnectButton 
                     bankId={bank.id}
-                    onSuccess={handleConnectionSuccess}
+                    onSuccess={handleConnectionSuccess(bank.id)}
                   />
                 </div>
               </CardContent>
