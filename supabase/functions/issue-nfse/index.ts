@@ -85,11 +85,78 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 4. Se tiver Focus NFe configurado, integrar
+    // 4. Buscar configuração PlugNotas
+    const { data: fiscalConfig } = await supabase
+      .from('config_fiscal')
+      .select('plugnotas_token, plugnotas_environment, plugnotas_status')
+      .eq('company_id', transaction.company_id)
+      .maybeSingle()
+
     let invoiceNumber = `NF-${Date.now()}`
     let invoiceKey = `CHAVE-${Date.now()}`
+    let integrationUsed = 'MOCK'
     
-    if (focusNfeToken) {
+    // 5. Tentar PlugNotas primeiro se configurado
+    if (fiscalConfig?.plugnotas_status === 'connected' && fiscalConfig?.plugnotas_token) {
+      const baseUrl = fiscalConfig.plugnotas_environment === 'PRODUCTION'
+        ? 'https://api.plugnotas.com.br'
+        : 'https://api.sandbox.plugnotas.com.br'
+
+      // Preparar payload para PlugNotas NFS-e
+      const plugnotasPayload = {
+        idIntegracao: transaction_id,
+        prestador: {
+          cpfCnpj: companySettings.cnpj?.replace(/\D/g, ''),
+          inscricaoMunicipal: companySettings.municipal_inscription,
+          razaoSocial: companySettings.company_name
+        },
+        tomador: {
+          cpfCnpj: (transaction.customers?.cnpj || transaction.customers?.cpf)?.replace(/\D/g, ''),
+          razaoSocial: transaction.customers?.company_name || 
+                       `${transaction.customers?.first_name || ''} ${transaction.customers?.last_name || ''}`.trim(),
+          email: transaction.customers?.email
+        },
+        servico: [{
+          codigo: service_code || '1.01',
+          discriminacao: service_description || transaction.description || 'Serviços prestados',
+          valorServico: transaction.gross_amount,
+          aliquotaIss: transaction.iss_rate || 5
+        }]
+      }
+
+      try {
+        console.log('Emitindo NFS-e via PlugNotas:', { baseUrl, environment: fiscalConfig.plugnotas_environment })
+        
+        const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': fiscalConfig.plugnotas_token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(plugnotasPayload)
+        })
+
+        const responseText = await plugnotasResponse.text()
+        console.log('PlugNotas response:', plugnotasResponse.status, responseText.substring(0, 500))
+
+        if (plugnotasResponse.ok) {
+          const plugnotasData = JSON.parse(responseText)
+          invoiceNumber = plugnotasData.id?.nfse || plugnotasData.numero || invoiceNumber
+          invoiceKey = plugnotasData.protocolo || plugnotasData.id?.integracao || invoiceKey
+          integrationUsed = 'PLUGNOTAS'
+          console.log('NFS-e emitida via PlugNotas:', plugnotasData)
+        } else {
+          console.error('Erro PlugNotas:', responseText)
+          // Fall through to Focus NFe or mock
+        }
+      } catch (error) {
+        console.error('Erro ao chamar PlugNotas:', error)
+        // Fall through to Focus NFe or mock
+      }
+    }
+    
+    // 6. Fallback para Focus NFe se PlugNotas não funcionou
+    if (integrationUsed === 'MOCK' && focusNfeToken) {
       // Preparar payload para Focus NFe
       const nfsePayload = {
         data_emissao: new Date().toISOString().split('T')[0],
@@ -126,6 +193,7 @@ Deno.serve(async (req) => {
           const focusData = await focusResponse.json()
           invoiceNumber = focusData.numero || invoiceNumber
           invoiceKey = focusData.codigo_verificacao || invoiceKey
+          integrationUsed = 'FOCUSNFE'
           console.log('NFS-e emitida via Focus NFe:', focusData)
         } else {
           console.error('Erro Focus NFe:', await focusResponse.text())
@@ -136,7 +204,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Atualizar transação com dados da NF
+    // 7. Atualizar transação com dados da NF
     const { error: updateError } = await supabase
       .from('transactions')
       .update({
@@ -155,21 +223,21 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 6. Registrar log de sincronização
+    // 8. Registrar log de sincronização
     await supabase.from('sync_logs').insert({
-      integration_type: 'FOCUSNFE',
+      integration_type: integrationUsed,
       status: 'success',
       records_processed: 1,
       started_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
     })
 
-    // 7. Criar auditoria
+    // 9. Criar auditoria
     await supabase.from('audit_logs').insert({
       user_id: transaction.created_by,
       user_role: 'FISCAL',
       action: 'issue_nfse',
-      details: `NFS-e ${invoiceNumber} emitida para transação ${transaction_id}`,
+      details: `NFS-e ${invoiceNumber} emitida via ${integrationUsed} para transação ${transaction_id}`,
     })
 
     return new Response(
@@ -177,6 +245,7 @@ Deno.serve(async (req) => {
         success: true,
         invoice_number: invoiceNumber,
         invoice_key: invoiceKey,
+        integration: integrationUsed,
         message: 'Nota fiscal emitida com sucesso',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
