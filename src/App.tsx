@@ -1,45 +1,66 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions";
-import Suppliers from "./pages/Suppliers";
-import Customers from "./pages/Customers";
-import Reports from "./pages/Reports";
-import BankIntegrations from "./pages/BankIntegrations";
-import Invoices from "./pages/Invoices";
-import ResetPassword from "./pages/ResetPassword";
-import CFOCockpit from "./pages/CFOCockpit";
-import AccountantPortal from "./pages/AccountantPortal";
-import ReformaTributaria from "./pages/ReformaTributaria";
-import AIAgents from "./pages/AIAgents";
-import PredictiveAnalytics from "./pages/PredictiveAnalytics";
-import Cadastros from "./pages/Cadastros";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import PrivacySettings from "./pages/PrivacySettings";
-import Terms from "./pages/Terms";
-import NotFound from "./pages/NotFound";
-import Onboarding from "./pages/Onboarding";
-import AccountingSettings from "./pages/AccountingSettings";
-import AcceptInvite from "./pages/AcceptInvite";
 
-const queryClient = new QueryClient();
+// Eagerly loaded - critical path
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+
+// Lazy loaded - secondary pages
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Suppliers = lazy(() => import("./pages/Suppliers"));
+const Customers = lazy(() => import("./pages/Customers"));
+const Reports = lazy(() => import("./pages/Reports"));
+const BankIntegrations = lazy(() => import("./pages/BankIntegrations"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const CFOCockpit = lazy(() => import("./pages/CFOCockpit"));
+const AccountantPortal = lazy(() => import("./pages/AccountantPortal"));
+const ReformaTributaria = lazy(() => import("./pages/ReformaTributaria"));
+const AIAgents = lazy(() => import("./pages/AIAgents"));
+const PredictiveAnalytics = lazy(() => import("./pages/PredictiveAnalytics"));
+const Cadastros = lazy(() => import("./pages/Cadastros"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const PrivacySettings = lazy(() => import("./pages/PrivacySettings"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const AccountingSettings = lazy(() => import("./pages/AccountingSettings"));
+const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+
+// Global query client with optimized defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false,
+      retry: 2,
+    },
+  },
+});
+
+// Loading fallback for lazy routes
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse">
-          <div className="h-12 w-12 rounded-full bg-primary" />
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!user) {
@@ -47,6 +68,26 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+// Wrapper for lazy loaded protected routes
+function LazyProtectedRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
+    </ProtectedRoute>
+  );
+}
+
+// Wrapper for lazy loaded public routes
+function LazyRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      {children}
+    </Suspense>
+  );
 }
 
 const App = () => {
@@ -58,137 +99,73 @@ const App = () => {
           <Sonner />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/reset-password" element={<LazyRoute><ResetPassword /></LazyRoute>} />
+            <Route path="/privacy-policy" element={<LazyRoute><PrivacyPolicy /></LazyRoute>} />
+            <Route path="/terms" element={<LazyRoute><Terms /></LazyRoute>} />
+            <Route path="/accept-invite" element={<LazyRoute><AcceptInvite /></LazyRoute>} />
             <Route
               path="/onboarding"
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Onboarding /></LazyProtectedRoute>}
             />
             <Route
               path="/accounting-settings"
-              element={
-                <ProtectedRoute>
-                  <AccountingSettings />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><AccountingSettings /></LazyProtectedRoute>}
             />
             <Route
               path="/privacy-settings"
-              element={
-                <ProtectedRoute>
-                  <PrivacySettings />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><PrivacySettings /></LazyProtectedRoute>}
             />
             <Route
               path="/cfo-cockpit"
-              element={
-                <ProtectedRoute>
-                  <CFOCockpit />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><CFOCockpit /></LazyProtectedRoute>}
             />
             <Route
               path="/accountant-portal"
-              element={
-                <ProtectedRoute>
-                  <AccountantPortal />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><AccountantPortal /></LazyProtectedRoute>}
             />
             <Route
               path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Dashboard /></LazyProtectedRoute>}
             />
             <Route
               path="/transactions"
-              element={
-                <ProtectedRoute>
-                  <Transactions />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Transactions /></LazyProtectedRoute>}
             />
             <Route
               path="/suppliers"
-              element={
-                <ProtectedRoute>
-                  <Suppliers />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Suppliers /></LazyProtectedRoute>}
             />
             <Route
               path="/customers"
-              element={
-                <ProtectedRoute>
-                  <Customers />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Customers /></LazyProtectedRoute>}
             />
             <Route
               path="/reports"
-              element={
-                <ProtectedRoute>
-                  <Reports />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Reports /></LazyProtectedRoute>}
             />
             <Route
               path="/bank-integrations"
-              element={
-                <ProtectedRoute>
-                  <BankIntegrations />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><BankIntegrations /></LazyProtectedRoute>}
             />
             <Route
               path="/invoices"
-              element={
-                <ProtectedRoute>
-                  <Invoices />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Invoices /></LazyProtectedRoute>}
             />
             <Route
               path="/reforma-tributaria"
-              element={
-                <ProtectedRoute>
-                  <ReformaTributaria />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><ReformaTributaria /></LazyProtectedRoute>}
             />
             <Route
               path="/ai-agents"
-              element={
-                <ProtectedRoute>
-                  <AIAgents />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><AIAgents /></LazyProtectedRoute>}
             />
             <Route
               path="/predictive-analytics"
-              element={
-                <ProtectedRoute>
-                  <PredictiveAnalytics />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><PredictiveAnalytics /></LazyProtectedRoute>}
             />
             <Route
               path="/cadastros"
-              element={
-                <ProtectedRoute>
-                  <Cadastros />
-                </ProtectedRoute>
-              }
+              element={<LazyProtectedRoute><Cadastros /></LazyProtectedRoute>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

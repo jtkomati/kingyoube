@@ -78,6 +78,9 @@ export const TransactionList = ({ onEdit }: TransactionListProps) => {
     },
     enabled: !!currentOrganization?.id,
     placeholderData: (previousData) => previousData,
+    staleTime: 2 * 60 * 1000, // 2 minutes - transactions change frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    refetchOnWindowFocus: false,
   });
 
   const getTypeLabel = (type: string) => {
