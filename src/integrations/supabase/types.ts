@@ -88,6 +88,13 @@ export type Database = {
             foreignKeyName: "accounting_chart_of_accounts_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "accounting_chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -148,6 +155,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "accounting_cost_centers_company_id_fkey"
@@ -227,6 +241,13 @@ export type Database = {
             foreignKeyName: "accounting_entries_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -293,6 +314,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entry_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "accounting_entry_items_company_id_fkey"
@@ -384,6 +412,13 @@ export type Database = {
             foreignKeyName: "accounting_profit_centers_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "accounting_profit_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -468,6 +503,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "accounting_projects_company_id_fkey"
@@ -585,6 +627,13 @@ export type Database = {
             foreignKeyName: "ai_feedback_corrections_client_company_id_fkey"
             columns: ["client_company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_corrections_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -632,6 +681,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "audit_logs_organization_id_fkey"
@@ -745,6 +801,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "bank_accounts_company_id_fkey"
@@ -903,6 +966,13 @@ export type Database = {
             foreignKeyName: "budget_targets_client_company_id_fkey"
             columns: ["client_company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "budget_targets_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -987,6 +1057,13 @@ export type Database = {
             foreignKeyName: "budget_variance_analysis_client_company_id_fkey"
             columns: ["client_company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "budget_variance_analysis_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -1028,6 +1105,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_categories_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "fk_categories_company"
@@ -1102,6 +1186,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cfo_alerts_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "cfo_alerts_client_company_id_fkey"
@@ -1205,6 +1296,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cfo_partner_roi_tracking_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "cfo_partner_roi_tracking_client_company_id_fkey"
@@ -1487,6 +1585,13 @@ export type Database = {
             foreignKeyName: "config_fiscal_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "config_fiscal_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -1556,6 +1661,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contract_clauses_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "fk_contract_clauses_company"
@@ -1664,6 +1776,13 @@ export type Database = {
             foreignKeyName: "contracts_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -1746,6 +1865,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "customers_company_id_fkey"
@@ -1864,6 +1990,13 @@ export type Database = {
             foreignKeyName: "incoming_invoices_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "incoming_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -1926,6 +2059,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "invitations_organization_id_fkey"
@@ -2128,6 +2268,13 @@ export type Database = {
             foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2289,6 +2436,13 @@ export type Database = {
             foreignKeyName: "sci_integrations_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "sci_integrations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2374,6 +2528,13 @@ export type Database = {
             foreignKeyName: "solicitacoes_apuracao_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_apuracao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2442,6 +2603,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "suppliers_company_id_fkey"
@@ -2690,6 +2858,13 @@ export type Database = {
             foreignKeyName: "transactions_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2788,6 +2963,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_settings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "user_organizations_organization_id_fkey"
@@ -2919,6 +3101,30 @@ export type Database = {
           },
         ]
       }
+      mv_cfo_client_summary: {
+        Row: {
+          cfo_partner_id: string | null
+          company_id: string | null
+          company_name: string | null
+          health_status: string | null
+          last_transaction_date: string | null
+          net_balance: number | null
+          overdue_transactions: number | null
+          pending_transactions: number | null
+          total_payables: number | null
+          total_receivables: number | null
+          total_transactions: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_cfo_partner_id_fkey"
+            columns: ["cfo_partner_id"]
+            isOneToOne: false
+            referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           address: string | null
@@ -3005,6 +3211,22 @@ export type Database = {
           total_transactions: number
         }[]
       }
+      get_cfo_client_summary: {
+        Args: { _cfo_partner_id: string }
+        Returns: {
+          cfo_partner_id: string
+          company_id: string
+          company_name: string
+          health_status: string
+          last_transaction_date: string
+          net_balance: number
+          overdue_transactions: number
+          pending_transactions: number
+          total_payables: number
+          total_receivables: number
+          total_transactions: number
+        }[]
+      }
       get_current_organization_id: {
         Args: { _user_id: string }
         Returns: string
@@ -3030,6 +3252,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      refresh_cfo_summary: { Args: never; Returns: undefined }
       store_secret: {
         Args: {
           p_entity_id: string

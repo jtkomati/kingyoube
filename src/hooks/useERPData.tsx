@@ -1,5 +1,14 @@
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+
+// Query configuration for optimal caching
+export const QUERY_CONFIG = {
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
+  refetchOnWindowFocus: false,
+  retry: 2,
+} as const;
 
 interface ERPDataHook {
   getTransactionsSummary: () => Promise<string>;
