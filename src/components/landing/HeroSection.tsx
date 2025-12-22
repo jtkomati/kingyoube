@@ -105,7 +105,7 @@ export function HeroSection() {
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-              Da operação manual para agentes de IA que fazem o financeiro.
+              Estamos em desenvolvimento. Nos ajude a criar o ERP que você sempre sonhou.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
