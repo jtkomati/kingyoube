@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { LeadCaptureDialog } from '@/components/landing/LeadCaptureDialog';
-import { Play, Building2 } from 'lucide-react';
+import { Play } from 'lucide-react';
 import kingyoubeLogo from '@/assets/kingyoube-logo.png';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 export function LandingHeader() {
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [showLeadCaptureDialog, setShowLeadCaptureDialog] = useState(false);
   const navigate = useNavigate();
 
@@ -19,49 +17,18 @@ export function LandingHeader() {
   };
 
   const handleTestDemo = () => {
-    // Abrir formulário de captura de lead
     setShowLeadCaptureDialog(true);
   };
 
   const handleLeadCaptureSuccess = async () => {
-    // Após captura, verificar se já está logado para ir direto ao onboarding
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       navigate('/onboarding?demo=true');
     } else {
-      // Salvar intenção de demo e abrir modal de auth
       sessionStorage.setItem('redirectAfterAuth', '/onboarding?demo=true');
       setShowAuthModal(true);
     }
   };
-
-  const handleCreateCompany = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setShowOnboardingModal(true);
-    } else {
-      sessionStorage.setItem('openOnboardingAfterAuth', 'true');
-      setShowAuthModal(true);
-    }
-  };
-
-  // Verificar se deve abrir onboarding após auth
-  useEffect(() => {
-    const handleAuthSuccess = () => {
-      if (sessionStorage.getItem('openOnboardingAfterAuth') === 'true') {
-        sessionStorage.removeItem('openOnboardingAfterAuth');
-        setShowOnboardingModal(true);
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        setTimeout(handleAuthSuccess, 500);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   return (
     <>
@@ -108,14 +75,6 @@ export function LandingHeader() {
             >
               Entrar
             </Button>
-            <Button 
-              size="sm"
-              onClick={handleCreateCompany}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Building2 className="w-3 h-3 mr-1" />
-              Cadastrar
-            </Button>
           </div>
         </nav>
       </header>
@@ -126,7 +85,6 @@ export function LandingHeader() {
         onSuccess={handleLeadCaptureSuccess}
       />
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
-      <OnboardingModal open={showOnboardingModal} onOpenChange={setShowOnboardingModal} />
     </>
   );
 }
