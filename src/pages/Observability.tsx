@@ -95,6 +95,25 @@ export default function Observability() {
     },
   });
 
+  // Bulk resolve mutation
+  const bulkResolveMutation = useMutation({
+    mutationFn: async (alertIds: string[]) => {
+      const { error } = await supabase
+        .from('cfo_alerts')
+        .update({ resolved: true, resolved_at: new Date().toISOString() })
+        .in('id', alertIds);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, alertIds) => {
+      queryClient.invalidateQueries({ queryKey: ['observability-alerts'] });
+      toast({ title: `${alertIds.length} alertas resolvidos com sucesso` });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao resolver alertas', variant: 'destructive' });
+    },
+  });
+
   // Calcular métricas
   const errorLogs = logs.filter(l => l.level === 'error');
   const last24hLogs = logs.filter(l => 
@@ -233,6 +252,7 @@ export default function Observability() {
               <AlertsPanel
                 alerts={alerts}
                 onResolve={(id) => resolveAlertMutation.mutate(id)}
+                onBulkResolve={(ids) => bulkResolveMutation.mutate(ids)}
                 isLoading={alertsLoading}
               />
             </div>
@@ -270,6 +290,7 @@ export default function Observability() {
               <AlertsPanel
                 alerts={alerts}
                 onResolve={(id) => resolveAlertMutation.mutate(id)}
+                onBulkResolve={(ids) => bulkResolveMutation.mutate(ids)}
                 isLoading={alertsLoading}
               />
               
