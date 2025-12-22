@@ -197,33 +197,39 @@ Gere projeções para os próximos 6 meses a partir de agora. Use análise de te
     if (!aiProjections) {
       console.log('Using fallback statistical projections');
       
-      // If no historical data, use demo data for demonstration
-      const useDemoData = historicalData.length === 0;
-      let avgRevenue: number;
-      let avgExpenses: number;
-      let revenueSlope: number;
-      let baseCashflow: number;
+      // Se não há dados históricos, retornar resposta vazia
+      if (historicalData.length === 0) {
+        console.log('No historical data - returning empty response');
+        return new Response(JSON.stringify({
+          historical: [],
+          projections: { revenue: [], pl: [], cashflow: [] },
+          kpis: {
+            sixMonthRevenue: 0,
+            sixMonthProfit: 0,
+            projectedCashBalance: 0,
+            profitMargin: 0,
+            confidenceScore: 0,
+          },
+          insights: ['Adicione transações para gerar projeções preditivas'],
+          alerts: [],
+          generatedAt: new Date().toISOString(),
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-      if (useDemoData) {
-        // Generate realistic demo data for demonstration purposes
-        avgRevenue = 45000 + Math.random() * 15000; // R$ 45k - 60k
-        avgExpenses = 30000 + Math.random() * 10000; // R$ 30k - 40k
-        revenueSlope = 1500 + Math.random() * 1000; // Positive growth trend
-        baseCashflow = 25000 + Math.random() * 10000; // Starting cashflow
-        console.log('Using demo data for projections');
-      } else {
-        avgRevenue = historicalData.reduce((sum, d) => sum + d.revenue, 0) / historicalData.length;
-        avgExpenses = historicalData.reduce((sum, d) => sum + d.expenses, 0) / historicalData.length;
-        baseCashflow = historicalData[historicalData.length - 1]?.cashflow || 0;
-        
-        // Calculate trend (simple linear regression)
-        revenueSlope = 0;
-        if (historicalData.length >= 2) {
-          const n = historicalData.length;
-          const lastRevenue = historicalData[n - 1]?.revenue || avgRevenue;
-          const firstRevenue = historicalData[0]?.revenue || avgRevenue;
-          revenueSlope = (lastRevenue - firstRevenue) / n;
-        }
+      // Usar dados históricos reais para projeções
+      const avgRevenue = historicalData.reduce((sum, d) => sum + d.revenue, 0) / historicalData.length;
+      const avgExpenses = historicalData.reduce((sum, d) => sum + d.expenses, 0) / historicalData.length;
+      const baseCashflow = historicalData[historicalData.length - 1]?.cashflow || 0;
+      
+      // Calculate trend (simple linear regression)
+      let revenueSlope = 0;
+      if (historicalData.length >= 2) {
+        const n = historicalData.length;
+        const lastRevenue = historicalData[n - 1]?.revenue || avgRevenue;
+        const firstRevenue = historicalData[0]?.revenue || avgRevenue;
+        revenueSlope = (lastRevenue - firstRevenue) / n;
       }
 
       const avgProfit = avgRevenue - avgExpenses;
@@ -240,9 +246,7 @@ Gere projeções para os próximos 6 meses a partir de agora. Use análise de te
         futureDate.setMonth(futureDate.getMonth() + i);
         const monthKey = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}`;
 
-        // Add some variation to make projections more realistic
-        const variation = useDemoData ? (Math.random() * 0.1 - 0.05) : 0; // +/- 5% variation for demo
-        const projectedRevenue = (avgRevenue + (revenueSlope * i)) * (1 + variation);
+        const projectedRevenue = avgRevenue + (revenueSlope * i);
         const projectedProfit = projectedRevenue - avgExpenses;
         projectedCashflow += projectedProfit;
 
@@ -272,24 +276,15 @@ Gere projeções para os próximos 6 meses a partir de agora. Use análise de te
         revenueProjections,
         plProjections,
         cashflowProjections,
-        confidenceScore: useDemoData ? 70 : 65,
+        confidenceScore: 65,
         alerts: projectedCashflow < 0 ? ['Projeção indica possível saldo negativo nos próximos meses'] : [],
       };
 
-      if (useDemoData) {
-        aiInsights = [
-          `Projeção baseada em estimativas de mercado (adicione transações reais para análise precisa)`,
-          `Receita média projetada: R$ ${avgRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-          `Margem de lucro estimada: ${((avgProfit / avgRevenue) * 100).toFixed(1)}%`,
-          `Tendência de crescimento: Positiva (+${revenueSlope.toFixed(0)}/mês)`,
-        ];
-      } else {
-        aiInsights = [
-          `Receita média mensal: R$ ${avgRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-          `Despesa média mensal: R$ ${avgExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-          `Tendência de crescimento: ${revenueSlope > 0 ? 'Positiva' : revenueSlope < 0 ? 'Negativa' : 'Estável'}`,
-        ];
-      }
+      aiInsights = [
+        `Receita média mensal: R$ ${avgRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        `Despesa média mensal: R$ ${avgExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        `Tendência de crescimento: ${revenueSlope > 0 ? 'Positiva' : revenueSlope < 0 ? 'Negativa' : 'Estável'}`,
+      ];
     }
 
     // Calculate summary KPIs

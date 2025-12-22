@@ -74,86 +74,13 @@ interface ROIDashboard {
   hourly_rate: number;
 }
 
-// Dados fictícios
-const mockAlerts: Alert[] = [
-  {
-    id: '1',
-    client_name: 'Tech Solutions LTDA',
-    message: 'Fluxo de caixa crítico: Previsão negativa em 5 dias',
-    severity: 'CRITICAL',
-    is_read: false,
-    resolved: false,
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    metadata: { days_to_negative: 5, projected_balance: -15000 }
-  },
-  {
-    id: '2',
-    client_name: 'Varejo Moderno S.A.',
-    message: 'Contas a receber vencidas excedem 30% do AR total',
-    severity: 'CRITICAL',
-    is_read: false,
-    resolved: false,
-    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    metadata: { overdue_percentage: 32, overdue_amount: 85000 }
-  },
-  {
-    id: '3',
-    client_name: 'Indústria Brasil Forte',
-    message: 'Alto volume de transações não categorizadas (45 itens)',
-    severity: 'WARNING',
-    is_read: false,
-    resolved: false,
-    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    metadata: { uncategorized_count: 45 }
-  },
-  {
-    id: '4',
-    client_name: 'Consultoria Premium',
-    message: 'Despesas operacionais 15% acima do orçamento',
-    severity: 'WARNING',
-    is_read: true,
-    resolved: false,
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    metadata: { variance_percent: 15, budget: 50000, actual: 57500 }
-  },
-  {
-    id: '5',
-    client_name: 'E-commerce Express',
-    message: 'Nova oportunidade de otimização fiscal identificada',
-    severity: 'INFO',
-    is_read: false,
-    resolved: false,
-    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    metadata: { estimated_savings: 12000 }
-  }
-];
-
-const mockClients: Client[] = [
-  { client_id: 'c1', client_name: 'Tech Solutions LTDA', primary_contact: 'João Silva - joao@techsolutions.com' },
-  { client_id: 'c2', client_name: 'Varejo Moderno S.A.', primary_contact: 'Maria Santos - maria@varejomoderno.com.br' },
-  { client_id: 'c3', client_name: 'Indústria Brasil Forte', primary_contact: 'Pedro Costa - pedro@brasilforte.ind.br' },
-  { client_id: 'c4', client_name: 'Consultoria Premium', primary_contact: 'Ana Paula - ana@consultoriapremium.com' },
-  { client_id: 'c5', client_name: 'E-commerce Express', primary_contact: 'Carlos Mendes - carlos@ecomexpress.com.br' },
-  { client_id: 'c6', client_name: 'Logística Total', primary_contact: 'Fernanda Lima - contato@logisticatotal.com.br' }
-];
-
-const mockROI: ROIDashboard = {
-  total_hours_saved: 284.5,
-  reports_generated: 47,
-  critical_alerts_viewed: 23,
-  manual_tasks_avoided: 156,
-  total_value_generated: 85350,
-  this_month_hours_saved: 52.3,
-  this_month_value: 15690,
-  hourly_rate: 300
-};
 
 export default function CFOCockpit() {
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientVitals, setClientVitals] = useState<ClientVitals | null>(null);
-  const [roiDashboard, setRoiDashboard] = useState<ROIDashboard | null>(mockROI);
+  const [roiDashboard, setRoiDashboard] = useState<ROIDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [monitorLoading, setMonitorLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -347,18 +274,35 @@ export default function CFOCockpit() {
 
   const handleViewClient = async (client: Client) => {
     setSelectedClient(client);
+    setClientVitals(null);
     
-    // Dados fictícios de vitals do cliente
-    const mockVitals: ClientVitals = {
-      cash_balance: Math.random() > 0.5 ? 150000 + Math.random() * 300000 : 50000 + Math.random() * 100000,
-      ar_overdue_30d: Math.random() * 150000,
-      ap_due_7d: Math.random() * 80000,
-      cash_projection_status: Math.random() > 0.7 ? 'CRITICAL' : Math.random() > 0.4 ? 'WARNING' : 'HEALTHY',
-      min_projected_balance: Math.random() > 0.5 ? -10000 - Math.random() * 50000 : 20000 + Math.random() * 100000,
-      days_to_negative: Math.random() > 0.5 ? Math.floor(Math.random() * 15) : undefined
-    };
-    
-    setClientVitals(mockVitals);
+    try {
+      const { data, error } = await supabase.functions.invoke('cfo-get-client-vitals', {
+        body: { clientCompanyId: client.client_id }
+      });
+      
+      if (error) throw error;
+      
+      if (data) {
+        setClientVitals({
+          cash_balance: data.cash_balance || 0,
+          ar_overdue_30d: data.ar_overdue_30d || 0,
+          ap_due_7d: data.ap_due_7d || 0,
+          cash_projection_status: data.cash_projection_status || 'HEALTHY',
+          min_projected_balance: data.min_projected_balance,
+          days_to_negative: data.days_to_negative
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching client vitals:', error);
+      // Set empty vitals on error
+      setClientVitals({
+        cash_balance: 0,
+        ar_overdue_30d: 0,
+        ap_due_7d: 0,
+        cash_projection_status: 'HEALTHY',
+      });
+    }
   };
 
   const handleGenerateReport = async () => {
@@ -366,44 +310,44 @@ export default function CFOCockpit() {
 
     setReportLoading(true);
     
-    // Simular delay de geração
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const mockReport = `
+    try {
+      const { data, error } = await supabase.functions.invoke('cfo-generate-executive-summary', {
+        body: { clientCompanyId: selectedClient.client_id }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.report) {
+        setGeneratedReport(data.report);
+      } else {
+        setGeneratedReport(`
 # RELATÓRIO EXECUTIVO - ${selectedClient.client_name}
 **Período:** Últimos 30 dias
 
 ## 📊 Resumo Financeiro
-- **Receita Total:** R$ ${formatNumber(450000 + Math.random() * 200000)}
-- **Despesas Totais:** R$ ${formatNumber(320000 + Math.random() * 150000)}
-- **Resultado Operacional:** R$ ${formatNumber(130000 + Math.random() * 50000)}
-
-## 💰 Fluxo de Caixa
-- **Saldo Inicial:** R$ ${formatNumber(250000 + Math.random() * 100000)}
-- **Entradas:** R$ ${formatNumber(420000 + Math.random() * 180000)}
-- **Saídas:** R$ ${formatNumber(380000 + Math.random() * 150000)}
-- **Saldo Final:** R$ ${formatNumber(290000 + Math.random() * 120000)}
-
-## 🎯 Indicadores-Chave
-- **Margem Operacional:** ${(25 + Math.random() * 10).toFixed(1)}%
-- **Liquidez Corrente:** ${(1.5 + Math.random() * 0.8).toFixed(2)}
-- **Ciclo Financeiro:** ${Math.floor(45 + Math.random() * 30)} dias
-
-## ⚠️ Alertas e Recomendações
-1. **Contas a Receber:** Acompanhar de perto ${Math.floor(8 + Math.random() * 15)} faturas com vencimento próximo
-2. **Otimização Fiscal:** Oportunidade identificada de economia de ~R$ ${formatNumber(12000 + Math.random() * 18000)}
-3. **Gestão de Estoque:** Revisar política para reduzir capital imobilizado
-
-## 📈 Projeções
-Baseado nas tendências atuais, projetamos um crescimento de **${(12 + Math.random() * 8).toFixed(1)}%** no próximo trimestre.
+Nenhum dado financeiro disponível para este cliente.
 
 ---
 *Relatório gerado automaticamente pelo KingYouBe em ${new Date().toLocaleDateString('pt-BR')}*
-    `.trim();
-    
-    setGeneratedReport(mockReport);
-    setShowReport(true);
-    setReportLoading(false);
+        `.trim());
+      }
+      setShowReport(true);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      setGeneratedReport(`
+# RELATÓRIO EXECUTIVO - ${selectedClient.client_name}
+**Período:** Últimos 30 dias
+
+## ⚠️ Erro
+Não foi possível gerar o relatório. Verifique se há dados financeiros cadastrados.
+
+---
+*Relatório gerado automaticamente pelo KingYouBe em ${new Date().toLocaleDateString('pt-BR')}*
+      `.trim());
+      setShowReport(true);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   const getSeverityIcon = (severity: string) => {
