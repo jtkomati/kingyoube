@@ -21,12 +21,14 @@ import { useAuth } from "@/hooks/useAuth";
 export const OutgoingInvoices = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
-  const { hasPermission } = useAuth();
+  const { hasPermission, currentOrganization } = useAuth();
   const canIssue = hasPermission("FISCAL");
 
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ["outgoing-invoices"],
+    queryKey: ["outgoing-invoices", currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      
       const { data, error } = await (supabase as any)
         .from("transactions")
         .select(`
@@ -35,6 +37,7 @@ export const OutgoingInvoices = () => {
           customers(first_name, last_name, company_name)
         `)
         .eq("type", "RECEIVABLE")
+        .eq("company_id", currentOrganization.id)
         .not("invoice_number", "is", null)
         .order("created_at", { ascending: false });
 
@@ -53,15 +56,19 @@ export const OutgoingInvoices = () => {
         customer: customers?.find((c: any) => c.id === transaction.customer_id),
       }));
     },
+    enabled: !!currentOrganization?.id,
   });
 
   const { data: pendingTransactions } = useQuery({
-    queryKey: ["pending-invoices"],
+    queryKey: ["pending-invoices", currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      
       const { data, error } = await (supabase as any)
         .from("transactions")
         .select("*")
         .eq("type", "RECEIVABLE")
+        .eq("company_id", currentOrganization.id)
         .is("invoice_number", null)
         .order("due_date", { ascending: true })
         .limit(10);
@@ -69,6 +76,7 @@ export const OutgoingInvoices = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !!currentOrganization?.id,
   });
 
   const getStatusVariant = (status: string) => {

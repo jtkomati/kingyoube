@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -358,6 +359,7 @@ const translations = {
 };
 
 export default function Dashboard() {
+  const { currentOrganization } = useAuth();
   const [metrics, setMetrics] = useState({
     totalReceivables: 0,
     totalPayables: 0,
@@ -384,8 +386,10 @@ export default function Dashboard() {
   ];
 
   useEffect(() => {
-    fetchAllMetrics();
-  }, []);
+    if (currentOrganization?.id) {
+      fetchAllMetrics();
+    }
+  }, [currentOrganization?.id]);
 
   const fetchAllMetrics = async () => {
     setLoading(true);
@@ -395,14 +399,18 @@ export default function Dashboard() {
   };
 
   const fetchBasicMetrics = async () => {
+    if (!currentOrganization?.id) return;
+    
     try {
       const { data: transactions } = await (supabase as any)
         .from('transactions')
-        .select('type, net_amount, payment_date');
+        .select('type, net_amount, payment_date')
+        .eq('company_id', currentOrganization.id);
 
       const { data: customers } = await (supabase as any)
         .from('customers')
-        .select('id');
+        .select('id')
+        .eq('company_id', currentOrganization.id);
 
       let totalReceivables = 0;
       let totalPayables = 0;

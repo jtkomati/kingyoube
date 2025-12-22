@@ -108,7 +108,13 @@ export function OnboardingModal({ open, onOpenChange }: OnboardingModalProps) {
 
       if (companyError) throw companyError;
 
-      // 2. Vincular usuário à organização
+      // 2. Remover is_default das organizações anteriores do usuário
+      await supabase
+        .from('user_organizations')
+        .update({ is_default: false })
+        .eq('user_id', user.id);
+
+      // 3. Vincular usuário à nova organização como padrão
       const { error: orgError } = await supabase
         .from('user_organizations')
         .insert({
@@ -118,8 +124,11 @@ export function OnboardingModal({ open, onOpenChange }: OnboardingModalProps) {
         });
 
       if (orgError) throw orgError;
+      
+      // 4. Limpar localStorage para forçar uso da nova organização
+      localStorage.removeItem('currentOrganizationId');
 
-      // 3. Criar role ADMIN
+      // 5. Criar role ADMIN
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -131,13 +140,13 @@ export function OnboardingModal({ open, onOpenChange }: OnboardingModalProps) {
         throw roleError;
       }
 
-      // 4. Atualizar profile
+      // 6. Atualizar profile
       await supabase
         .from('profiles')
         .update({ company_id: company.id })
         .eq('id', user.id);
 
-      // 5. Salvar conexão bancária se houver
+      // 7. Salvar conexão bancária se houver
       if (bankConnection?.connected) {
         await supabase
           .from('bank_accounts')
@@ -148,7 +157,7 @@ export function OnboardingModal({ open, onOpenChange }: OnboardingModalProps) {
           });
       }
 
-      // 6. Enviar convite ao contador se houver
+      // 8. Enviar convite ao contador se houver
       if (accountantInvite?.email) {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
