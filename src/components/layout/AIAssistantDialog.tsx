@@ -29,7 +29,6 @@ import { useRotatingPlaceholder } from '@/components/chat/useRotatingPlaceholder
 import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { MessageFeedback } from '@/components/chat/MessageFeedback';
 import { detectAndRenderEntities } from '@/components/chat/SmartCopy';
-import { ElevenLabsVoiceChat } from '@/components/chat/ElevenLabsVoiceChat';
 
 interface ChartData {
   name: string;
@@ -66,9 +65,6 @@ export function AIAssistantDialog() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const placeholder = useRotatingPlaceholder('general');
-
-  // Agent ID do ElevenLabs
-  const ELEVENLABS_AGENT_ID = "agent_5601k9xdtss3edwta7htzjq1gv70";
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -128,15 +124,6 @@ export function AIAssistantDialog() {
       e.preventDefault();
       handleSend();
     }
-  };
-
-  const handleVoiceTranscript = (text: string, role: 'user' | 'assistant') => {
-    // Adicionar mensagem de voz ao chat
-    setMessages(prev => [...prev, { 
-      role, 
-      content: text,
-      type: 'text'
-    }]);
   };
 
   return (
@@ -309,16 +296,8 @@ export function AIAssistantDialog() {
                 role="general"
               />
             )}
-            
-            {/* Interface de voz estilo "Her" */}
-            <div className="flex flex-col items-center gap-4 py-4">
-              <ElevenLabsVoiceChat 
-                agentId={ELEVENLABS_AGENT_ID}
-                onTranscript={handleVoiceTranscript}
-              />
-            </div>
 
-            {/* Input de texto alternativo */}
+            {/* Input de texto */}
             <div className="flex gap-2">
               <Textarea
                 value={input}
