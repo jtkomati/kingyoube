@@ -12,9 +12,28 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+// Lista de domínios de e-mail pessoais bloqueados
+const blockedEmailDomains = [
+  'gmail.com', 'googlemail.com',
+  'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+  'yahoo.com', 'yahoo.com.br',
+  'icloud.com', 'me.com', 'mac.com',
+  'aol.com',
+  'protonmail.com', 'proton.me',
+  'uol.com.br', 'bol.com.br', 'terra.com.br', 'ig.com.br', 'globo.com'
+];
+
 const leadFormSchema = z.object({
   full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
-  email: z.string().email('Email inválido').max(255, 'Email muito longo'),
+  email: z.string()
+    .email('Email inválido')
+    .max(255, 'Email muito longo')
+    .refine((email) => {
+      const domain = email.split('@')[1]?.toLowerCase();
+      return !blockedEmailDomains.includes(domain);
+    }, {
+      message: 'Por favor, use seu e-mail corporativo. E-mails pessoais (Gmail, Outlook, etc.) não são permitidos.',
+    }),
   phone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos').max(20, 'Telefone muito longo').optional().or(z.literal('')),
   company_name: z.string().max(100, 'Nome da empresa muito longo').optional().or(z.literal('')),
   role: z.string().max(50, 'Cargo muito longo').optional().or(z.literal('')),
