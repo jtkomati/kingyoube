@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.test-plugnotas-connection]
 verify_jwt = true
+
+[functions.log-ingestion]
+verify_jwt = false
+
+[functions.observability-alerts]
+verify_jwt = false

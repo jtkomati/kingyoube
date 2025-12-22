@@ -31,6 +31,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const AccountingSettings = lazy(() => import("./pages/AccountingSettings"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+const Observability = lazy(() => import("./pages/Observability"));
 
 // Global query client with optimized defaults
 const queryClient = new QueryClient({
@@ -166,6 +167,10 @@ const App = () => {
             <Route
               path="/cadastros"
               element={<LazyProtectedRoute><Cadastros /></LazyProtectedRoute>}
+            />
+            <Route
+              path="/observability"
+              element={<LazyProtectedRoute><Observability /></LazyProtectedRoute>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
