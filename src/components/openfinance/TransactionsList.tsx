@@ -19,90 +19,75 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Filter, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { CalendarIcon, Filter, ArrowDownCircle, ArrowUpCircle, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-
-// Dados simulados
-const mockTransactions = [
-  {
-    id: "1",
-    date: "2024-12-28",
-    description: "Pix Recebido - Cliente ABC Ltda",
-    category: "Receitas",
-    amount: 15800.00,
-    type: "ENTRADA",
-    status: "CONCILIADO",
-  },
-  {
-    id: "2",
-    date: "2024-12-27",
-    description: "Pix Enviado - Fornecedor XYZ",
-    category: "Serviços",
-    amount: -3250.00,
-    type: "SAIDA",
-    status: "CONCILIADO",
-  },
-  {
-    id: "3",
-    date: "2024-12-27",
-    description: "TED Recebido - Pagamento Fatura #1234",
-    category: "Receitas",
-    amount: 8900.00,
-    type: "ENTRADA",
-    status: "CONCILIADO",
-  },
-  {
-    id: "4",
-    date: "2024-12-26",
-    description: "Débito - DARF Impostos Federais",
-    category: "Impostos",
-    amount: -4567.89,
-    type: "SAIDA",
-    status: "PENDENTE",
-  },
-  {
-    id: "5",
-    date: "2024-12-26",
-    description: "Pix Recebido - Cliente DEF Serviços",
-    category: "Receitas",
-    amount: 12300.00,
-    type: "ENTRADA",
-    status: "CONCILIADO",
-  },
-  {
-    id: "6",
-    date: "2024-12-25",
-    description: "Boleto - Aluguel Escritório",
-    category: "Despesas Fixas",
-    amount: -5600.00,
-    type: "SAIDA",
-    status: "CONCILIADO",
-  },
-  {
-    id: "7",
-    date: "2024-12-24",
-    description: "Pix Enviado - Salários Funcionários",
-    category: "Folha de Pagamento",
-    amount: -28500.00,
-    type: "SAIDA",
-    status: "CONCILIADO",
-  },
-  {
-    id: "8",
-    date: "2024-12-23",
-    description: "TED Recebido - Prestação de Serviços",
-    category: "Receitas",
-    amount: 22100.00,
-    type: "ENTRADA",
-    status: "PENDENTE",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function TransactionsList() {
   const [dateFilter, setDateFilter] = useState<Date>();
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const { currentOrganization } = useAuth();
+
+  // Buscar transações do banco de dados
+  const { data: transactions = [], isLoading } = useQuery({
+    queryKey: ['bank-statements', currentOrganization?.id, dateFilter, typeFilter],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      
+      // Primeiro buscar contas bancárias da organização
+      const { data: bankAccounts, error: bankError } = await supabase
+        .from('bank_accounts')
+        .select('id')
+        .eq('company_id', currentOrganization.id);
+      
+      if (bankError) throw bankError;
+      if (!bankAccounts || bankAccounts.length === 0) return [];
+      
+      const bankAccountIds = bankAccounts.map(ba => ba.id);
+      
+      // Buscar transações bancárias
+      let query = supabase
+        .from('bank_statements')
+        .select('*')
+        .in('bank_account_id', bankAccountIds)
+        .order('statement_date', { ascending: false })
+        .limit(50);
+      
+      if (dateFilter) {
+        const dateStr = format(dateFilter, 'yyyy-MM-dd');
+        query = query.eq('statement_date', dateStr);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      // Filtrar por tipo se necessário
+      let filtered = data || [];
+      if (typeFilter !== 'all') {
+        filtered = filtered.filter(t => {
+          const isEntrada = (t.amount || 0) > 0;
+          return typeFilter === 'ENTRADA' ? isEntrada : !isEntrada;
+        });
+      }
+      
+      return filtered.map(t => ({
+        id: t.id,
+        date: t.statement_date,
+        description: t.description || 'Sem descrição',
+        category: t.category || 'Não categorizado',
+        amount: t.amount || 0,
+        type: (t.amount || 0) > 0 ? 'ENTRADA' : 'SAIDA',
+        status: t.reconciliation_status === 'reconciled' ? 'CONCILIADO' : 'PENDENTE',
+      }));
+    },
+    enabled: !!currentOrganization?.id,
+  });
 
   const formatCurrency = (value: number) => {
     const absolute = Math.abs(value);
@@ -112,13 +97,23 @@ export function TransactionsList() {
     });
   };
 
-  const filteredTransactions = mockTransactions.filter((t) => {
-    if (typeFilter !== "all" && t.type !== typeFilter) return false;
-    if (dateFilter && format(new Date(t.date), "yyyy-MM-dd") !== format(dateFilter, "yyyy-MM-dd")) {
-      return false;
-    }
-    return true;
-  });
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -176,25 +171,29 @@ export function TransactionsList() {
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTransactions.length === 0 ? (
+        {transactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <RefreshCw className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-center text-lg font-medium mb-2">
+              Nenhuma transação bancária encontrada
+            </p>
+            <p className="text-center text-sm">
+              Sincronize sua conta bancária para visualizar o extrato inteligente.
+            </p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  Nenhuma transação encontrada para os filtros selecionados
-                </TableCell>
+                <TableHead>Data</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-center">Status</TableHead>
               </TableRow>
-            ) : (
-              filteredTransactions.map((transaction) => (
+            </TableHeader>
+            <TableBody>
+              {transactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell className="font-medium">
                     {format(new Date(transaction.date), "dd/MM/yyyy")}
@@ -230,10 +229,10 @@ export function TransactionsList() {
                     </Badge>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
