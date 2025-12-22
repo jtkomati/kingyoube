@@ -104,7 +104,7 @@ export function AIAssistantDialog() {
         setMessages(prev => [...prev, { 
           role: 'assistant',
           type: 'text',
-          content: data?.response || 'Resposta recebida com sucesso!' 
+          content: data?.message || 'Resposta recebida com sucesso!' 
         }]);
       }
     } catch (error) {
