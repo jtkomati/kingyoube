@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { signUpSchema, signInSchema, resetPasswordSchema, validateWithFeedback } from '@/lib/validation';
 import { getFriendlyError } from '@/lib/errorMessages';
-import { AlertCircle } from 'lucide-react';
+import { checkPasswordBreach, getBreachWarningMessage } from '@/lib/password-breach-check';
+import { AlertCircle, ShieldAlert, Loader2 } from 'lucide-react';
 
 export function AuthForm() {
   const [email, setEmail] = useState('');
@@ -28,6 +29,8 @@ export function AuthForm() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checkingPassword, setCheckingPassword] = useState(false);
+  const [passwordBreachWarning, setPasswordBreachWarning] = useState<string | null>(null);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
 
@@ -61,6 +64,7 @@ export function AuthForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setPasswordBreachWarning(null);
 
     // Validate consent checkboxes
     const consentErrors: Record<string, string> = {};
@@ -87,6 +91,28 @@ export function AuthForm() {
       });
       return;
     }
+    
+    // Verificar senha vazada (HaveIBeenPwned)
+    setCheckingPassword(true);
+    try {
+      const breachResult = await checkPasswordBreach(password);
+      if (breachResult.breached) {
+        const warningMessage = getBreachWarningMessage(breachResult.count);
+        setPasswordBreachWarning(warningMessage);
+        setCheckingPassword(false);
+        toast({
+          variant: 'destructive',
+          title: 'Senha Comprometida',
+          description: 'Esta senha foi encontrada em vazamentos de dados. Por favor, escolha outra.',
+          duration: 8000,
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('Password breach check failed:', err);
+      // Continuar mesmo se a verificação falhar
+    }
+    setCheckingPassword(false);
     
     setLoading(true);
     const success = await signUp(
@@ -364,6 +390,14 @@ export function AuthForm() {
                       <AlertDescription>{errors.password}</AlertDescription>
                     </Alert>
                   )}
+                  {passwordBreachWarning && (
+                    <Alert variant="destructive" className="mt-2 border-orange-500 bg-orange-500/10">
+                      <ShieldAlert className="h-4 w-4 text-orange-500" />
+                      <AlertDescription className="text-orange-700 dark:text-orange-300">
+                        {passwordBreachWarning}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 
                 <ConsentCheckboxes
@@ -377,8 +411,17 @@ export function AuthForm() {
                 />
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Criando...' : 'Criar Conta'}
+                <Button type="submit" className="w-full" disabled={loading || checkingPassword}>
+                  {checkingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verificando segurança...
+                    </>
+                  ) : loading ? (
+                    'Criando...'
+                  ) : (
+                    'Criar Conta'
+                  )}
                 </Button>
               </CardFooter>
             </form>

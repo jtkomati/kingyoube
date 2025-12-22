@@ -6,6 +6,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Rate Limiter em memória
+interface RateLimitEntry {
+  count: number;
+  firstRequest: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+const RATE_LIMIT_CONFIG = {
+  windowMs: 60 * 1000, // 1 minuto
+  maxRequests: 15,     // 15 requisições por minuto
+};
+
+function isRateLimited(identifier: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitStore.get(identifier);
+
+  // Limpar entradas antigas periodicamente
+  if (rateLimitStore.size > 500) {
+    for (const [key, e] of rateLimitStore.entries()) {
+      if (now - e.firstRequest > RATE_LIMIT_CONFIG.windowMs) {
+        rateLimitStore.delete(key);
+      }
+    }
+  }
+
+  if (!entry) {
+    rateLimitStore.set(identifier, { count: 1, firstRequest: now });
+    return false;
+  }
+
+  if (now - entry.firstRequest > RATE_LIMIT_CONFIG.windowMs) {
+    rateLimitStore.set(identifier, { count: 1, firstRequest: now });
+    return false;
+  }
+
+  entry.count++;
+  return entry.count > RATE_LIMIT_CONFIG.maxRequests;
+}
+
 interface ERPContext {
   transactions: any[]
   customers: any[]
@@ -25,6 +65,30 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting por IP
+    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    if (isRateLimited(clientIP)) {
+      console.warn(`Rate limit exceeded for IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({
+          error: 'Limite de requisições excedido',
+          message: 'Por favor, aguarde um momento antes de enviar outra mensagem.',
+          retryAfter: 60,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': '60',
+          },
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
@@ -46,6 +110,26 @@ serve(async (req) => {
         JSON.stringify({ error: 'Não autorizado' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       )
+    }
+
+    // Rate limiting adicional por usuário (mais restritivo)
+    if (isRateLimited(`user:${user.id}`)) {
+      console.warn(`Rate limit exceeded for user: ${user.id}`);
+      return new Response(
+        JSON.stringify({
+          error: 'Limite de requisições excedido',
+          message: 'Você está enviando muitas mensagens. Aguarde um momento.',
+          retryAfter: 60,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': '60',
+          },
+        }
+      );
     }
 
     const { message } = await req.json()
