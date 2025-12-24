@@ -89,12 +89,12 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
         role: data.role || null,
         city: data.city || 'Não informado',
         state: data.state || 'XX',
-        selected_plan: 'testar_gratis',
+        selected_plan: 'demo_empresa_modelo',
         terms_accepted: data.terms_accepted,
         privacy_accepted: data.privacy_accepted,
         marketing_accepted: data.marketing_accepted || false,
         consent_timestamp: new Date().toISOString(),
-        source: 'testar_gratis',
+        source: 'demo_empresa_modelo',
         synced_to_sheets: false,
       });
 
@@ -137,9 +137,9 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Testar Grátis</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Demo Empresa Modelo</DialogTitle>
           <DialogDescription>
-            Preencha seus dados para iniciar seu teste gratuito. Nossa equipe entrará em contato para ajudá-lo.
+            Preencha seus dados para acessar nossa demonstração com dados fictícios. Explore todas as funcionalidades do sistema.
           </DialogDescription>
         </DialogHeader>
 
@@ -329,7 +329,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
                   Enviando...
                 </>
               ) : (
-                'Solicitar Teste Gratuito'
+                'Acessar Demo'
               )}
             </Button>
 

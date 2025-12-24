@@ -65,7 +65,7 @@ export function LandingHeader() {
               className="hidden sm:flex border-primary/50 text-primary hover:bg-primary/10"
             >
               <Play className="w-3 h-3 mr-1" />
-              Testar Grátis
+              Demo
             </Button>
             <Button 
               variant="ghost" 
