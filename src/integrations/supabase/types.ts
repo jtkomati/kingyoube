@@ -2032,6 +2032,39 @@ export type Database = {
           },
         ]
       }
+      form_analytics: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          field_name: string | null
+          form_name: string
+          id: string
+          metadata: Json | null
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          field_name?: string | null
+          form_name: string
+          id?: string
+          metadata?: Json | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          field_name?: string | null
+          form_name?: string
+          id?: string
+          metadata?: Json | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       incoming_invoices: {
         Row: {
           cnab_generated: boolean | null
