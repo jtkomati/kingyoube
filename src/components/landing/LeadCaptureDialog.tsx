@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,27 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+// Schema simplificado - apenas nome e email obrigatórios
 const leadFormSchema = z.object({
   full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
-  email: z.string()
-    .email('Email inválido')
-    .max(255, 'Email muito longo'),
-  phone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos').max(20, 'Telefone muito longo').optional().or(z.literal('')),
+  email: z.string().email('Email inválido').max(255, 'Email muito longo'),
+  phone: z.string().max(20, 'Telefone muito longo').optional().or(z.literal('')),
   company_name: z.string().max(100, 'Nome da empresa muito longo').optional().or(z.literal('')),
   role: z.string().max(50, 'Cargo muito longo').optional().or(z.literal('')),
   city: z.string().max(100, 'Cidade muito longa').optional().or(z.literal('')),
-  state: z.string().max(2, 'Use a sigla do estado (ex: SP)').optional().or(z.literal('')),
-  terms_accepted: z.boolean().refine((val) => val === true, {
-    message: 'Você deve aceitar os Termos de Uso',
-  }),
-  privacy_accepted: z.boolean().refine((val) => val === true, {
-    message: 'Você deve aceitar a Política de Privacidade',
-  }),
+  state: z.string().max(10, 'Estado muito longo').optional().or(z.literal('')),
   marketing_accepted: z.boolean().optional(),
 });
 
@@ -39,8 +33,48 @@ interface LeadCaptureDialogProps {
   onSuccess?: () => void;
 }
 
+// Gerar session ID único para tracking
+const generateSessionId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Função para enviar eventos de analytics
+const trackFormEvent = async (
+  eventType: 'form_opened' | 'field_completed' | 'submitted' | 'error',
+  formName: string,
+  fieldName?: string,
+  metadata?: Record<string, unknown>,
+  sessionId?: string
+) => {
+  const eventData = {
+    event_type: eventType,
+    form_name: formName,
+    field_name: fieldName || null,
+    metadata: metadata || {},
+    session_id: sessionId || null,
+    user_agent: navigator.userAgent,
+  };
+
+  // Log para console (debugging)
+  console.log(`📊 [Analytics] ${eventType}:`, eventData);
+
+  // Enviar para banco de dados (non-blocking)
+  try {
+    // @ts-expect-error - form_analytics table not yet in generated types
+    const { error } = await supabase.from('form_analytics').insert([eventData]);
+    if (error) {
+      console.warn('⚠️ Failed to track event:', error.message);
+    }
+  } catch (err) {
+    console.warn('⚠️ Analytics error:', err);
+  }
+};
+
 export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCaptureDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showMoreFields, setShowMoreFields] = useState(false);
+  const [sessionId] = useState(() => generateSessionId());
+  const [completedFields, setCompletedFields] = useState<Set<string>>(new Set());
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadFormSchema),
@@ -52,17 +86,45 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
       role: '',
       city: '',
       state: '',
-      terms_accepted: false,
-      privacy_accepted: false,
       marketing_accepted: false,
     },
   });
 
+  // FASE 1: Track form opened
+  useEffect(() => {
+    if (open) {
+      trackFormEvent('form_opened', 'lead_capture', undefined, { timestamp: new Date().toISOString() }, sessionId);
+    }
+  }, [open, sessionId]);
+
+  // FASE 1: Track field completion
+  const handleFieldBlur = useCallback((fieldName: string, value: string) => {
+    if (value && value.trim() !== '' && !completedFields.has(fieldName)) {
+      setCompletedFields(prev => new Set(prev).add(fieldName));
+      trackFormEvent('field_completed', 'lead_capture', fieldName, { 
+        fieldsCompleted: completedFields.size + 1,
+        timestamp: new Date().toISOString()
+      }, sessionId);
+    }
+  }, [completedFields, sessionId]);
+
   const onSubmit = async (data: LeadFormData) => {
     setIsSubmitting(true);
+    
+    // FASE 2: Log detalhado antes do insert
+    console.log('📝 [LeadCapture] Attempting to insert lead:', {
+      full_name: data.full_name,
+      email: data.email,
+      phone: data.phone || '(não informado)',
+      company_name: data.company_name || '(não informado)',
+      role: data.role || '(não informado)',
+      city: data.city || '(não informado)',
+      state: data.state || '(não informado)',
+      marketing_accepted: data.marketing_accepted,
+    });
+
     try {
-      // Insert lead into database - include all required fields
-      const { error: insertError } = await supabase.from('waitlist_leads').insert({
+      const insertData = {
         full_name: data.full_name,
         email: data.email,
         phone: data.phone || null,
@@ -73,19 +135,59 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
         city: data.city || 'Não informado',
         state: data.state || 'XX',
         selected_plan: 'demo_empresa_modelo',
-        terms_accepted: data.terms_accepted,
-        privacy_accepted: data.privacy_accepted,
+        terms_accepted: true, // Implícito ao submeter
+        privacy_accepted: true, // Implícito ao submeter
         marketing_accepted: data.marketing_accepted || false,
         consent_timestamp: new Date().toISOString(),
         source: 'demo_empresa_modelo',
         synced_to_sheets: false,
-      });
+      };
+
+      console.log('📤 [LeadCapture] Insert data:', insertData);
+
+      const { data: insertedData, error: insertError } = await supabase
+        .from('waitlist_leads')
+        .insert(insertData)
+        .select();
 
       if (insertError) {
-        console.error('Error inserting lead:', insertError);
-        toast.error('Erro ao enviar seus dados. Tente novamente.');
+        // FASE 2: Log detalhado de erro
+        console.error('❌ [LeadCapture] Insert error:', {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+        });
+        
+        // FASE 1: Track error event
+        trackFormEvent('error', 'lead_capture', undefined, {
+          errorCode: insertError.code,
+          errorMessage: insertError.message,
+          timestamp: new Date().toISOString(),
+        }, sessionId);
+
+        // FASE 2: Toast com erro específico
+        if (insertError.code === '23505') {
+          toast.error('Este email já está cadastrado. Use outro email ou entre em contato conosco.');
+        } else if (insertError.code === '42501') {
+          toast.error('Erro de permissão. Por favor, tente novamente mais tarde.');
+        } else {
+          toast.error(`Erro ao enviar dados: ${insertError.message}`);
+        }
         return;
       }
+
+      // FASE 2: Log de sucesso
+      console.log('✅ [LeadCapture] Lead inserted successfully:', insertedData);
+
+      // FASE 1: Track success event
+      trackFormEvent('submitted', 'lead_capture', undefined, {
+        fieldsCompleted: completedFields.size,
+        hasPhone: !!data.phone,
+        hasCompany: !!data.company_name,
+        marketingAccepted: data.marketing_accepted,
+        timestamp: new Date().toISOString(),
+      }, sessionId);
 
       // Sync to Google Sheets in background
       supabase.functions.invoke('sync-leads-to-sheets', {
@@ -99,43 +201,71 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
           state: data.state || '',
           marketing_accepted: data.marketing_accepted || false,
         },
+      }).then(response => {
+        console.log('📊 [LeadCapture] Sheets sync response:', response);
       }).catch((err) => {
-        console.error('Error syncing to sheets:', err);
-        // Non-blocking - lead is already saved to DB
+        console.warn('⚠️ [LeadCapture] Sheets sync error (non-blocking):', err);
       });
 
-      toast.success('Obrigado pelo interesse! Entraremos em contato em breve.');
+      toast.success('Obrigado pelo interesse! Você será redirecionado para a demo.');
       form.reset();
+      setCompletedFields(new Set());
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error('Error submitting lead:', error);
-      toast.error('Erro ao enviar seus dados. Tente novamente.');
+      // FASE 2: Log de exceção
+      console.error('💥 [LeadCapture] Unexpected error:', error);
+      
+      trackFormEvent('error', 'lead_capture', undefined, {
+        errorType: 'exception',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      }, sessionId);
+
+      toast.error('Erro inesperado. Por favor, tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // FASE 2: Log de erros de validação
+  const onFormError = (errors: Record<string, unknown>) => {
+    console.warn('⚠️ [LeadCapture] Validation errors:', errors);
+    trackFormEvent('error', 'lead_capture', undefined, {
+      errorType: 'validation',
+      errors: Object.keys(errors),
+      timestamp: new Date().toISOString(),
+    }, sessionId);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[450px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Demo Empresa Modelo</DialogTitle>
           <DialogDescription>
-            Preencha seus dados para acessar nossa demonstração com dados fictícios. Explore todas as funcionalidades do sistema.
+            Preencha seus dados para acessar nossa demonstração. Explore todas as funcionalidades do sistema.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-4">
+            {/* Campos obrigatórios (sempre visíveis) */}
             <FormField
               control={form.control}
               name="full_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome Completo *</FormLabel>
+                  <FormLabel>Nome *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Seu nome completo" {...field} />
+                    <Input 
+                      placeholder="Seu nome" 
+                      {...field} 
+                      onBlur={(e) => {
+                        field.onBlur();
+                        handleFieldBlur('full_name', e.target.value);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -149,141 +279,155 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
                 <FormItem>
                   <FormLabel>E-mail *</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="seu@email.com" {...field} />
+                    <Input 
+                      type="email" 
+                      placeholder="seu@email.com" 
+                      {...field}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        handleFieldBlur('email', e.target.value);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone / WhatsApp</FormLabel>
-                  <FormControl>
-                    <Input placeholder="(11) 99999-9999" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* FASE 3: Campos opcionais colapsáveis */}
+            <Collapsible open={showMoreFields} onOpenChange={setShowMoreFields}>
+              <CollapsibleTrigger asChild>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  {showMoreFields ? (
+                    <>
+                      <ChevronUp className="h-4 w-4" />
+                      Ocultar campos adicionais
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      Adicionar mais informações (opcional)
+                    </>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
 
-            <FormField
-              control={form.control}
-              name="company_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome da Empresa</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome da sua empresa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cargo</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Diretor Financeiro, CEO" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cidade</FormLabel>
-                    <FormControl>
-                      <Input placeholder="São Paulo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <FormControl>
-                      <Input placeholder="SP" maxLength={2} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Seus dados serão utilizados exclusivamente para entrar em contato sobre nossos serviços, 
-                conforme nossa política de privacidade.
-              </p>
-
-              <FormField
-                control={form.control}
-                name="terms_accepted"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-sm font-normal">
-                        Li e aceito os{' '}
-                        <Link to="/terms" className="text-primary underline hover:no-underline" target="_blank">
-                          Termos de Uso
-                        </Link>{' '}
-                        *
-                      </FormLabel>
+              <CollapsibleContent className="space-y-4 pt-2">
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefone / WhatsApp</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="(11) 99999-9999" 
+                          {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            handleFieldBlur('phone', e.target.value);
+                          }}
+                        />
+                      </FormControl>
                       <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="privacy_accepted"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-sm font-normal">
-                        Li e aceito a{' '}
-                        <Link to="/privacy-policy" className="text-primary underline hover:no-underline" target="_blank">
-                          Política de Privacidade
-                        </Link>{' '}
-                        *
-                      </FormLabel>
+                <FormField
+                  control={form.control}
+                  name="company_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Nome da sua empresa" 
+                          {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            handleFieldBlur('company_name', e.target.value);
+                          }}
+                        />
+                      </FormControl>
                       <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
+                    </FormItem>
+                  )}
+                />
 
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cargo</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Ex: Diretor Financeiro" 
+                          {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            handleFieldBlur('role', e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cidade</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="São Paulo" 
+                            {...field}
+                            onBlur={(e) => {
+                              field.onBlur();
+                              handleFieldBlur('city', e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estado</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="SP" 
+                            {...field}
+                            onBlur={(e) => {
+                              field.onBlur();
+                              handleFieldBlur('state', e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* FASE 3: Apenas checkbox de marketing (opcional) */}
+            <div className="space-y-3 pt-2">
               <FormField
                 control={form.control}
                 name="marketing_accepted"
@@ -296,8 +440,8 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel className="text-sm font-normal">
-                        Aceito receber comunicações de marketing por e-mail (opcional)
+                      <FormLabel className="text-sm font-normal text-muted-foreground">
+                        Aceito receber novidades e dicas por e-mail
                       </FormLabel>
                     </div>
                   </FormItem>
@@ -309,15 +453,23 @@ export function LeadCaptureDialog({ open, onOpenChange, onSuccess }: LeadCapture
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enviando...
+                  Entrando...
                 </>
               ) : (
                 'Acessar Demo'
               )}
             </Button>
 
+            {/* FASE 3: Texto de termos implícitos */}
             <p className="text-xs text-muted-foreground text-center">
-              Campos marcados com * são obrigatórios. Você pode solicitar a exclusão dos seus dados a qualquer momento.
+              Ao clicar em "Acessar Demo", você concorda com nossos{' '}
+              <Link to="/terms" className="text-primary underline hover:no-underline" target="_blank">
+                Termos de Uso
+              </Link>{' '}
+              e{' '}
+              <Link to="/privacy-policy" className="text-primary underline hover:no-underline" target="_blank">
+                Política de Privacidade
+              </Link>.
             </p>
           </form>
         </Form>
