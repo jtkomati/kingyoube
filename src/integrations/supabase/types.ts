@@ -527,6 +527,97 @@ export type Database = {
           },
         ]
       }
+      agent_execution_logs: {
+        Row: {
+          action_type: string
+          agent_id: string
+          approval_queue_id: string | null
+          company_id: string
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          input_data: Json | null
+          output_data: Json | null
+          status: string
+          user_id: string | null
+          workflow_instance_id: string | null
+        }
+        Insert: {
+          action_type: string
+          agent_id: string
+          approval_queue_id?: string | null
+          company_id: string
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          status?: string
+          user_id?: string | null
+          workflow_instance_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          agent_id?: string
+          approval_queue_id?: string | null
+          company_id?: string
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          status?: string
+          user_id?: string | null
+          workflow_instance_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_execution_logs_approval_queue_id_fkey"
+            columns: ["approval_queue_id"]
+            isOneToOne: false
+            referencedRelation: "approval_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_execution_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "agent_execution_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_execution_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "agent_execution_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_execution_logs_workflow_instance_id_fkey"
+            columns: ["workflow_instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_feedback: {
         Row: {
           created_at: string
@@ -782,6 +873,99 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_queue: {
+        Row: {
+          action_type: string
+          agent_id: string
+          auto_approved: boolean | null
+          company_id: string
+          created_at: string | null
+          id: string
+          priority: number | null
+          request_data: Json
+          requested_at: string | null
+          requested_by: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string | null
+          workflow_instance_id: string | null
+        }
+        Insert: {
+          action_type: string
+          agent_id: string
+          auto_approved?: boolean | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          priority?: number | null
+          request_data?: Json
+          requested_at?: string | null
+          requested_by: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string | null
+          workflow_instance_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          agent_id?: string
+          auto_approved?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          priority?: number | null
+          request_data?: Json
+          requested_at?: string | null
+          requested_by?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string | null
+          workflow_instance_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "approval_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "approval_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_queue_workflow_instance_id_fkey"
+            columns: ["workflow_instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -844,6 +1028,199 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automated_communications: {
+        Row: {
+          attachments: Json | null
+          channel: string
+          company_id: string
+          content: string
+          created_at: string | null
+          created_by: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          max_retries: number | null
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          retry_count: number | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          subject: string | null
+          template_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          channel: string
+          company_id: string
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          retry_count?: number | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          channel?: string
+          company_id?: string
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          retry_count?: number | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automated_communications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "automated_communications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automated_communications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "automated_communications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          actions: Json | null
+          agent_id: string
+          approval_threshold: number | null
+          auto_approve_below: number | null
+          company_id: string
+          conditions: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          execution_count: number | null
+          id: string
+          is_active: boolean | null
+          last_executed_at: string | null
+          requires_approval: boolean | null
+          rule_name: string
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          actions?: Json | null
+          agent_id: string
+          approval_threshold?: number | null
+          auto_approve_below?: number | null
+          company_id: string
+          conditions?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          execution_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_executed_at?: string | null
+          requires_approval?: boolean | null
+          rule_name: string
+          trigger_config?: Json | null
+          trigger_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Json | null
+          agent_id?: string
+          approval_threshold?: number | null
+          auto_approve_below?: number | null
+          company_id?: string
+          conditions?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          execution_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_executed_at?: string | null
+          requires_approval?: boolean | null
+          rule_name?: string
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "automation_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "automation_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3759,6 +4136,14 @@ export type Database = {
           total_errors: number
         }[]
       }
+      get_pending_approvals_count: {
+        Args: { _company_id: string }
+        Returns: {
+          agent_id: string
+          pending_count: number
+          urgent_count: number
+        }[]
+      }
       get_secret: {
         Args: {
           p_entity_id: string
@@ -3779,6 +4164,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      process_approval: {
+        Args: { p_action: string; p_approval_id: string; p_notes?: string }
+        Returns: Json
       }
       refresh_cfo_summary: { Args: never; Returns: undefined }
       search_embeddings: {
