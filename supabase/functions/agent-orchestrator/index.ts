@@ -129,6 +129,66 @@ const AVAILABLE_TOOLS = [
         required: ["status"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_pending_approvals",
+      description: "Lista solicitações pendentes de aprovação na fila do Gerente Financeiro",
+      parameters: {
+        type: "object",
+        properties: {
+          agent_filter: { type: "string", description: "Filtrar por agente específico (billing, receivables, collection, payables, treasury)" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "approve_request",
+      description: "Aprova uma solicitação pendente na fila",
+      parameters: {
+        type: "object",
+        properties: {
+          approval_id: { type: "string", description: "ID da solicitação a aprovar" },
+          notes: { type: "string", description: "Observações opcionais" }
+        },
+        required: ["approval_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "reject_request",
+      description: "Rejeita uma solicitação pendente na fila",
+      parameters: {
+        type: "object",
+        properties: {
+          approval_id: { type: "string", description: "ID da solicitação a rejeitar" },
+          reason: { type: "string", description: "Motivo da rejeição" }
+        },
+        required: ["approval_id", "reason"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "trigger_agent_workflow",
+      description: "Dispara um workflow de um agente especializado",
+      parameters: {
+        type: "object",
+        properties: {
+          agent: { type: "string", enum: ["billing", "receivables", "collection", "payables", "treasury"], description: "Agente a disparar" },
+          action: { type: "string", description: "Ação a executar" },
+          params: { type: "object", description: "Parâmetros da ação" }
+        },
+        required: ["agent", "action"]
+      }
+    }
   }
 ]
 
@@ -274,6 +334,105 @@ async function executeTool(
       return JSON.stringify(data || [])
     }
 
+    case 'get_pending_approvals': {
+      let query = supabase
+        .from('approval_queue')
+        .select('id, agent_id, action_type, priority, request_data, requested_at, status')
+        .eq('company_id', companyId)
+        .eq('status', 'pending')
+        .order('priority', { ascending: true })
+        .order('requested_at', { ascending: true })
+        .limit(20)
+
+      if (args.agent_filter) {
+        query = query.eq('agent_id', args.agent_filter)
+      }
+
+      const { data } = await query
+      return JSON.stringify({
+        count: data?.length || 0,
+        approvals: data || []
+      })
+    }
+
+    case 'approve_request': {
+      const { error } = await supabase
+        .from('approval_queue')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          review_notes: args.notes || 'Aprovado via chat'
+        })
+        .eq('id', args.approval_id)
+        .eq('company_id', companyId)
+
+      if (error) {
+        return JSON.stringify({ success: false, error: error.message })
+      }
+
+      // Buscar dados da aprovação para continuar workflow
+      const { data: approval } = await supabase
+        .from('approval_queue')
+        .select('agent_id, request_data')
+        .eq('id', args.approval_id)
+        .single()
+
+      if (approval) {
+        // Disparar continuação do workflow
+        const response = await fetch(`${supabaseUrl}/functions/v1/${approval.agent_id}-agent-workflow`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'continue_after_approval',
+            approvalId: args.approval_id,
+            requestData: approval.request_data
+          })
+        })
+        const result = await response.json()
+        return JSON.stringify({ success: true, message: 'Aprovado e workflow continuado', result })
+      }
+
+      return JSON.stringify({ success: true, message: 'Aprovado com sucesso' })
+    }
+
+    case 'reject_request': {
+      const { error } = await supabase
+        .from('approval_queue')
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          review_notes: args.reason
+        })
+        .eq('id', args.approval_id)
+        .eq('company_id', companyId)
+
+      if (error) {
+        return JSON.stringify({ success: false, error: error.message })
+      }
+
+      return JSON.stringify({ success: true, message: `Rejeitado: ${args.reason}` })
+    }
+
+    case 'trigger_agent_workflow': {
+      const response = await fetch(`${supabaseUrl}/functions/v1/${args.agent}-agent-workflow`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: args.action,
+          params: args.params || {},
+          companyId
+        })
+      })
+      const data = await response.json()
+      return JSON.stringify(data)
+    }
+
     default:
       return `Ferramenta ${toolName} não implementada`
   }
@@ -335,7 +494,7 @@ serve(async (req) => {
     console.log('Orquestrador iniciado para empresa:', companyId)
 
     // System prompt do Gerente Financeiro
-    const systemPrompt = `Você é o Gerente Financeiro, um assistente de IA especializado que orquestra múltiplas ferramentas para resolver tarefas financeiras complexas.
+    const systemPrompt = `Você é o Gerente Financeiro, um assistente de IA especializado que orquestra múltiplas ferramentas e APROVA/REJEITA solicitações dos agentes especializados.
 
 CAPACIDADES:
 - Projetar fluxo de caixa (analyze_cashflow)
@@ -346,6 +505,17 @@ CAPACIDADES:
 - Obter resumo financeiro (get_financial_summary)
 - Listar contas a pagar (list_payables)
 - Listar contas a receber (list_receivables)
+- Ver aprovações pendentes (get_pending_approvals)
+- Aprovar solicitações (approve_request)
+- Rejeitar solicitações (reject_request)
+- Disparar workflows dos agentes (trigger_agent_workflow)
+
+PAPEL COMO REVISOR:
+- Você é o ponto central de aprovação para todos os agentes (Faturamento, Contas a Receber, Cobrança, Contas a Pagar, Tesouraria)
+- Quando perguntado sobre aprovações, use get_pending_approvals para listar
+- Analise criteriosamente antes de aprovar ou rejeitar
+- Para aprovar, use approve_request com o ID
+- Para rejeitar, use reject_request com ID e motivo
 
 INSTRUÇÕES:
 1. Analise a solicitação do usuário
