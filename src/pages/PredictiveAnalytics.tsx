@@ -7,6 +7,7 @@ import { InsightCard } from '@/components/predictive/InsightCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { 
   BrainCircuit, 
@@ -53,11 +54,14 @@ interface AnalyticsData {
 }
 
 export default function PredictiveAnalytics() {
+  const { currentOrganization } = useAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchAnalytics = async () => {
+    if (!currentOrganization?.id) return;
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -74,7 +78,7 @@ export default function PredictiveAnalytics() {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ organization_id: currentOrganization.id }),
         }
       );
 
@@ -95,8 +99,10 @@ export default function PredictiveAnalytics() {
   };
 
   useEffect(() => {
-    fetchAnalytics();
-  }, []);
+    if (currentOrganization?.id) {
+      fetchAnalytics();
+    }
+  }, [currentOrganization?.id]);
 
   const handleRefresh = () => {
     setRefreshing(true);

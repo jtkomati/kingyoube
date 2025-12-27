@@ -434,10 +434,13 @@ export default function Dashboard() {
   };
 
   const fetchStartupMetrics = async () => {
+    if (!currentOrganization?.id) return;
+    
     setMetricsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('get-startup-metrics');
-      
+      const { data, error } = await supabase.functions.invoke('get-startup-metrics', {
+        body: { organization_id: currentOrganization.id }
+      });
       if (error) throw error;
       
       if (data) {

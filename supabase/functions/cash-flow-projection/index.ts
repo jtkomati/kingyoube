@@ -34,23 +34,38 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Buscar company_id do usuário
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError || !profile?.company_id) {
-      return new Response(
-        JSON.stringify({ error: 'Usuário sem empresa associada' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Tentar pegar organization_id do body (nova abordagem)
+    let companyId: string | null = null;
+    let days = 30;
+    
+    try {
+      const body = await req.json();
+      if (body?.organization_id) {
+        companyId = body.organization_id;
+      }
+      if (body?.days) {
+        days = body.days;
+      }
+    } catch {
+      // Body pode ser vazio, ignorar
     }
 
-    const companyId = profile.company_id
+    // Fallback para profiles.company_id se não passar organization_id
+    if (!companyId) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single()
 
-    const { days = 30 } = await req.json()
+      if (profileError || !profile?.company_id) {
+        return new Response(
+          JSON.stringify({ error: 'Usuário sem empresa associada' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      companyId = profile.company_id
+    }
 
     console.log('Calculando projeção de fluxo de caixa para', days, 'dias', 'company:', companyId)
 
