@@ -38,3 +38,18 @@ verify_jwt = false
 
 [functions.observability-alerts]
 verify_jwt = false
+
+[functions.gemini-voice-to-text]
+verify_jwt = true
+
+[functions.gemini-text-to-speech]
+verify_jwt = true
+
+[functions.generate-embeddings]
+verify_jwt = true
+
+[functions.rag-query]
+verify_jwt = true
+
+[functions.agent-orchestrator]
+verify_jwt = true
