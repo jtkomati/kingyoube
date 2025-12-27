@@ -68,3 +68,6 @@ verify_jwt = true
 
 [functions.treasury-agent-workflow]
 verify_jwt = true
+
+[functions.test-tecnospeed-connection]
+verify_jwt = true
