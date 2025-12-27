@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { LeadCaptureDialog } from '@/components/landing/LeadCaptureDialog';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
+
 import { Play } from 'lucide-react';
 import kingyoubeLogo from '@/assets/kingyoube-logo.png';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,7 +59,6 @@ export function LandingHeader() {
           </div>
 
           <div className="flex items-center gap-3">
-            <ThemeToggle />
             <Button 
               variant="outline" 
               size="sm"
