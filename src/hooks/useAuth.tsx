@@ -60,14 +60,13 @@ export function useAuth() {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      // Fetch all roles and get the highest level one
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
 
       if (error) {
-        // Only log non-sensitive errors
         if (shouldLogError(error)) {
           console.error('Erro ao buscar role:', error);
         }
@@ -75,9 +74,36 @@ export function useAuth() {
         return;
       }
 
-      const role = data?.role ?? 'VIEWER';
-      console.log('User role loaded:', role);
-      setUserRole(role);
+      // Role hierarchy - get the highest level role
+      const roleHierarchy: { [key: string]: number } = {
+        VIEWER: 1,
+        USUARIO: 1,
+        FISCAL: 2,
+        CONTADOR: 3,
+        FINANCEIRO: 3,
+        ADMIN: 4,
+        SUPERADMIN: 5,
+      };
+
+      if (!data || data.length === 0) {
+        setUserRole('VIEWER');
+        return;
+      }
+
+      // Find the highest level role
+      let highestRole = 'VIEWER';
+      let highestLevel = 0;
+
+      for (const item of data) {
+        const level = roleHierarchy[item.role] || 0;
+        if (level > highestLevel) {
+          highestLevel = level;
+          highestRole = item.role;
+        }
+      }
+
+      console.log('User role loaded:', highestRole, '(from', data.length, 'roles)');
+      setUserRole(highestRole);
     } catch (err) {
       console.error('Error fetching user role:', err);
       setUserRole('VIEWER');
