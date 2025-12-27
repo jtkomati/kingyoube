@@ -53,3 +53,18 @@ verify_jwt = true
 
 [functions.agent-orchestrator]
 verify_jwt = true
+
+[functions.billing-agent-workflow]
+verify_jwt = true
+
+[functions.receivables-agent-workflow]
+verify_jwt = true
+
+[functions.collection-agent-workflow]
+verify_jwt = true
+
+[functions.payables-agent-workflow]
+verify_jwt = true
+
+[functions.treasury-agent-workflow]
+verify_jwt = true
