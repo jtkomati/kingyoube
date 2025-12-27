@@ -16,6 +16,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import kingyoubeLogo from '@/assets/kingyoube-logo-full.png';
 
 type NavItem = {
@@ -95,6 +96,9 @@ export function AppSidebar() {
               <p className="text-sm font-medium text-sidebar-foreground">{userRole}</p>
             </div>
           )}
+          <div className={`flex ${open ? 'justify-start px-2' : 'justify-center'}`}>
+            <ThemeToggle />
+          </div>
           <Button
             variant="ghost"
             className="w-full justify-start"
