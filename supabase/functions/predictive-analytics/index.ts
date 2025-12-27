@@ -50,18 +50,33 @@ serve(async (req) => {
       });
     }
 
-    // Get user's company_id
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
-      .single();
+    // Tentar pegar organization_id do body (nova abordagem)
+    let companyId: string | null = null;
+    
+    try {
+      const body = await req.json();
+      if (body?.organization_id) {
+        companyId = body.organization_id;
+      }
+    } catch {
+      // Body pode ser vazio, ignorar
+    }
 
-    if (!profile?.company_id) {
-      return new Response(JSON.stringify({ error: 'No company found' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Fallback para profiles.company_id se não passar organization_id
+    if (!companyId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        return new Response(JSON.stringify({ error: 'No company found' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      companyId = profile.company_id;
     }
 
     // Fetch historical transactions (last 12 months)
@@ -71,7 +86,7 @@ serve(async (req) => {
     const { data: transactions, error: txError } = await supabase
       .from('transactions')
       .select('*')
-      .eq('company_id', profile.company_id)
+      .eq('company_id', companyId)
       .gte('due_date', twelveMonthsAgo.toISOString().split('T')[0])
       .order('due_date', { ascending: true });
 
