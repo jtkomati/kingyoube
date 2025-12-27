@@ -2879,6 +2879,75 @@ export type Database = {
           },
         ]
       }
+      transaction_events: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          previous_state: Json | null
+          transaction_id: string
+          user_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          id?: string
+          previous_state?: Json | null
+          transaction_id: string
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          previous_state?: Json | null
+          transaction_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "transaction_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "transaction_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_events_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_taxes: {
         Row: {
           created_at: string
@@ -3251,6 +3320,202 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_definitions: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          entity_type: string
+          id: string
+          is_active: boolean | null
+          name: string
+          states: Json
+          transitions: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entity_type: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          states?: Json
+          transitions?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entity_type?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          states?: Json
+          transitions?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "workflow_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "workflow_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_history: {
+        Row: {
+          action: string
+          created_at: string
+          from_state: string | null
+          id: string
+          instance_id: string
+          metadata: Json | null
+          notes: string | null
+          to_state: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          instance_id: string
+          metadata?: Json | null
+          notes?: string | null
+          to_state: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          instance_id?: string
+          metadata?: Json | null
+          notes?: string | null
+          to_state?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_history_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_instances: {
+        Row: {
+          company_id: string | null
+          completed_at: string | null
+          created_at: string
+          current_state: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json | null
+          started_at: string
+          started_by: string | null
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_state: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          started_by?: string | null
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_state?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          started_by?: string | null
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       accountant_client_dashboard: {
@@ -3459,6 +3724,15 @@ export type Database = {
           p_secret_value: string
         }
         Returns: string
+      }
+      workflow_transition: {
+        Args: {
+          p_action: string
+          p_instance_id: string
+          p_notes?: string
+          p_to_state: string
+        }
+        Returns: Json
       }
     }
     Enums: {
