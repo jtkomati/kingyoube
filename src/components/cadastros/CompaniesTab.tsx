@@ -37,13 +37,15 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type SortField = "company_name" | "cnpj" | "tax_regime" | "status" | "user_count" | "transaction_count" | "created_at";
+type SortField = "company_number" | "company_name" | "cnpj" | "tax_regime" | "status" | "user_count" | "transaction_count" | "created_at";
 type SortDirection = "asc" | "desc";
+
 interface Company {
   id: string;
   company_name: string;
   nome_fantasia: string | null;
   cnpj: string;
+  company_number: number | null;
   municipal_inscription: string | null;
   state_inscription: string | null;
   address: string | null;
@@ -93,6 +95,10 @@ export function CompaniesTab() {
       let bValue: any;
 
       switch (sortField) {
+        case "company_number":
+          aValue = a.company_number ?? 999999;
+          bValue = b.company_number ?? 999999;
+          break;
         case "company_name":
           aValue = (a.company_name || "").toLowerCase();
           bValue = (b.company_name || "").toLowerCase();
@@ -292,6 +298,15 @@ export function CompaniesTab() {
                 <TableHeader>
                   <TableRow>
                     <TableHead 
+                      className="w-[80px] cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("company_number")}
+                    >
+                      <div className="flex items-center">
+                        Nº
+                        {getSortIcon("company_number")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => handleSort("company_name")}
                     >
@@ -362,6 +377,9 @@ export function CompaniesTab() {
                 <TableBody>
                   {sortedCompanies.map((company) => (
                     <TableRow key={company.id}>
+                      <TableCell className="font-mono text-center">
+                        <Badge variant="outline">{company.company_number ?? "-"}</Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{company.company_name}</span>
