@@ -144,6 +144,21 @@ export function CompaniesTab() {
     });
   }, [companies, sortField, sortDirection]);
 
+  const formatCNPJ = (cnpj: string | null): string => {
+    if (!cnpj) return "-";
+    // Remove non-digits
+    const digits = cnpj.replace(/\D/g, "");
+    // If already has 14 digits, format it
+    if (digits.length === 14) {
+      return digits.replace(
+        /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+        "$1.$2.$3/$4-$5"
+      );
+    }
+    // Return original if not standard length
+    return cnpj;
+  };
+
   const fetchCompanies = async () => {
     setLoading(true);
     try {
@@ -390,7 +405,7 @@ export function CompaniesTab() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{company.cnpj}</TableCell>
+                      <TableCell className="font-mono text-sm">{formatCNPJ(company.cnpj)}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{getTaxRegimeLabel(company.tax_regime)}</Badge>
                       </TableCell>
