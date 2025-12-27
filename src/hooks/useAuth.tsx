@@ -59,21 +59,29 @@ export function useAuth() {
   }, []);
 
   const fetchUserRole = async (userId: string) => {
-    const { data, error } = await (supabase as any)
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (error) {
-      // Only log non-sensitive errors
-      if (shouldLogError(error)) {
-        console.error('Erro ao buscar role:', error);
+      if (error) {
+        // Only log non-sensitive errors
+        if (shouldLogError(error)) {
+          console.error('Erro ao buscar role:', error);
+        }
+        setUserRole('VIEWER');
+        return;
       }
-      return;
-    }
 
-    setUserRole(data?.role ?? 'VIEWER');
+      const role = data?.role ?? 'VIEWER';
+      console.log('User role loaded:', role);
+      setUserRole(role);
+    } catch (err) {
+      console.error('Error fetching user role:', err);
+      setUserRole('VIEWER');
+    }
   };
 
   const fetchUserOrganizations = async (userId: string) => {
