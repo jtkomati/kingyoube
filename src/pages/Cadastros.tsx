@@ -9,6 +9,8 @@ import { CostCentersTab } from "@/components/cadastros/CostCentersTab";
 import { ProfitCentersTab } from "@/components/cadastros/ProfitCentersTab";
 import { ProjectsTab } from "@/components/cadastros/ProjectsTab";
 import { UserRolesTab } from "@/components/cadastros/UserRolesTab";
+import { CompaniesTab } from "@/components/cadastros/CompaniesTab";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, 
   Truck, 
@@ -19,10 +21,14 @@ import {
   TrendingUp,
   FolderKanban,
   Database,
-  ShieldCheck
+  ShieldCheck,
+  Building2
 } from "lucide-react";
 
 export default function Cadastros() {
+  const { userRole } = useAuth();
+  const isSuperAdmin = userRole === "SUPERADMIN";
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -38,8 +44,14 @@ export default function Cadastros() {
           </div>
         </div>
 
-        <Tabs defaultValue="customers" className="space-y-6">
+        <Tabs defaultValue={isSuperAdmin ? "companies" : "customers"} className="space-y-6">
           <TabsList className="flex flex-wrap h-auto gap-2 bg-muted/50 p-2">
+            {isSuperAdmin && (
+              <TabsTrigger value="companies" className="gap-2 data-[state=active]:bg-background">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Empresas</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="customers" className="gap-2 data-[state=active]:bg-background">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Clientes</span>
@@ -77,6 +89,12 @@ export default function Cadastros() {
               <span className="hidden sm:inline">Projetos</span>
             </TabsTrigger>
           </TabsList>
+
+          {isSuperAdmin && (
+            <TabsContent value="companies">
+              <CompaniesTab />
+            </TabsContent>
+          )}
 
           <TabsContent value="customers">
             <CustomersTab />
