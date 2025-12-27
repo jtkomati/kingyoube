@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,11 +29,16 @@ import {
   Users,
   Receipt,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+type SortField = "company_name" | "cnpj" | "tax_regime" | "status" | "user_count" | "transaction_count" | "created_at";
+type SortDirection = "asc" | "desc";
 interface Company {
   id: string;
   company_name: string;
@@ -61,6 +66,77 @@ export function CompaniesTab() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [sortField, setSortField] = useState<SortField>("company_name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 ml-1" /> 
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  const sortedCompanies = useMemo(() => {
+    return [...companies].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case "company_name":
+          aValue = (a.company_name || "").toLowerCase();
+          bValue = (b.company_name || "").toLowerCase();
+          break;
+        case "cnpj":
+          aValue = a.cnpj || "";
+          bValue = b.cnpj || "";
+          break;
+        case "tax_regime":
+          aValue = a.tax_regime || "";
+          bValue = b.tax_regime || "";
+          break;
+        case "status":
+          aValue = a.status || "";
+          bValue = b.status || "";
+          break;
+        case "user_count":
+          aValue = a.user_count;
+          bValue = b.user_count;
+          break;
+        case "transaction_count":
+          aValue = a.transaction_count;
+          bValue = b.transaction_count;
+          break;
+        case "created_at":
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortDirection === "asc" 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      if (sortDirection === "asc") {
+        return aValue - bValue;
+      }
+      return bValue - aValue;
+    });
+  }, [companies, sortField, sortDirection]);
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -215,28 +291,76 @@ export function CompaniesTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>CNPJ</TableHead>
-                    <TableHead>Regime</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Users className="h-4 w-4" />
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("company_name")}
+                    >
+                      <div className="flex items-center">
+                        Empresa
+                        {getSortIcon("company_name")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("cnpj")}
+                    >
+                      <div className="flex items-center">
+                        CNPJ
+                        {getSortIcon("cnpj")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("tax_regime")}
+                    >
+                      <div className="flex items-center">
+                        Regime
+                        {getSortIcon("tax_regime")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("status")}
+                    >
+                      <div className="flex items-center">
+                        Status
+                        {getSortIcon("status")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("user_count")}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Users className="h-4 w-4 mr-1" />
                         Usuários
+                        {getSortIcon("user_count")}
                       </div>
                     </TableHead>
-                    <TableHead className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Receipt className="h-4 w-4" />
+                    <TableHead 
+                      className="text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("transaction_count")}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Receipt className="h-4 w-4 mr-1" />
                         Transações
+                        {getSortIcon("transaction_count")}
                       </div>
                     </TableHead>
-                    <TableHead>Criado em</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSort("created_at")}
+                    >
+                      <div className="flex items-center">
+                        Criado em
+                        {getSortIcon("created_at")}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {companies.map((company) => (
+                  {sortedCompanies.map((company) => (
                     <TableRow key={company.id}>
                       <TableCell>
                         <div className="flex flex-col">
