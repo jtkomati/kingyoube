@@ -10,19 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { CompanyDialog } from "./CompanyDialog";
+import { CompanyUsersDialog } from "./CompanyUsersDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Plus, 
-  MoreHorizontal, 
   Pencil, 
   Trash2, 
   Building2,
@@ -68,6 +62,8 @@ export function CompaniesTab() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [usersDialogOpen, setUsersDialogOpen] = useState(false);
+  const [usersDialogCompany, setUsersDialogCompany] = useState<{ id: string; name: string } | null>(null);
   const [sortField, setSortField] = useState<SortField>("company_name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -411,7 +407,20 @@ export function CompaniesTab() {
                       </TableCell>
                       <TableCell>{getStatusBadge(company.status)}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary">{company.user_count}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-1"
+                          onClick={() => {
+                            setUsersDialogCompany({ id: company.id, name: company.company_name });
+                            setUsersDialogOpen(true);
+                          }}
+                          title="Gerenciar usuários"
+                        >
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
+                            {company.user_count}
+                          </Badge>
+                        </Button>
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="secondary">{company.transaction_count}</Badge>
@@ -456,6 +465,14 @@ export function CompaniesTab() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         company={selectedCompany}
+        onSuccess={fetchCompanies}
+      />
+
+      <CompanyUsersDialog
+        open={usersDialogOpen}
+        onOpenChange={setUsersDialogOpen}
+        companyId={usersDialogCompany?.id || ""}
+        companyName={usersDialogCompany?.name || ""}
         onSuccess={fetchCompanies}
       />
 
