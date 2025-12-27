@@ -1,0 +1,46 @@
+/**
+ * Base Entity class with identity comparison
+ */
+export abstract class Entity<T> {
+  protected readonly _id: string;
+  protected props: T;
+
+  constructor(props: T, id: string) {
+    this._id = id;
+    this.props = props;
+  }
+
+  public get id(): string {
+    return this._id;
+  }
+
+  public equals(entity?: Entity<T>): boolean {
+    if (entity === null || entity === undefined) {
+      return false;
+    }
+
+    if (this === entity) {
+      return true;
+    }
+
+    return this._id === entity._id;
+  }
+}
+
+/**
+ * Base Value Object class with structural comparison
+ */
+export abstract class ValueObject<T> {
+  protected readonly props: T;
+
+  constructor(props: T) {
+    this.props = Object.freeze(props);
+  }
+
+  public equals(vo?: ValueObject<T>): boolean {
+    if (vo === null || vo === undefined) {
+      return false;
+    }
+    return JSON.stringify(this.props) === JSON.stringify(vo.props);
+  }
+}
