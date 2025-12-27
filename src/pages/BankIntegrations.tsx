@@ -9,6 +9,7 @@ import { BankConnectionHub } from "@/components/openfinance/BankConnectionHub";
 import { FinancialDashboard } from "@/components/openfinance/FinancialDashboard";
 import { TransactionsList } from "@/components/openfinance/TransactionsList";
 import { ReconciliationTab } from "@/components/openfinance/ReconciliationTab";
+import { TecnoSpeedDiagnostics } from "@/components/openfinance/TecnoSpeedDiagnostics";
 
 const BankIntegrations = () => {
   const [connectedBanks, setConnectedBanks] = useState<string[]>([]);
@@ -53,10 +54,13 @@ const BankIntegrations = () => {
           </TabsList>
 
           <TabsContent value="open-finance">
-            <BankConnectionHub 
-              connectedBanks={connectedBanks}
-              onBankConnected={(bankId) => setConnectedBanks([...connectedBanks, bankId])}
-            />
+            <div className="space-y-6">
+              <TecnoSpeedDiagnostics />
+              <BankConnectionHub 
+                connectedBanks={connectedBanks}
+                onBankConnected={(bankId) => setConnectedBanks([...connectedBanks, bankId])}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="dashboard">
