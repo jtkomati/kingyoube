@@ -1969,6 +1969,7 @@ export type Database = {
           city_code: string | null
           cnpj: string
           company_name: string
+          company_number: number | null
           created_at: string
           id: string
           municipal_inscription: string | null
@@ -1993,6 +1994,7 @@ export type Database = {
           city_code?: string | null
           cnpj: string
           company_name: string
+          company_number?: number | null
           created_at?: string
           id?: string
           municipal_inscription?: string | null
@@ -2017,6 +2019,7 @@ export type Database = {
           city_code?: string | null
           cnpj?: string
           company_name?: string
+          company_number?: number | null
           created_at?: string
           id?: string
           municipal_inscription?: string | null
