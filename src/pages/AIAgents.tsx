@@ -1,18 +1,21 @@
 import { useState, useRef } from 'react';
-import { Send, Mic, MicOff, Loader2, Bot } from 'lucide-react';
+import { Send, Mic, MicOff, Loader2, Bot, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AgentGrid, Agent, agents } from '@/components/agents/AgentGrid';
+import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   agentId?: string;
+  toolsUsed?: string[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant-webhook`;
+const ORCHESTRATOR_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`;
 
 export default function AIAgents() {
   const [input, setInput] = useState('');
@@ -21,6 +24,7 @@ export default function AIAgents() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [showVoiceMode, setShowVoiceMode] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -51,13 +55,20 @@ export default function AIAgents() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await fetch(CHAT_URL, {
+      // Usar orquestrador para Gerente Financeiro
+      const isOrchestrator = selectedAgent.id === 'manager';
+      const url = isOrchestrator ? ORCHESTRATOR_URL : CHAT_URL;
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify(isOrchestrator ? {
+          message: text,
+          conversationHistory: messages.map(m => ({ role: m.role, content: m.content }))
+        } : { 
           message: text,
           agentId: selectedAgent.id,
           systemPrompt: selectedAgent.systemPrompt,
@@ -83,15 +94,37 @@ export default function AIAgents() {
       const assistantMessage: Message = { 
         role: 'assistant', 
         content: data.message || data.response || 'Resposta do assistente',
-        agentId: selectedAgent.id
+        agentId: selectedAgent.id,
+        toolsUsed: data.toolsUsed
       };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Mostrar tools usadas pelo orquestrador
+      if (data.toolsUsed?.length > 0) {
+        toast.success(`Ferramentas usadas: ${data.toolsUsed.join(', ')}`);
+      }
     } catch (error) {
       console.error('Error:', error);
       toast.error('Erro ao enviar mensagem. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handlers para modo de voz
+  const handleVoiceTranscript = (text: string) => {
+    setInput(text);
+  };
+
+  const handleVoiceResponse = (text: string) => {
+    if (!selectedAgent) return;
+    
+    const assistantMessage: Message = { 
+      role: 'assistant', 
+      content: text,
+      agentId: selectedAgent.id
+    };
+    setMessages(prev => [...prev, assistantMessage]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -148,8 +181,9 @@ export default function AIAgents() {
           throw new Error('Erro ao processar áudio');
         }
 
-        const { data, error } = await supabase.functions.invoke('voice-to-text', {
-          body: { audio: base64Audio },
+        // Usar Gemini para transcrição
+        const { data, error } = await supabase.functions.invoke('gemini-voice-to-text', {
+          body: { audio: base64Audio, mimeType: 'audio/webm' },
         });
 
         if (error) throw error;
