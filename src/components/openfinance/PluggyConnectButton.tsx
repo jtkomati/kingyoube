@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Building2, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PluggyConnectButtonProps {
   companyId?: string;
@@ -17,6 +18,7 @@ export function PluggyConnectButton({
   onSuccess, 
   onError 
 }: PluggyConnectButtonProps) {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [popupWindow, setPopupWindow] = useState<Window | null>(null);
@@ -31,7 +33,6 @@ export function PluggyConnectButton({
         .select('id')
         .eq('company_id', companyId)
         .eq('open_finance_status', 'connected')
-        .not('tecnospeed_item_id', 'is', null)
         .limit(1);
       
       if (data && data.length > 0) {
@@ -42,34 +43,22 @@ export function PluggyConnectButton({
     checkExistingConnection();
   }, [companyId]);
 
-  // Listen for messages from the Pluggy popup
+  // Handle messages from our popup page
   const handleMessage = useCallback((event: MessageEvent) => {
-    // Validate origin - accept messages from Pluggy domains
-    const validOrigins = [
-      'https://connect.pluggy.ai',
-      'https://cdn.pluggy.ai',
-      'https://api.pluggy.ai'
-    ];
-    
-    if (!validOrigins.some(origin => event.origin.startsWith(origin.replace('https://', 'https://')))) {
-      // Also check if it's from our own origin (for testing)
-      if (event.origin !== window.location.origin) {
-        return;
-      }
+    // Only accept messages from our own origin
+    if (event.origin !== window.location.origin) {
+      return;
     }
 
-    console.log('Received message from Pluggy:', event.data);
+    console.log('Received message from popup:', event.data);
 
-    // Handle different message types from Pluggy widget
-    if (event.data?.type === 'pluggy-connect:success' || event.data?.event === 'onSuccess') {
-      const itemId = event.data?.item?.id || event.data?.itemId;
-      if (itemId) {
-        handlePluggySuccess(itemId);
-      }
-    } else if (event.data?.type === 'pluggy-connect:error' || event.data?.event === 'onError') {
-      const error = new Error(event.data?.error?.message || 'Erro na conexão');
-      handlePluggyError(error);
-    } else if (event.data?.type === 'pluggy-connect:close' || event.data?.event === 'onClose') {
+    const { type, itemId, error } = event.data || {};
+
+    if (type === 'pluggy:success' && itemId) {
+      handlePluggySuccess(itemId);
+    } else if (type === 'pluggy:error') {
+      handlePluggyError(new Error(error || 'Connection failed'));
+    } else if (type === 'pluggy:close') {
       handlePluggyClose();
     }
   }, []);
@@ -98,24 +87,24 @@ export function PluggyConnectButton({
     console.log('Pluggy connection successful, itemId:', itemId);
     
     try {
-      // Save the itemId to the database
+      // Save the connection to the database
       if (companyId) {
-        const { error } = await supabase
-          .from('bank_accounts')
-          .upsert({
+        // First, try to create a pluggy_connections record
+        const { error: connError } = await supabase
+          .from('pluggy_connections')
+          .insert({
             company_id: companyId,
-            bank_name: 'Open Finance',
-            tecnospeed_item_id: itemId,
-            open_finance_status: 'connected',
-            auto_sync_enabled: true,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'tecnospeed_item_id'
+            created_by: user?.id,
+            pluggy_item_id: itemId,
+            status: 'connected'
           });
 
-        if (error) {
-          console.error('Error saving Pluggy connection:', error);
-          throw error;
+        if (connError) {
+          console.error('Error saving Pluggy connection:', connError);
+          // If it's a duplicate, that's fine - connection already exists
+          if (!connError.message?.includes('duplicate')) {
+            throw connError;
+          }
         }
       }
 
@@ -163,38 +152,14 @@ export function PluggyConnectButton({
     setIsLoading(true);
     
     try {
-      // Get the webhook URL for this project
-      const webhookUrl = `https://rvyoumuclbrjiaeurriy.supabase.co/functions/v1/pluggy-webhook`;
-      
-      // Fetch connect token from edge function
-      const { data, error } = await supabase.functions.invoke('pluggy-create-connect-token', {
-        body: { webhookUrl }
-      });
+      // Build URL for our popup page
+      const params = new URLSearchParams();
+      if (companyId) params.set('companyId', companyId);
+      if (cnpj) params.set('cnpj', cnpj);
+      // Enable sandbox for development/testing
+      params.set('sandbox', 'true');
 
-      if (error) {
-        throw new Error(error.message || 'Erro ao obter token de conexão');
-      }
-
-      if (!data?.accessToken) {
-        throw new Error('Token de conexão não recebido');
-      }
-
-      const connectToken = data.accessToken;
-      console.log('Connect token obtained, opening popup...');
-
-      // Build the Pluggy Connect URL with parameters
-      const params = new URLSearchParams({
-        connectToken,
-        includeSandbox: 'true', // Enable sandbox for testing
-        language: 'pt'
-      });
-
-      // Add CNPJ if available for pre-filling
-      if (cnpj) {
-        params.append('cpf', cnpj.replace(/\D/g, '')); // Pluggy uses 'cpf' param for both CPF and CNPJ
-      }
-
-      const popupUrl = `https://connect.pluggy.ai/?${params.toString()}`;
+      const popupUrl = `/pluggy/connect?${params.toString()}`;
       
       // Calculate popup position (center of screen)
       const width = 500;
@@ -202,7 +167,7 @@ export function PluggyConnectButton({
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
 
-      // Open popup window
+      // Open our popup page (not connect.pluggy.ai directly)
       const popup = window.open(
         popupUrl,
         'PluggyConnect',
@@ -214,8 +179,6 @@ export function PluggyConnectButton({
       }
 
       setPopupWindow(popup);
-      
-      // Focus the popup
       popup.focus();
 
     } catch (error) {
