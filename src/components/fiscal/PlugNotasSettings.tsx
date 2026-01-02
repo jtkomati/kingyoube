@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Plug, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, Plug, AlertTriangle, CheckCircle2, XCircle, Building2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +21,7 @@ export function PlugNotasSettings() {
   const [environment, setEnvironment] = useState<"SANDBOX" | "PRODUCTION">("SANDBOX");
   const [showToken, setShowToken] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [checkingCompany, setCheckingCompany] = useState(false);
 
   // Fetch existing config
   const { data: config, isLoading } = useQuery({
@@ -37,18 +38,31 @@ export function PlugNotasSettings() {
 
       if (!profile?.company_id) return null;
 
-      const { data } = await supabase
+      // Fetch fiscal config
+      const { data: fiscalData } = await supabase
         .from("config_fiscal")
         .select("plugnotas_token, plugnotas_environment, plugnotas_status, plugnotas_last_test, company_id")
         .eq("company_id", profile.company_id)
         .maybeSingle();
 
-      if (data) {
-        setToken(data.plugnotas_token || "");
-        setEnvironment((data.plugnotas_environment as "SANDBOX" | "PRODUCTION") || "SANDBOX");
+      // Fetch company settings for CNPJ
+      const { data: companyData } = await supabase
+        .from("company_settings")
+        .select("cnpj, company_name")
+        .eq("id", profile.company_id)
+        .maybeSingle();
+
+      if (fiscalData) {
+        setToken(fiscalData.plugnotas_token || "");
+        setEnvironment((fiscalData.plugnotas_environment as "SANDBOX" | "PRODUCTION") || "SANDBOX");
       }
 
-      return { ...data, company_id: profile.company_id };
+      return { 
+        ...fiscalData, 
+        company_id: profile.company_id,
+        cnpj: companyData?.cnpj,
+        company_name: companyData?.company_name
+      };
     }
   });
 
@@ -118,7 +132,7 @@ export function PlugNotasSettings() {
       if (error) throw error;
 
       if (data?.success) {
-        toast.success("🎉 Conexão Estabelecida: Hello World!", {
+        toast.success("🎉 Conexão Estabelecida!", {
           description: `Ambiente: ${environment}`,
           duration: 5000
         });
@@ -134,6 +148,57 @@ export function PlugNotasSettings() {
       });
     } finally {
       setTesting(false);
+    }
+  };
+
+  // Check if company exists in PlugNotas
+  const handleCheckCompany = async () => {
+    if (!config?.cnpj) {
+      toast.error("CNPJ da empresa não está configurado");
+      return;
+    }
+
+    const currentToken = environment === "SANDBOX" ? SANDBOX_TOKEN : token;
+    if (!currentToken) {
+      toast.error("Informe o token antes de verificar");
+      return;
+    }
+
+    setCheckingCompany(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("test-plugnotas-connection", {
+        body: {
+          token: currentToken,
+          environment,
+          company_id: config?.company_id,
+          check_cnpj: config.cnpj
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.company_exists) {
+        toast.success("✅ Empresa encontrada no PlugNotas!", {
+          description: `CNPJ: ${config.cnpj} - Ambiente: ${environment}`,
+          duration: 5000
+        });
+      } else if (data?.success) {
+        toast.info("Empresa NÃO encontrada no PlugNotas", {
+          description: `Será cadastrada automaticamente na próxima emissão (SANDBOX)`,
+          duration: 5000
+        });
+      } else {
+        toast.error("Erro ao verificar empresa", {
+          description: data?.error || "Token inválido ou erro de conexão"
+        });
+      }
+    } catch (error) {
+      toast.error("Erro ao verificar empresa", {
+        description: (error as Error).message
+      });
+    } finally {
+      setCheckingCompany(false);
     }
   };
 
@@ -298,7 +363,7 @@ export function PlugNotasSettings() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-wrap gap-3 pt-4">
           <Button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || !token}
@@ -314,6 +379,19 @@ export function PlugNotasSettings() {
           >
             {testing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Testar Conexão
+          </Button>
+          
+          <Button
+            variant="secondary"
+            onClick={handleCheckCompany}
+            disabled={checkingCompany || !config?.cnpj}
+          >
+            {checkingCompany ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Building2 className="h-4 w-4 mr-2" />
+            )}
+            Verificar Empresa
           </Button>
         </div>
       </CardContent>

@@ -15,12 +15,67 @@ function translatePlugNotasError(error: any): string {
     if (error.includes('codigoCidade')) return 'Código da cidade (IBGE) é obrigatório'
     if (error.includes('Empresa com os parâmetros')) return 'Empresa não encontrada no PlugNotas'
     if (error.includes('array de documentos')) return 'Formato de requisição inválido'
+    if (error.includes('logradouro')) return 'Endereço: logradouro deve ter no máximo 60 caracteres'
+    if (error.includes('estado')) return 'Endereço: estado é obrigatório (ex: SP)'
     return error
   }
+  
+  // Handle structured validation errors from PlugNotas
+  if (error?.error?.data?.fields) {
+    const fields = error.error.data.fields
+    const fieldErrors: string[] = []
+    for (const [field, msg] of Object.entries(fields)) {
+      const fieldName = field.replace('endereco.', '')
+      fieldErrors.push(`${fieldName}: ${msg}`)
+    }
+    return 'Erro de validação: ' + fieldErrors.join('; ')
+  }
+  
   if (error?.message) return translatePlugNotasError(error.message)
+  if (error?.error?.message) return error.error.message
   if (error?.error) return translatePlugNotasError(error.error)
   if (Array.isArray(error)) return error.map(translatePlugNotasError).join('; ')
   return JSON.stringify(error)
+}
+
+// Helper to sanitize address for PlugNotas (max 60 chars for logradouro)
+function sanitizeAddress(fullAddress: string): { logradouro: string; numero: string; estado: string } {
+  if (!fullAddress) {
+    return { logradouro: "Rua Teste", numero: "100", estado: "SP" }
+  }
+  
+  // Split by comma to get parts
+  const parts = fullAddress.split(',').map(p => p.trim())
+  
+  // First part is usually the street name
+  let logradouro = parts[0] || "Rua Teste"
+  
+  // Extract number from second part if exists
+  let numero = "S/N"
+  if (parts[1]) {
+    const numMatch = parts[1].match(/^(\d+)/)
+    if (numMatch) {
+      numero = numMatch[1]
+    }
+  }
+  
+  // Extract state (UF) - look for 2-letter state code
+  let estado = "SP"
+  const ufMatch = fullAddress.match(/\b([A-Z]{2})\b/)
+  if (ufMatch) {
+    const possibleUf = ufMatch[1]
+    const validUfs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+    if (validUfs.includes(possibleUf)) {
+      estado = possibleUf
+    }
+  }
+  
+  // Truncate logradouro to 60 chars (PlugNotas limit)
+  if (logradouro.length > 60) {
+    logradouro = logradouro.substring(0, 57) + '...'
+  }
+  
+  return { logradouro, numero, estado }
 }
 
 // Função para garantir que a empresa existe no PlugNotas (SANDBOX)
@@ -28,7 +83,7 @@ async function ensurePlugNotasCompanyExists(
   companySettings: any,
   plugnotasToken: string,
   baseUrl: string
-): Promise<{ exists: boolean; error?: string }> {
+): Promise<{ exists: boolean; error?: string; validationError?: boolean }> {
   const cnpjDigits = (companySettings.cnpj || '').replace(/\D/g, '')
   const maskedCnpj = `***${cnpjDigits.slice(-4)}`
   
@@ -58,25 +113,25 @@ async function ensurePlugNotasCompanyExists(
     if (getResponse.status !== 404) {
       const errorText = await getResponse.text()
       console.error(`❌ Erro inesperado ao verificar empresa: ${errorText.substring(0, 200)}`)
-      // Continuar mesmo assim e tentar cadastrar
     }
   } catch (e: unknown) {
     const errMsg = e instanceof Error ? e.message : String(e)
     console.error(`❌ Erro de rede ao verificar empresa: ${errMsg}`)
-    // Continuar e tentar cadastrar
   }
   
-  // 2. Empresa não existe ou erro, tentar cadastrar
+  // 2. Empresa não existe, tentar cadastrar
   console.log(`📝 Cadastrando empresa ${maskedCnpj} no PlugNotas SANDBOX...`)
   
-  // Montar endereço a partir dos dados da empresa ou usar defaults
+  // Sanitize address properly
+  const sanitized = sanitizeAddress(companySettings.address || '')
+  
   const endereco = {
-    logradouro: companySettings.address || "Rua Teste",
-    numero: companySettings.address_number || "100",
+    logradouro: sanitized.logradouro,
+    numero: companySettings.address_number || sanitized.numero,
     bairro: companySettings.neighborhood || "Centro",
-    codigoCidade: companySettings.city_code || "3550308", // São Paulo default
+    codigoCidade: companySettings.city_code || "3550308",
     cep: (companySettings.postal_code || "01310100").replace(/\D/g, ''),
-    uf: companySettings.state || "SP"
+    estado: companySettings.state || sanitized.estado  // CRITICAL: usar "estado" não "uf"
   }
   
   const empresaPayload = {
@@ -85,7 +140,7 @@ async function ensurePlugNotasCompanyExists(
     razaoSocial: companySettings.company_name || "Empresa Teste",
     nomeFantasia: companySettings.trade_name || companySettings.company_name || "Empresa Teste",
     simplesNacional: companySettings.tax_regime === 'SIMPLES' || true,
-    regimeTributario: 1, // Simples Nacional
+    regimeTributario: 1,
     regimeTributarioEspecial: 0,
     endereco: endereco,
     telefone: {
@@ -98,11 +153,7 @@ async function ensurePlugNotasCompanyExists(
       tipoContrato: 0,
       config: {
         producao: false,
-        rps: {
-          lote: 1,
-          serie: "RPS",
-          numero: 1
-        },
+        rps: { lote: 1, serie: "RPS", numero: 1 },
         prefeitura: {
           login: companySettings.nfse_login || "teste",
           senha: companySettings.nfse_password || "teste"
@@ -125,7 +176,7 @@ async function ensurePlugNotasCompanyExists(
     
     const postText = await postResponse.text()
     console.log(`POST /empresa status: ${postResponse.status}`)
-    console.log(`POST /empresa response: ${postText.substring(0, 300)}`)
+    console.log(`POST /empresa response: ${postText.substring(0, 500)}`)
     
     if (postResponse.status === 201 || postResponse.status === 200) {
       console.log(`✅ Empresa ${maskedCnpj} cadastrada com sucesso no PlugNotas`)
@@ -137,17 +188,28 @@ async function ensurePlugNotasCompanyExists(
       return { exists: true }
     }
     
-    // Erro ao cadastrar
+    // Parse validation errors
     let errorMsg = "Erro ao cadastrar empresa"
+    let isValidationError = false
     try {
       const errorData = JSON.parse(postText)
-      errorMsg = errorData?.error?.message || errorData?.message || postText.substring(0, 200)
+      if (errorData?.error?.data?.fields) {
+        isValidationError = true
+        const fields = errorData.error.data.fields
+        const fieldErrors: string[] = []
+        for (const [field, msg] of Object.entries(fields)) {
+          fieldErrors.push(`${field}: ${msg}`)
+        }
+        errorMsg = 'Validação: ' + fieldErrors.join('; ')
+      } else {
+        errorMsg = errorData?.error?.message || errorData?.message || postText.substring(0, 200)
+      }
     } catch {
       errorMsg = postText.substring(0, 200)
     }
     
     console.error(`❌ Erro ao cadastrar empresa: ${errorMsg}`)
-    return { exists: false, error: errorMsg }
+    return { exists: false, error: errorMsg, validationError: isValidationError }
     
   } catch (e: unknown) {
     const errMsg = e instanceof Error ? e.message : String(e)
@@ -332,7 +394,19 @@ Deno.serve(async (req) => {
       
       if (!companyCheck.exists) {
         console.error('Falha ao garantir empresa no PlugNotas:', companyCheck.error)
-        // Não bloquear, continuar tentando emitir (pode funcionar em alguns casos)
+        
+        // Se foi erro de validação, bloquear a emissão com mensagem clara
+        if (companyCheck.validationError) {
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              message: 'Não foi possível cadastrar a empresa no PlugNotas.',
+              details: companyCheck.error
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        // Para outros erros, continuar tentando (pode funcionar)
       }
     }
 

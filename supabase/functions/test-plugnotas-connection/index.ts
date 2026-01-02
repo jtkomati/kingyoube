@@ -15,9 +15,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { token, environment, company_id } = await req.json()
+    const { token, environment, company_id, check_cnpj } = await req.json()
 
-    console.log('Testing PlugNotas connection:', { environment, company_id })
+    console.log('Testing PlugNotas connection:', { environment, company_id, check_cnpj: check_cnpj ? '***' + check_cnpj.slice(-4) : null })
 
     if (!token) {
       return new Response(
@@ -31,47 +31,81 @@ Deno.serve(async (req) => {
       ? 'https://api.plugnotas.com.br'
       : 'https://api.sandbox.plugnotas.com.br'
 
-    // Test connection using /empresa endpoint - more reliable for auth validation
-    const testUrl = `${baseUrl}/empresa`
-    
-    const version = '2026-01-02-v3'
+    const version = '2026-01-02-v4'
     console.log(`PlugNotas test version: ${version}`)
-    console.log('Testing URL:', testUrl)
-
-    const response = await fetch(testUrl, {
-      method: 'GET',
-      headers: {
-        'X-API-KEY': token,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    const responseText = await response.text()
-    console.log('PlugNotas response status:', response.status)
-    console.log('PlugNotas response:', responseText.substring(0, 500))
 
     let newStatus = 'disconnected'
     let errorMessage = null
+    let companyExists = false
 
-    if (response.ok) {
-      // 200 - Authentication successful
-      newStatus = 'connected'
-      console.log('Connection successful!')
-    } else if (response.status === 401 || response.status === 403) {
-      // 401/403 - Invalid or expired token
-      newStatus = 'error'
-      const envName = environment === 'PRODUCTION' ? 'produção' : 'sandbox'
-      errorMessage = `Token inválido para ambiente de ${envName}. Acesse app2.plugnotas.com.br para gerar um novo token.`
-      console.log('Authentication failed')
-    } else if (response.status === 404) {
-      // 404 on /empresa likely means auth succeeded but no companies registered
-      // This is still a successful connection
-      newStatus = 'connected'
-      console.log('Connection successful (no companies registered)')
+    // If check_cnpj is provided, check if specific company exists
+    if (check_cnpj) {
+      const cnpjDigits = check_cnpj.replace(/\D/g, '')
+      const checkUrl = `${baseUrl}/empresa/${cnpjDigits}`
+      console.log('Checking company URL:', checkUrl.replace(cnpjDigits, '***' + cnpjDigits.slice(-4)))
+
+      const checkResponse = await fetch(checkUrl, {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': token,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('Company check response status:', checkResponse.status)
+
+      if (checkResponse.status === 200) {
+        companyExists = true
+        newStatus = 'connected'
+        console.log('Company found in PlugNotas!')
+      } else if (checkResponse.status === 404) {
+        companyExists = false
+        newStatus = 'connected' // Connection works, company just not found
+        console.log('Company NOT found in PlugNotas')
+      } else if (checkResponse.status === 401 || checkResponse.status === 403) {
+        newStatus = 'error'
+        errorMessage = 'Token inválido'
+        console.log('Authentication failed')
+      } else {
+        const responseText = await checkResponse.text()
+        console.log('Company check response:', responseText.substring(0, 200))
+        newStatus = 'error'
+        errorMessage = `Erro ${checkResponse.status}`
+      }
     } else {
-      newStatus = 'error'
-      errorMessage = `Erro ${response.status}: ${responseText}`
-      console.log('Connection failed:', errorMessage)
+      // Standard connection test using /empresa endpoint
+      const testUrl = `${baseUrl}/empresa`
+      console.log('Testing URL:', testUrl)
+
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': token,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const responseText = await response.text()
+      console.log('PlugNotas response status:', response.status)
+      console.log('PlugNotas response:', responseText.substring(0, 500))
+
+      if (response.ok) {
+        newStatus = 'connected'
+        console.log('Connection successful!')
+      } else if (response.status === 401 || response.status === 403) {
+        newStatus = 'error'
+        const envName = environment === 'PRODUCTION' ? 'produção' : 'sandbox'
+        errorMessage = `Token inválido para ambiente de ${envName}. Acesse app2.plugnotas.com.br para gerar um novo token.`
+        console.log('Authentication failed')
+      } else if (response.status === 404) {
+        // 404 on /empresa likely means auth succeeded but no companies registered
+        newStatus = 'connected'
+        console.log('Connection successful (no companies registered)')
+      } else {
+        newStatus = 'error'
+        errorMessage = `Erro ${response.status}: ${responseText}`
+        console.log('Connection failed:', errorMessage)
+      }
     }
 
     // Update config_fiscal with connection status
@@ -123,9 +157,10 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Conexão estabelecida com sucesso!',
+          message: companyExists ? 'Empresa encontrada!' : 'Conexão estabelecida com sucesso!',
           environment,
           status: newStatus,
+          company_exists: companyExists,
           version
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -136,6 +171,7 @@ Deno.serve(async (req) => {
           success: false, 
           error: errorMessage,
           status: newStatus,
+          company_exists: false,
           version
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
