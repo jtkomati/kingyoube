@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     const plugnotasResponse = await fetch(`${baseUrl}/nfse/${integrationId}`, {
       method: 'GET',
       headers: {
-        'x-api-key': fiscalConfig.plugnotas_token,
+        'X-API-KEY': fiscalConfig.plugnotas_token,
         'Content-Type': 'application/json'
       }
     })

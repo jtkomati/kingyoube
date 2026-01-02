@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     const plugnotasResponse = await fetch(downloadUrl, {
       method: 'GET',
       headers: {
-        'x-api-key': fiscalConfig.plugnotas_token,
+        'X-API-KEY': fiscalConfig.plugnotas_token,
       }
     })
 
