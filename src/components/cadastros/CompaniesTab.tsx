@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,7 @@ interface CompanyWithMetrics extends Company {
 }
 
 export function CompaniesTab() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState<CompanyWithMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -71,6 +73,32 @@ export function CompaniesTab() {
   const [usersDialogCompany, setUsersDialogCompany] = useState<{ id: string; name: string } | null>(null);
   const [sortField, setSortField] = useState<SortField>("company_name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [editCompanyIdFromUrl, setEditCompanyIdFromUrl] = useState<string | null>(null);
+
+  // Capturar editCompanyId da URL
+  useEffect(() => {
+    const editId = searchParams.get("editCompanyId");
+    if (editId) {
+      setEditCompanyIdFromUrl(editId);
+      // Limpar o param da URL
+      searchParams.delete("editCompanyId");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Abrir dialog de edição quando empresas carregarem e tivermos um ID da URL
+  useEffect(() => {
+    if (editCompanyIdFromUrl && companies.length > 0 && !loading) {
+      const companyToEdit = companies.find(c => c.id === editCompanyIdFromUrl);
+      if (companyToEdit) {
+        setSelectedCompany(companyToEdit);
+        setDialogOpen(true);
+      } else {
+        toast.error("Empresa não encontrada");
+      }
+      setEditCompanyIdFromUrl(null);
+    }
+  }, [editCompanyIdFromUrl, companies, loading]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
