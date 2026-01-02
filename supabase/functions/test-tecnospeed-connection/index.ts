@@ -17,7 +17,8 @@ interface TestResult {
   errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
   headerVariant?: string;
   message?: string;
-  hint?: string;
+  internalCode?: string | number;
+  responseSnippet?: string;
 }
 
 interface HeaderVariant {
@@ -25,11 +26,34 @@ interface HeaderVariant {
   headers: Record<string, string>;
 }
 
-// Get base URL based on environment
 function getBaseUrl(env: string): string {
   return env === 'production' 
     ? 'https://api.pagamentobancario.com.br/api/v1'
     : 'https://staging.pagamentobancario.com.br/api/v1';
+}
+
+// Extract the most useful error message from API response
+function extractErrorMessage(responseBody: unknown): { message?: string; internalCode?: string | number } {
+  if (!responseBody || typeof responseBody !== 'object') {
+    return {};
+  }
+  
+  const obj = responseBody as Record<string, unknown>;
+  
+  // Priority 1: errors array (TecnoSpeed pattern)
+  if (Array.isArray(obj.errors) && obj.errors.length > 0) {
+    const firstError = obj.errors[0] as Record<string, unknown>;
+    return {
+      message: firstError.message ? String(firstError.message) : undefined,
+      internalCode: firstError.internalCode as string | number | undefined
+    };
+  }
+  
+  // Priority 2: Direct message/error/msg fields
+  const message = obj.message || obj.error || obj.msg;
+  return {
+    message: message ? String(message) : undefined
+  };
 }
 
 serve(async (req) => {
@@ -41,7 +65,6 @@ serve(async (req) => {
   const results: TestResult[] = [];
   
   try {
-    // Parse request body
     let payerCpfCnpj: string | null = null;
     let companyCnpj: string | null = null;
     let testEnvironment: string | null = null;
@@ -49,12 +72,11 @@ serve(async (req) => {
     try {
       const body = await req.json();
       payerCpfCnpj = body?.payerCpfCnpj || null;
-      testEnvironment = body?.environment || null; // Allow overriding environment for testing
+      testEnvironment = body?.environment || null;
     } catch {
-      // No body or invalid JSON, that's ok
+      // No body or invalid JSON
     }
     
-    // Try to get company CNPJ from user's profile if authenticated
     const authHeader = req.headers.get('Authorization');
     if (authHeader && !payerCpfCnpj) {
       try {
@@ -91,7 +113,6 @@ serve(async (req) => {
     
     const effectivePayerCnpj = payerCpfCnpj?.replace(/\D/g, '') || companyCnpj;
     
-    // Get credentials
     const TOKEN = Deno.env.get('TECNOSPEED_TOKEN');
     const CNPJ_SH = Deno.env.get('TECNOSPEED_CNPJ_SOFTWAREHOUSE');
     const defaultEnv = Deno.env.get('TECNOSPEED_ENVIRONMENT') || 'staging';
@@ -127,9 +148,8 @@ serve(async (req) => {
 
     const baseUrl = getBaseUrl(env);
     
-    // Clean CNPJ and validate
     const cnpjClean = CNPJ_SH.replace(/\D/g, '');
-    const cnpjFormatted = CNPJ_SH.replace(/[^\d./\-]/g, ''); // Keep only digits and formatting
+    const cnpjFormatted = CNPJ_SH.replace(/[^\d./\-]/g, '');
     const cnpjValid = cnpjClean.length === 14;
     
     console.log('CNPJ clean:', cnpjClean.length, 'digits');
@@ -150,7 +170,6 @@ serve(async (req) => {
       });
     }
 
-    // Define header variants to test
     const headerVariants: HeaderVariant[] = [
       {
         name: 'lowercase (cnpjsh/tokensh)',
@@ -199,7 +218,6 @@ serve(async (req) => {
     let workingVariant: string | null = null;
     let firstSuccessResult: TestResult | null = null;
 
-    // Test /account endpoint with each header variant
     for (const variant of headerVariants) {
       const url = `${baseUrl}/account`;
       const testStart = Date.now();
@@ -220,9 +238,11 @@ serve(async (req) => {
         
         const latencyMs = Date.now() - testStart;
         let responseBody: unknown;
+        let responseText = '';
         
         try {
-          responseBody = await response.json();
+          responseText = await response.text();
+          responseBody = JSON.parse(responseText);
         } catch {
           responseBody = null;
         }
@@ -230,40 +250,24 @@ serve(async (req) => {
         const status = response.status;
         const success = status >= 200 && status < 300;
         
-        // Extract message from response
-        let message: string | undefined;
-        let hint: string | undefined;
-        const responseObj = responseBody as Record<string, unknown> || {};
+        // Extract error message properly
+        const { message, internalCode } = extractErrorMessage(responseBody);
         
-        if (responseObj.message) message = String(responseObj.message);
-        else if (responseObj.error) message = String(responseObj.error);
-        else if (responseObj.msg) message = String(responseObj.msg);
+        // Create response snippet for debugging (first 400 chars, no secrets)
+        const responseSnippet = responseText.length > 400 
+          ? responseText.substring(0, 400) + '...' 
+          : responseText;
         
-        const bodyStr = JSON.stringify(responseBody || {}).toLowerCase();
-        
+        // Simple error classification: only 401/403 are auth errors
         let errorType: TestResult['errorType'];
         if (status === 401 || status === 403) {
           errorType = 'auth';
-          hint = 'Credenciais rejeitadas pela API';
         } else if (status === 422) {
-          // Check if it's really an auth issue
-          // For /account endpoint, 422 with "payercpfcnpj" message indicates auth rejection
-          // because /account doesn't require payercpfcnpj
-          const mentionsPayerCnpj = bodyStr.includes('payercpfcnpj') || bodyStr.includes('payer') || bodyStr.includes('obrigat');
-          const mentionsAuthHeaders = bodyStr.includes('cnpjsh') || bodyStr.includes('tokensh');
-          
-          if (mentionsAuthHeaders || mentionsPayerCnpj) {
-            errorType = 'auth';
-            hint = 'API rejeitou credenciais - verifique token/CNPJ no TecnoAccount';
-          } else {
-            errorType = 'validation';
-            hint = 'Erro de validação de dados';
-          }
+          errorType = 'validation';
         } else if (status === 404) {
           errorType = 'not_found';
         } else if (status >= 500) {
           errorType = 'server';
-          hint = 'Erro interno no servidor TecnoSpeed';
         }
         
         const result: TestResult = {
@@ -276,12 +280,13 @@ serve(async (req) => {
           errorType,
           headerVariant: variant.name,
           message,
-          hint
+          internalCode,
+          responseSnippet: status >= 400 ? responseSnippet : undefined
         };
         
         results.push(result);
         
-        console.log(`  -> Status: ${status}, Success: ${success}`);
+        console.log(`  -> Status: ${status}, Success: ${success}, Message: ${message || 'N/A'}`);
         
         if (success && !workingVariant) {
           workingVariant = variant.name;
@@ -289,7 +294,6 @@ serve(async (req) => {
           console.log(`✅ Working variant found: ${variant.name}`);
         }
         
-        // If we found a working variant, no need to test more
         if (workingVariant) break;
         
       } catch (error) {
@@ -307,7 +311,7 @@ serve(async (req) => {
       }
     }
 
-    // If we found a working variant, test /payer endpoint with it
+    // Test /payer if we have a working variant and payer CNPJ
     if (workingVariant && effectivePayerCnpj) {
       const workingHeaders = headerVariants.find(v => v.name === workingVariant)?.headers;
       if (workingHeaders) {
@@ -326,6 +330,7 @@ serve(async (req) => {
           
           const status = response.status;
           const success = status >= 200 && status < 300;
+          const { message, internalCode } = extractErrorMessage(responseBody);
           
           results.push({
             method: 'GET /payer',
@@ -335,7 +340,9 @@ serve(async (req) => {
             response: responseBody,
             latencyMs,
             errorType: status === 404 ? 'not_found' : status >= 400 ? 'validation' : undefined,
-            headerVariant: workingVariant
+            headerVariant: workingVariant,
+            message,
+            internalCode
           });
           
         } catch (error) {
@@ -360,6 +367,7 @@ serve(async (req) => {
     const notFoundErrors = results.filter(r => r.errorType === 'not_found');
     const networkErrors = results.filter(r => r.errorType === 'network');
     const serverErrors = results.filter(r => r.errorType === 'server');
+    const status422Count = results.filter(r => r.status === 422).length;
 
     // Generate recommendations
     const recommendations: string[] = [];
@@ -370,22 +378,39 @@ serve(async (req) => {
     } else if (networkErrors.length === results.length) {
       recommendations.push('❌ Erro de rede em todos os testes');
       recommendations.push(`Verifique se a URL está acessível: ${baseUrl}`);
-    } else if (authErrors.length > 0 || results.every(r => !r.success)) {
-      recommendations.push('❌ Nenhuma variante de header funcionou');
+    } else if (authErrors.length > 0) {
+      recommendations.push('❌ Credenciais rejeitadas (401/403)');
       recommendations.push('');
       recommendations.push('🔍 Possíveis causas:');
-      recommendations.push('1. Token não está vinculado ao CNPJ da Software House no TecnoAccount');
-      recommendations.push('2. Conta da Software House não está ativa no ambiente ' + env);
-      recommendations.push('3. Token expirado ou inválido');
+      recommendations.push('1. Token inválido ou expirado');
+      recommendations.push('2. CNPJ da Software House incorreto');
       recommendations.push('');
       recommendations.push('📋 Ações recomendadas:');
       recommendations.push('1. Acesse https://conta.tecnospeed.com.br');
-      recommendations.push('2. Verifique se a conta está ativa');
-      recommendations.push('3. Confirme o token para o ambiente: ' + env);
-      recommendations.push('4. Verifique se o CNPJ da Software House está correto');
-      recommendations.push('5. Entre em contato com suporte TecnoSpeed se o problema persistir');
+      recommendations.push('2. Regenere o token para o ambiente: ' + env);
+    } else if (status422Count === results.length) {
+      // All tests returned 422 - this is the most common scenario
+      const sampleMessage = results[0]?.message;
+      recommendations.push('⚠️ API retornou 422 em todos os testes');
+      recommendations.push('');
+      
+      if (sampleMessage) {
+        recommendations.push(`📝 Mensagem da API: "${sampleMessage}"`);
+        recommendations.push('');
+      }
+      
+      recommendations.push('🔍 Possíveis causas:');
+      recommendations.push('1. Token não está vinculado ao CNPJ da Software House');
+      recommendations.push('2. Conta não está ativa no ambiente ' + env);
+      recommendations.push('3. Endpoint /account pode não ser suportado');
+      recommendations.push('');
+      recommendations.push('📋 Ações recomendadas:');
+      recommendations.push('1. Acesse https://conta.tecnospeed.com.br');
+      recommendations.push('2. Verifique se o token está correto para o ambiente: ' + env);
+      recommendations.push('3. Confirme que a conta está ativa');
+      recommendations.push('4. Entre em contato com suporte TecnoSpeed');
     } else if (validationErrors.length > 0) {
-      recommendations.push('⚠️ Credenciais parecem OK, mas há erros de validação');
+      recommendations.push('⚠️ Erros de validação (422)');
       if (!effectivePayerCnpj) {
         recommendations.push('💡 Informe o CNPJ do pagador para testes completos');
       }
@@ -407,6 +432,7 @@ serve(async (req) => {
         successful: successfulTests.length,
         authErrors: authErrors.length,
         validationErrors: validationErrors.length,
+        status422Count,
         notFoundErrors: notFoundErrors.length,
         networkErrors: networkErrors.length,
         serverErrors: serverErrors.length,
