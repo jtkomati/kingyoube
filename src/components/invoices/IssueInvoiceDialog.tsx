@@ -54,8 +54,21 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
         },
       });
 
-      if (error) throw error;
+      // Erro de rede/invoke
+      if (error) {
+        toast.error("Erro de conexão: " + error.message);
+        return;
+      }
 
+      // Erro retornado pela função (success: false)
+      if (!data?.success) {
+        const errorMsg = data?.message || "Erro desconhecido ao emitir nota fiscal";
+        const details = data?.details ? `\n${data.details}` : "";
+        toast.error(errorMsg + details);
+        return;
+      }
+
+      // Sucesso
       if (data.sandbox_mode) {
         toast.success("NFS-e emitida em modo SANDBOX (teste)!");
       } else {
@@ -67,7 +80,7 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       onClose();
     } catch (error: any) {
-      toast.error("Erro ao emitir nota fiscal: " + error.message);
+      toast.error("Erro inesperado: " + error.message);
     } finally {
       setIsIssuing(false);
     }

@@ -13,12 +13,147 @@ function translatePlugNotasError(error: any): string {
     if (error.includes('cpfCnpj')) return 'CPF/CNPJ é obrigatório'
     if (error.includes('razaoSocial')) return 'Razão Social é obrigatória'
     if (error.includes('codigoCidade')) return 'Código da cidade (IBGE) é obrigatório'
+    if (error.includes('Empresa com os parâmetros')) return 'Empresa não encontrada no PlugNotas'
+    if (error.includes('array de documentos')) return 'Formato de requisição inválido'
     return error
   }
   if (error?.message) return translatePlugNotasError(error.message)
   if (error?.error) return translatePlugNotasError(error.error)
   if (Array.isArray(error)) return error.map(translatePlugNotasError).join('; ')
   return JSON.stringify(error)
+}
+
+// Função para garantir que a empresa existe no PlugNotas (SANDBOX)
+async function ensurePlugNotasCompanyExists(
+  companySettings: any,
+  plugnotasToken: string,
+  baseUrl: string
+): Promise<{ exists: boolean; error?: string }> {
+  const cnpjDigits = (companySettings.cnpj || '').replace(/\D/g, '')
+  const maskedCnpj = `***${cnpjDigits.slice(-4)}`
+  
+  if (!cnpjDigits) {
+    return { exists: false, error: 'CNPJ não configurado' }
+  }
+  
+  console.log(`🔍 Verificando empresa ${maskedCnpj} no PlugNotas...`)
+  
+  // 1. Verificar se empresa já existe
+  try {
+    const getResponse = await fetch(`${baseUrl}/empresa/${cnpjDigits}`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': plugnotasToken,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log(`GET /empresa/${maskedCnpj} status: ${getResponse.status}`)
+    
+    if (getResponse.status === 200) {
+      console.log(`✅ Empresa ${maskedCnpj} já cadastrada no PlugNotas`)
+      return { exists: true }
+    }
+    
+    if (getResponse.status !== 404) {
+      const errorText = await getResponse.text()
+      console.error(`❌ Erro inesperado ao verificar empresa: ${errorText.substring(0, 200)}`)
+      // Continuar mesmo assim e tentar cadastrar
+    }
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : String(e)
+    console.error(`❌ Erro de rede ao verificar empresa: ${errMsg}`)
+    // Continuar e tentar cadastrar
+  }
+  
+  // 2. Empresa não existe ou erro, tentar cadastrar
+  console.log(`📝 Cadastrando empresa ${maskedCnpj} no PlugNotas SANDBOX...`)
+  
+  // Montar endereço a partir dos dados da empresa ou usar defaults
+  const endereco = {
+    logradouro: companySettings.address || "Rua Teste",
+    numero: companySettings.address_number || "100",
+    bairro: companySettings.neighborhood || "Centro",
+    codigoCidade: companySettings.city_code || "3550308", // São Paulo default
+    cep: (companySettings.postal_code || "01310100").replace(/\D/g, ''),
+    uf: companySettings.state || "SP"
+  }
+  
+  const empresaPayload = {
+    cpfCnpj: cnpjDigits,
+    inscricaoMunicipal: companySettings.municipal_inscription || "123456",
+    razaoSocial: companySettings.company_name || "Empresa Teste",
+    nomeFantasia: companySettings.trade_name || companySettings.company_name || "Empresa Teste",
+    simplesNacional: companySettings.tax_regime === 'SIMPLES' || true,
+    regimeTributario: 1, // Simples Nacional
+    regimeTributarioEspecial: 0,
+    endereco: endereco,
+    telefone: {
+      ddd: "11",
+      numero: "999999999"
+    },
+    email: companySettings.notification_email || companySettings.email || "teste@exemplo.com",
+    nfse: {
+      ativo: true,
+      tipoContrato: 0,
+      config: {
+        producao: false,
+        rps: {
+          lote: 1,
+          serie: "RPS",
+          numero: 1
+        },
+        prefeitura: {
+          login: companySettings.nfse_login || "teste",
+          senha: companySettings.nfse_password || "teste"
+        }
+      }
+    }
+  }
+  
+  console.log('Payload empresa:', JSON.stringify(empresaPayload, null, 2))
+  
+  try {
+    const postResponse = await fetch(`${baseUrl}/empresa`, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': plugnotasToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(empresaPayload)
+    })
+    
+    const postText = await postResponse.text()
+    console.log(`POST /empresa status: ${postResponse.status}`)
+    console.log(`POST /empresa response: ${postText.substring(0, 300)}`)
+    
+    if (postResponse.status === 201 || postResponse.status === 200) {
+      console.log(`✅ Empresa ${maskedCnpj} cadastrada com sucesso no PlugNotas`)
+      return { exists: true }
+    }
+    
+    if (postResponse.status === 409 || postText.includes('já existe') || postText.includes('already exists')) {
+      console.log(`✅ Empresa ${maskedCnpj} já existia (conflict)`)
+      return { exists: true }
+    }
+    
+    // Erro ao cadastrar
+    let errorMsg = "Erro ao cadastrar empresa"
+    try {
+      const errorData = JSON.parse(postText)
+      errorMsg = errorData?.error?.message || errorData?.message || postText.substring(0, 200)
+    } catch {
+      errorMsg = postText.substring(0, 200)
+    }
+    
+    console.error(`❌ Erro ao cadastrar empresa: ${errorMsg}`)
+    return { exists: false, error: errorMsg }
+    
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : String(e)
+    console.error(`❌ Erro de rede ao cadastrar empresa: ${errMsg}`)
+    return { exists: false, error: `Erro de conexão: ${errMsg}` }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -46,8 +181,8 @@ Deno.serve(async (req) => {
 
     if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: validation.error.errors[0].message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, message: validation.error.errors[0].message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -76,15 +211,15 @@ Deno.serve(async (req) => {
     if (txError) {
       console.error('Erro ao buscar transação:', txError)
       return new Response(
-        JSON.stringify({ error: 'Erro ao buscar transação: ' + txError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, message: 'Erro ao buscar transação: ' + txError.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     if (!transaction) {
       return new Response(
-        JSON.stringify({ error: 'Transação não encontrada' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, message: 'Transação não encontrada' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -104,8 +239,8 @@ Deno.serve(async (req) => {
 
     if (!companySettings) {
       return new Response(
-        JSON.stringify({ error: 'Configurações da empresa não encontradas. Configure antes de emitir NF.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, message: 'Configurações da empresa não encontradas. Configure antes de emitir NF.' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -138,19 +273,18 @@ Deno.serve(async (req) => {
       console.error('Erros de validação:', validationErrors)
       return new Response(
         JSON.stringify({ 
-          error: 'Validação falhou', 
-          details: validationErrors,
-          message: validationErrors.join('. ')
+          success: false,
+          message: 'Validação falhou: ' + validationErrors.join('. ')
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // 3. Verificar se já tem NF emitida
     if (transaction.invoice_number && transaction.invoice_status === 'issued') {
       return new Response(
-        JSON.stringify({ error: 'Esta transação já possui nota fiscal emitida' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, message: 'Esta transação já possui nota fiscal emitida' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -165,8 +299,7 @@ Deno.serve(async (req) => {
     const SANDBOX_TOKEN = '2da392a6-79d2-4304-a8b7-959572c7e44d'
     const isSandboxEnvironment = !fiscalConfig?.plugnotas_environment || fiscalConfig.plugnotas_environment === 'SANDBOX'
     
-    // Se ambiente é SANDBOX, SEMPRE usar o token sandbox oficial (ignora token salvo)
-    // Isso evita erros 401 por token incorreto no sandbox
+    // Se ambiente é SANDBOX, SEMPRE usar o token sandbox oficial
     const plugnotasToken = isSandboxEnvironment ? SANDBOX_TOKEN : (fiscalConfig?.plugnotas_token || SANDBOX_TOKEN)
     const plugnotasEnvironment = isSandboxEnvironment ? 'SANDBOX' : fiscalConfig.plugnotas_environment
 
@@ -184,121 +317,159 @@ Deno.serve(async (req) => {
     let plugnotasError: string | null = null
     let sandboxMode = isSandboxEnvironment
     
-    // 5. Tentar PlugNotas (sempre, pois usamos sandbox automático)
+    // 5. Determinar URL base
     const baseUrl = plugnotasEnvironment === 'PRODUCTION'
       ? 'https://api.plugnotas.com.br'
       : 'https://api.sandbox.plugnotas.com.br'
 
-      // Preparar endereço do tomador
-      let tomadorEndereco: any = undefined
-      if (transaction.customers?.address) {
-        try {
-          const addr = typeof transaction.customers.address === 'string' 
-            ? JSON.parse(transaction.customers.address) 
-            : transaction.customers.address
-          tomadorEndereco = {
-            logradouro: addr.street || 'Não informado',
-            numero: addr.number || 'S/N',
-            complemento: addr.complement || undefined,
-            bairro: addr.neighborhood || 'Centro',
-            codigoCidade: addr.city_code || companySettings.city_code,
-            cep: (addr.zip || '').replace(/\D/g, '') || undefined,
-            uf: addr.state || 'SP',
-          }
-        } catch (e) {
-          console.log('Endereço não é JSON, usando como string')
-          tomadorEndereco = {
-            logradouro: String(transaction.customers.address),
-            numero: 'S/N',
-            bairro: 'Centro',
-            codigoCidade: companySettings.city_code,
-            uf: 'SP',
-          }
-        }
+    // 5.1 SANDBOX: Garantir que empresa existe no PlugNotas antes de emitir
+    if (isSandboxEnvironment) {
+      const companyCheck = await ensurePlugNotasCompanyExists(
+        companySettings,
+        plugnotasToken,
+        baseUrl
+      )
+      
+      if (!companyCheck.exists) {
+        console.error('Falha ao garantir empresa no PlugNotas:', companyCheck.error)
+        // Não bloquear, continuar tentando emitir (pode funcionar em alguns casos)
       }
+    }
 
-      // Preparar payload para PlugNotas NFS-e
-      const plugnotasPayload = {
-        idIntegracao: transaction_id,
-        prestador: {
-          cpfCnpj: companySettings.cnpj?.replace(/\D/g, ''),
-          inscricaoMunicipal: companySettings.municipal_inscription,
-          razaoSocial: companySettings.company_name,
-          simplesNacional: companySettings.tax_regime === 'SIMPLES',
-          regimeEspecialTributacao: special_tax_regime || '6',
-          incentivadorCultural: false,
-        },
-        tomador: {
-          cpfCnpj: (transaction.customers?.cnpj || transaction.customers?.cpf)?.replace(/\D/g, ''),
-          razaoSocial: transaction.customers?.company_name || 
-                       `${transaction.customers?.first_name || ''} ${transaction.customers?.last_name || ''}`.trim(),
-          email: transaction.customers?.email,
-          endereco: tomadorEndereco,
-        },
-        servico: [{
-          codigo: service_code || '01.01',
-          codigoTributacao: service_code || '01.01',
-          discriminacao: service_description || transaction.description || 'Serviços prestados conforme contrato',
-          cnae: undefined, // Opcional
-          iss: {
-            tipoTributacao: 6,
-            exigibilidade: 1,
-            aliquota: transaction.iss_rate || 5,
-            valorAliquota: transaction.iss_rate || 5,
-            retido: false,
-          },
-          valor: {
-            servico: transaction.gross_amount,
-            baseCalculo: transaction.gross_amount,
-          },
-        }],
-        naturezaOperacao: nature_operation || '1',
-      }
-
-      console.log('=== PAYLOAD PLUGNOTAS ===')
-      console.log(JSON.stringify(plugnotasPayload, null, 2))
-
+    // Preparar endereço do tomador
+    let tomadorEndereco: any = undefined
+    if (transaction.customers?.address) {
       try {
-        console.log(`Enviando para: ${baseUrl}/nfse`)
-        
-        // IMPORTANTE: PlugNotas espera um ARRAY de documentos, mesmo para 1 nota
-        const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
-          method: 'POST',
-          headers: {
-            'X-API-KEY': plugnotasToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify([plugnotasPayload])
-        })
-
-        const responseText = await plugnotasResponse.text()
-        console.log('PlugNotas Response Status:', plugnotasResponse.status)
-        console.log('PlugNotas Response Body:', responseText)
-
-        if (plugnotasResponse.ok) {
-          const plugnotasData = JSON.parse(responseText)
-          const result = Array.isArray(plugnotasData) ? plugnotasData[0] : plugnotasData
-          
-          plugnotasId = result.id?.integracao || result.id || transaction_id
-          invoiceNumber = result.protocolo?.numero || result.id?.nfse || `PN-${Date.now()}`
-          invoiceKey = result.protocolo?.id || result.id?.integracao || invoiceKey
-          integrationUsed = 'PLUGNOTAS'
-          console.log('✅ NFS-e enviada com sucesso:', { plugnotasId, invoiceNumber, invoiceKey })
-        } else {
-          // Parse e traduzir erro
-          try {
-            const errorData = JSON.parse(responseText)
-            plugnotasError = translatePlugNotasError(errorData)
-            console.error('❌ Erro PlugNotas:', plugnotasError)
-          } catch {
-            plugnotasError = responseText
-            console.error('❌ Erro PlugNotas (raw):', responseText)
-          }
+        const addr = typeof transaction.customers.address === 'string' 
+          ? JSON.parse(transaction.customers.address) 
+          : transaction.customers.address
+        tomadorEndereco = {
+          logradouro: addr.street || 'Não informado',
+          numero: addr.number || 'S/N',
+          complemento: addr.complement || undefined,
+          bairro: addr.neighborhood || 'Centro',
+          codigoCidade: addr.city_code || companySettings.city_code,
+          cep: (addr.zip || '').replace(/\D/g, '') || undefined,
+          uf: addr.state || 'SP',
         }
-      } catch (error) {
-        plugnotasError = error instanceof Error ? error.message : 'Erro de conexão com PlugNotas'
-        console.error('❌ Erro ao chamar PlugNotas:', error)
+      } catch (e) {
+        console.log('Endereço não é JSON, usando como string')
+        tomadorEndereco = {
+          logradouro: String(transaction.customers.address),
+          numero: 'S/N',
+          bairro: 'Centro',
+          codigoCidade: companySettings.city_code,
+          uf: 'SP',
+        }
       }
+    }
+
+    // Preparar payload para PlugNotas NFS-e
+    const plugnotasPayload = {
+      idIntegracao: transaction_id,
+      prestador: {
+        cpfCnpj: companySettings.cnpj?.replace(/\D/g, ''),
+        inscricaoMunicipal: companySettings.municipal_inscription,
+        razaoSocial: companySettings.company_name,
+        simplesNacional: companySettings.tax_regime === 'SIMPLES',
+        regimeEspecialTributacao: special_tax_regime || '6',
+        incentivadorCultural: false,
+      },
+      tomador: {
+        cpfCnpj: (transaction.customers?.cnpj || transaction.customers?.cpf)?.replace(/\D/g, ''),
+        razaoSocial: transaction.customers?.company_name || 
+                     `${transaction.customers?.first_name || ''} ${transaction.customers?.last_name || ''}`.trim(),
+        email: transaction.customers?.email,
+        endereco: tomadorEndereco,
+      },
+      servico: [{
+        codigo: service_code || '01.01',
+        codigoTributacao: service_code || '01.01',
+        discriminacao: service_description || transaction.description || 'Serviços prestados conforme contrato',
+        cnae: undefined,
+        iss: {
+          tipoTributacao: 6,
+          exigibilidade: 1,
+          aliquota: transaction.iss_rate || 5,
+          valorAliquota: transaction.iss_rate || 5,
+          retido: false,
+        },
+        valor: {
+          servico: transaction.gross_amount,
+          baseCalculo: transaction.gross_amount,
+        },
+      }],
+      naturezaOperacao: nature_operation || '1',
+    }
+
+    console.log('=== PAYLOAD PLUGNOTAS ===')
+    console.log(JSON.stringify(plugnotasPayload, null, 2))
+
+    // Função para tentar emitir NFS-e
+    const tryEmitNfse = async (): Promise<{ ok: boolean; data?: any; error?: string }> => {
+      console.log(`Enviando para: ${baseUrl}/nfse`)
+      
+      const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': plugnotasToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([plugnotasPayload]) // ARRAY de documentos
+      })
+
+      const responseText = await plugnotasResponse.text()
+      console.log('PlugNotas Response Status:', plugnotasResponse.status)
+      console.log('PlugNotas Response Body:', responseText.substring(0, 500))
+
+      if (plugnotasResponse.ok) {
+        const plugnotasData = JSON.parse(responseText)
+        return { ok: true, data: plugnotasData }
+      } else {
+        let errorData: any = {}
+        try {
+          errorData = JSON.parse(responseText)
+        } catch {
+          errorData = { message: responseText.substring(0, 200) }
+        }
+        return { ok: false, error: translatePlugNotasError(errorData), data: errorData }
+      }
+    }
+
+    // Primeira tentativa de emissão
+    let emitResult = await tryEmitNfse()
+    
+    // Se erro de empresa não encontrada no SANDBOX, tentar cadastrar novamente e retry
+    if (!emitResult.ok && isSandboxEnvironment) {
+      const errorMsg = emitResult.error || ""
+      if (errorMsg.includes('não encontrada') || errorMsg.includes('Empresa')) {
+        console.log('🔄 Empresa não encontrada, tentando cadastrar novamente...')
+        
+        const retryCheck = await ensurePlugNotasCompanyExists(
+          companySettings,
+          plugnotasToken,
+          baseUrl
+        )
+        
+        if (retryCheck.exists) {
+          console.log('🔄 Retry da emissão após cadastro...')
+          emitResult = await tryEmitNfse()
+        }
+      }
+    }
+
+    if (emitResult.ok) {
+      const result = Array.isArray(emitResult.data) ? emitResult.data[0] : emitResult.data
+      
+      plugnotasId = result.id?.integracao || result.id || transaction_id
+      invoiceNumber = result.protocolo?.numero || result.id?.nfse || `PN-${Date.now()}`
+      invoiceKey = result.protocolo?.id || result.id?.integracao || invoiceKey
+      integrationUsed = 'PLUGNOTAS'
+      console.log('✅ NFS-e enviada com sucesso:', { plugnotasId, invoiceNumber, invoiceKey })
+    } else {
+      plugnotasError = emitResult.error || 'Erro desconhecido'
+      console.error('❌ Erro PlugNotas final:', plugnotasError)
+    }
     
     // 6. Fallback para Focus NFe se PlugNotas não funcionou
     if (integrationUsed === 'MOCK' && focusNfeToken) {
@@ -351,11 +522,10 @@ Deno.serve(async (req) => {
     if (integrationUsed === 'MOCK' && plugnotasError) {
       return new Response(
         JSON.stringify({ 
-          error: 'Erro ao emitir NFS-e via PlugNotas',
-          details: plugnotasError,
-          message: plugnotasError
+          success: false,
+          message: 'Erro ao emitir NFS-e: ' + plugnotasError
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -374,8 +544,8 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.error('Erro ao atualizar transação:', updateError)
       return new Response(
-        JSON.stringify({ error: 'Erro ao atualizar transação: ' + updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, message: 'Erro ao atualizar transação: ' + updateError.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -415,12 +585,12 @@ Deno.serve(async (req) => {
           ? 'Nota fiscal emitida em modo SANDBOX (teste).'
           : 'Nota fiscal enviada para processamento.',
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
     console.error('Erro ao emitir NFS-e:', error)
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ success: false, message: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
