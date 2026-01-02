@@ -119,8 +119,14 @@ export function TecnoSpeedDiagnostics() {
     if (status === 0) return <Badge variant="outline">Erro de Rede</Badge>;
     if (status >= 200 && status < 300) return <Badge className="bg-green-500">OK</Badge>;
     if (status === 401 || status === 403) return <Badge variant="destructive">Auth Inválido</Badge>;
-    if (status === 422) return <Badge variant="outline" className="border-amber-500 text-amber-600">Parâmetro Obrigatório</Badge>;
-    if (status === 404) return <Badge variant="secondary">Não Encontrado</Badge>;
+    if (status === 422) {
+      // Check errorType to distinguish auth issues from validation issues
+      if (errorType === 'auth') {
+        return <Badge variant="destructive">Credenciais Rejeitadas</Badge>;
+      }
+      return <Badge variant="outline" className="border-amber-500 text-amber-600">Dados Pendentes</Badge>;
+    }
+    if (status === 404) return <Badge variant="secondary">Não Encontrado (OK)</Badge>;
     if (status >= 500) return <Badge variant="destructive">Erro Servidor</Badge>;
     return <Badge variant="outline">{status}</Badge>;
   };

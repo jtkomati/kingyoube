@@ -131,6 +131,11 @@ serve(async (req) => {
       console.warn('CNPJ format invalid! Expected 14 digits, got:', cnpjClean.length);
     }
 
+    // Log the exact headers being sent (masked for security)
+    console.log('=== Headers Being Sent ===');
+    console.log('cnpjsh:', cnpjClean.substring(0, 4) + '****' + cnpjClean.substring(cnpjClean.length - 2));
+    console.log('tokensh:', TOKEN.substring(0, 4) + '****' + TOKEN.substring(TOKEN.length - 4));
+
     // Standard headers - same as other plugbank functions (use clean CNPJ)
     const standardHeaders = {
       'Content-Type': 'application/json',
@@ -138,22 +143,26 @@ serve(async (req) => {
       'tokensh': TOKEN,
     };
 
-    // Build endpoints to test - include payercpfcnpj if available
-    const endpoints: Array<{ path: string; method: string; name: string }> = [];
+    // Build endpoints to test
+    const endpoints: Array<{ path: string; method: string; name: string; requiresPayerCnpj: boolean }> = [];
     
+    // First test: /account endpoint (doesn't require payer CNPJ, good for auth test)
+    endpoints.push({ 
+      path: '/account', 
+      method: 'GET', 
+      name: 'Listar Contas (Teste de Auth)', 
+      requiresPayerCnpj: false 
+    });
+    
+    // Second test: /payer with CNPJ if available
     if (effectivePayerCnpj) {
-      // If we have payer CNPJ, use it in the query
       endpoints.push({ 
         path: `/payer?payercpfcnpj=${effectivePayerCnpj}`, 
         method: 'GET', 
-        name: 'Buscar Pagador por CNPJ' 
+        name: 'Buscar Pagador por CNPJ',
+        requiresPayerCnpj: true
       });
-    } else {
-      // Without payer CNPJ, we'll get a 422 - but we can still test connectivity
-      endpoints.push({ path: '/payer', method: 'GET', name: 'Listar Pagadores (sem CNPJ)' });
     }
-    
-    endpoints.push({ path: '/account', method: 'GET', name: 'Listar Contas' });
 
     // Test each endpoint
     for (const endpoint of endpoints) {
@@ -192,12 +201,25 @@ serve(async (req) => {
         let errorType: TestResult['errorType'] = undefined;
         const status = response.status;
         
+        console.log(`Response status: ${status}, body:`, JSON.stringify(responseBody).substring(0, 200));
+        
+        // Analyze response body for specific error patterns
+        const bodyStr = JSON.stringify(responseBody || {}).toLowerCase();
+        const hasPayerCnpjError = bodyStr.includes('payercpfcnpj') && (bodyStr.includes('obrigatório') || bodyStr.includes('required'));
+        
         if (status === 0) {
           errorType = 'network';
         } else if (status === 401 || status === 403) {
           errorType = 'auth';
         } else if (status === 422) {
-          errorType = 'validation';
+          // 422 can mean validation OR auth issues depending on context
+          // If we sent payercpfcnpj but still got "required" error, it's likely an auth issue
+          if (hasPayerCnpjError && endpoint.requiresPayerCnpj && effectivePayerCnpj) {
+            console.log('⚠️ 422 with payercpfcnpj error even though we sent the param - likely auth header issue');
+            errorType = 'auth'; // Treat as auth error if we sent the param but API says it's missing
+          } else {
+            errorType = 'validation';
+          }
         } else if (status === 404) {
           errorType = 'not_found';
         } else if (status >= 500) {
@@ -205,8 +227,9 @@ serve(async (req) => {
         }
 
         const authWorks = status >= 200 && status < 300;
-        // Consider 404 and 422 as "credentials work but resource/params missing"
-        const credentialsOk = authWorks || status === 404 || status === 422;
+        // 404 means auth passed but resource not found
+        // 422 validation (not auth-related) means auth passed but params missing
+        const credentialsOk = authWorks || status === 404 || (status === 422 && errorType === 'validation');
 
         const result: TestResult = {
           method: `${endpoint.method} ${endpoint.name}`,
@@ -221,14 +244,17 @@ serve(async (req) => {
         results.push(result);
         
         const statusLabel = authWorks ? 'SUCCESS' : 
-                           credentialsOk ? 'VALIDATION/NOT_FOUND' : 
-                           status === 401 || status === 403 ? 'AUTH_ERROR' : 'FAILED';
+                           errorType === 'auth' ? 'AUTH_ERROR' :
+                           errorType === 'validation' ? 'VALIDATION' : 
+                           errorType === 'not_found' ? 'NOT_FOUND' : 'FAILED';
         console.log(`Result: ${response.status} - ${statusLabel}`);
         
         if (authWorks) {
           console.log('✅ ENDPOINT WORKING!');
         } else if (credentialsOk) {
           console.log('⚠️ Credentials seem OK, but endpoint returned:', status);
+        } else if (errorType === 'auth') {
+          console.log('❌ Auth error detected - check headers');
         }
       } catch (error) {
         const latencyMs = Date.now() - testStart;
@@ -269,15 +295,25 @@ serve(async (req) => {
       recommendations.push('❌ Erro de rede - não foi possível conectar à API TecnoSpeed');
       recommendations.push('Verifique se a URL está correta: ' + baseUrl);
     } else if (authErrors.length > 0) {
-      // Real auth errors (401/403)
-      recommendations.push('❌ Credenciais inválidas (401/403)');
-      recommendations.push('Atualize TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE no Lovable Cloud');
+      // Real auth errors (401/403 OR 422 with param-sent-but-rejected pattern)
+      recommendations.push('❌ Problema de autenticação detectado');
+      recommendations.push('🔑 Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE no Lovable Cloud');
+      recommendations.push('⚠️ IMPORTANTE: TECNOSPEED_CNPJ_SOFTWAREHOUSE é o CNPJ da Software House (sua empresa de software), não da empresa cliente');
       
       const firstAuthError = authErrors[0];
       if (firstAuthError.response && typeof firstAuthError.response === 'object') {
         const resp = firstAuthError.response as Record<string, unknown>;
         if (resp.message) {
           recommendations.push(`Mensagem da API: ${resp.message}`);
+        }
+        // Check if the error mentions payercpfcnpj but we sent it
+        const errors = resp.errors as Array<{ message?: string }> | undefined;
+        if (errors && errors.length > 0) {
+          const errorMsg = errors[0].message || '';
+          if (errorMsg.toLowerCase().includes('payercpfcnpj') && effectivePayerCnpj) {
+            recommendations.push('⚠️ API rejeitou dizendo "payercpfcnpj obrigatório" mas o parâmetro foi enviado');
+            recommendations.push('🔍 Isso indica que a API não está aceitando os headers de autenticação (cnpjsh/tokensh)');
+          }
         }
       }
       console.log('Auth error details:', JSON.stringify(authErrors[0], null, 2));
