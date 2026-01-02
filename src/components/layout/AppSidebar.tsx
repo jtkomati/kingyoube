@@ -2,6 +2,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity, Brain } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { t } from '@/lib/translations';
 import {
   Sidebar,
   SidebarContent,
@@ -20,32 +22,33 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import kingyoubeLogo from '@/assets/kingyoube-logo-full.png';
 
 type NavItem = {
-  name: string;
+  key: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   requiredRole?: string;
 };
 
 const navigation: NavItem[] = [
-  { name: 'Portal Contador', href: '/accountant-portal', icon: Building2 },
-  { name: 'Agentes de IA', href: '/ai-agents', icon: Bot },
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Cockpit CFO', href: '/cfo-cockpit', icon: BarChart3 },
-  { name: 'Cadastros', href: '/cadastros', icon: Database },
-  { name: 'Transações', href: '/transactions', icon: FileText },
-  { name: 'Notas Fiscais', href: '/invoices', icon: Receipt },
-  { name: 'Relatórios', href: '/reports', icon: BarChart3 },
-  { name: 'Análise Preditiva', href: '/predictive-analytics', icon: BrainCircuit },
-  { name: 'Integrações', href: '/bank-integrations', icon: Link2 },
-  { name: 'Reforma Tributária', href: '/reforma-tributaria', icon: Calculator },
-  { name: 'Observabilidade', href: '/observability', icon: Activity, requiredRole: 'SUPERADMIN' },
-  { name: 'AI Command Center', href: '/ai-command-center', icon: Brain, requiredRole: 'SUPERADMIN' },
+  { key: 'accountantPortal', href: '/accountant-portal', icon: Building2 },
+  { key: 'aiAgents', href: '/ai-agents', icon: Bot },
+  { key: 'dashboard', href: '/dashboard', icon: Home },
+  { key: 'cfoCockpit', href: '/cfo-cockpit', icon: BarChart3 },
+  { key: 'cadastros', href: '/cadastros', icon: Database },
+  { key: 'transactions', href: '/transactions', icon: FileText },
+  { key: 'invoices', href: '/invoices', icon: Receipt },
+  { key: 'reports', href: '/reports', icon: BarChart3 },
+  { key: 'predictiveAnalytics', href: '/predictive-analytics', icon: BrainCircuit },
+  { key: 'integrations', href: '/bank-integrations', icon: Link2 },
+  { key: 'taxReform', href: '/reforma-tributaria', icon: Calculator },
+  { key: 'observability', href: '/observability', icon: Activity, requiredRole: 'SUPERADMIN' },
+  { key: 'aiCommandCenter', href: '/ai-command-center', icon: Brain, requiredRole: 'SUPERADMIN' },
 ];
 
 export function AppSidebar() {
   const { signOut, userRole } = useAuth();
   const location = useLocation();
   const { open } = useSidebar();
+  const { language } = useLanguage();
 
   return (
     <Sidebar collapsible="icon">
@@ -64,7 +67,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>{t(language, 'common', 'menu')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation
@@ -72,11 +75,11 @@ export function AppSidebar() {
                 .map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
-                    <SidebarMenuItem key={item.name}>
+                    <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild isActive={isActive}>
                         <Link to={item.href}>
                           <item.icon className="h-4 w-4" />
-                          <span>{item.name}</span>
+                          <span>{t(language, 'sidebar', item.key)}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -92,7 +95,7 @@ export function AppSidebar() {
           <OrganizationSwitcher />
           {open && (
             <div className="px-2 py-2 rounded-lg bg-sidebar-accent">
-              <p className="text-xs text-sidebar-foreground/70">Permissão</p>
+              <p className="text-xs text-sidebar-foreground/70">{t(language, 'common', 'permission')}</p>
               <p className="text-sm font-medium text-sidebar-foreground">{userRole}</p>
             </div>
           )}
@@ -105,7 +108,7 @@ export function AppSidebar() {
             onClick={signOut}
           >
             <LogOut className="h-4 w-4" />
-            <span className="ml-2">Sair</span>
+            <span className="ml-2">{t(language, 'common', 'logout')}</span>
           </Button>
         </div>
       </SidebarFooter>
