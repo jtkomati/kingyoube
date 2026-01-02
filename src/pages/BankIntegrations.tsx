@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, CreditCard, BarChart3, GitCompare } from "lucide-react";
+import { Building2, CreditCard, BarChart3, GitCompare, Settings } from "lucide-react";
 import { ReconciliationTab } from "@/components/openfinance/ReconciliationTab";
 import { BankAccountForm } from "@/components/openfinance/BankAccountForm";
 import { StatementDashboard } from "@/components/openfinance/StatementDashboard";
+import { TecnoSpeedDiagnostics } from "@/components/openfinance/TecnoSpeedDiagnostics";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
@@ -79,6 +80,10 @@ const BankIntegrations = () => {
               <GitCompare className="h-4 w-4" />
               Conciliação
             </TabsTrigger>
+            <TabsTrigger value="diagnostico" className="gap-2 data-[state=active]:bg-background">
+              <Settings className="h-4 w-4" />
+              Diagnóstico
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="contas">
@@ -103,6 +108,10 @@ const BankIntegrations = () => {
 
           <TabsContent value="conciliacao">
             <ReconciliationTab />
+          </TabsContent>
+
+          <TabsContent value="diagnostico">
+            <TecnoSpeedDiagnostics />
           </TabsContent>
         </Tabs>
       </div>

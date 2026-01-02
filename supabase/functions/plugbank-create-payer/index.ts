@@ -6,7 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PLUGBANK_BASE_URL = "https://api.pagamentobancario.com.br/api/v1";
+// TecnoSpeed Open Finance API URLs
+const getBaseUrl = () => {
+  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox";
+  return env === "production"
+    ? "https://api.openfinance.tecnospeed.com.br/v1"
+    : "https://api.sandbox.openfinance.tecnospeed.com.br/v1";
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,65 +35,77 @@ serve(async (req) => {
       );
     }
 
-    const TOKEN_SH = Deno.env.get("TECNOSPEED_TOKEN");
-    const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
+    const TOKEN = Deno.env.get("TECNOSPEED_TOKEN");
+    const LOGIN_AUTH = Deno.env.get("TECNOSPEED_LOGIN_AUTH") || Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
-    console.log("PlugBank credentials check:", {
-      hasToken: !!TOKEN_SH,
-      tokenLength: TOKEN_SH?.length,
-      hasCnpj: !!CNPJ_SH,
-      cnpjLength: CNPJ_SH?.length,
+    console.log("TecnoSpeed credentials check:", {
+      hasToken: !!TOKEN,
+      tokenLength: TOKEN?.length,
+      hasLoginAuth: !!LOGIN_AUTH,
+      loginAuthLength: LOGIN_AUTH?.length,
+      environment: Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox",
     });
 
-    if (!TOKEN_SH || !CNPJ_SH) {
-      console.error("Missing credentials - TOKEN_SH or CNPJ_SH not set");
+    if (!TOKEN || !LOGIN_AUTH) {
+      console.error("Missing credentials - TOKEN or LOGIN_AUTH not set");
       return new Response(
-        JSON.stringify({ success: false, error: "Credenciais PlugBank não configuradas. Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE." }),
+        JSON.stringify({ 
+          success: false, 
+          error: "Credenciais TecnoSpeed não configuradas. Verifique TECNOSPEED_TOKEN e TECNOSPEED_LOGIN_AUTH." 
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const body = await req.json();
-    const { cpfCnpj, name, address } = body;
+    const { cpfCnpj, name, companyId, address } = body;
 
     if (!cpfCnpj || !name) {
       return new Response(
-        JSON.stringify({ success: false, error: "CPF/CNPJ e Nome são obrigatórios" }),
+        JSON.stringify({ success: false, error: "CNPJ e nome são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const requestUrl = `${PLUGBANK_BASE_URL}/payers`;
-    console.log("Creating payer with PlugBank API:", { 
-      cpfCnpj, 
+    const baseUrl = getBaseUrl();
+    const requestUrl = `${baseUrl}/customers`;
+    
+    console.log("Creating payer with TecnoSpeed API:", { 
+      cpfCnpj: cpfCnpj.substring(0, 6) + "...", 
       name,
       requestUrl,
-      headers: {
-        "cnpj-sh": CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : "NOT SET",
-        "token-sh": TOKEN_SH ? "SET (hidden)" : "NOT SET",
-      }
+      environment: Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox",
     });
 
     const payerPayload = {
       cpfCnpj: cpfCnpj.replace(/\D/g, ""),
       name,
-      address: address || {},
-      statementActived: true,
+      ...(address && {
+        address: {
+          street: address.street,
+          number: address.number,
+          complement: address.complement,
+          neighborhood: address.neighborhood,
+          city: address.city,
+          state: address.state,
+          zipCode: address.zipCode?.replace(/\D/g, ""),
+        }
+      }),
     };
 
-    const response = await fetch(`${PLUGBANK_BASE_URL}/payers`, {
+    const response = await fetch(requestUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "cnpj-sh": CNPJ_SH,
-        "token-sh": TOKEN_SH,
+        "Authorization": `Bearer ${TOKEN}`,
+        "LoginAuth": LOGIN_AUTH,
       },
       body: JSON.stringify(payerPayload),
     });
 
     const responseText = await response.text();
-    console.log("PlugBank response status:", response.status);
-    console.log("PlugBank response:", responseText);
+    console.log("TecnoSpeed response status:", response.status);
+    console.log("TecnoSpeed response:", responseText);
 
     let responseData;
     try {
@@ -97,35 +115,53 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         return new Response(
-          JSON.stringify({ success: false, error: "Token inválido. Verifique as configurações." }),
+          JSON.stringify({ 
+            success: false, 
+            error: "Token inválido ou sem permissão. Verifique as credenciais TecnoSpeed.",
+            code: response.status
+          }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 404) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Endpoint não encontrado. Verifique a configuração da API TecnoSpeed.",
+            code: 404
+          }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 422) {
         return new Response(
-          JSON.stringify({ success: false, error: responseData.message || "Dados inválidos" }),
+          JSON.stringify({ success: false, error: responseData.message || "Dados inválidos", code: 422 }),
           { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       return new Response(
-        JSON.stringify({ success: false, error: responseData.message || "Erro ao cadastrar pagador" }),
+        JSON.stringify({ 
+          success: false, 
+          error: responseData.message || responseData.error || "Erro ao cadastrar pagador",
+          code: response.status
+        }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const payerId = responseData.id || responseData.payerId;
+    const payerId = responseData.id || responseData.customerId || responseData.payerId;
 
     // Update company_settings with payer ID
-    if (payerId && body.companyId) {
+    if (companyId && payerId) {
       const { error: updateError } = await supabaseClient
         .from("company_settings")
         .update({ 
           plugbank_payer_id: payerId,
           plugbank_status: "registered"
         })
-        .eq("id", body.companyId);
+        .eq("id", companyId);
 
       if (updateError) {
         console.error("Error updating company_settings:", updateError);
@@ -136,7 +172,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         payerId,
-        message: "Pagador cadastrado com sucesso"
+        message: "Empresa registrada com sucesso no Open Finance"
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
