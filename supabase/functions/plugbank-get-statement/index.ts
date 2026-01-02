@@ -66,8 +66,8 @@ serve(async (req) => {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "cnpj-sh": CNPJ_SH,
-        "token-sh": TOKEN,
+        "cnpjsh": CNPJ_SH,
+        "tokensh": TOKEN,
       },
     });
 
