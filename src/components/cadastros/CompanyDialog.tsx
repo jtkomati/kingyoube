@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
+import { CertificateUpload } from "./CertificateUpload";
 
 const companySchema = z.object({
   company_name: z.string().min(2, "Razão Social deve ter pelo menos 2 caracteres"),
@@ -342,6 +343,26 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                 />
               </div>
             </div>
+
+            {/* Certificado Digital A1 */}
+            {company && (
+              <div className="space-y-4">
+                <div className="border-b pb-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium text-muted-foreground">Certificado Digital A1</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Necessário para emissão de notas fiscais eletrônicas</p>
+                </div>
+                <CertificateUpload
+                  companyId={company.id}
+                  companyCnpj={company.cnpj}
+                  onUploadSuccess={() => {
+                    toast.success("Certificado cadastrado!");
+                  }}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-4">
               <Button

@@ -104,3 +104,6 @@ verify_jwt = true
 
 [functions.check-cancel-status]
 verify_jwt = true
+
+[functions.validate-certificate]
+verify_jwt = true
