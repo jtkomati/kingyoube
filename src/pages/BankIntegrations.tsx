@@ -6,8 +6,10 @@ import { ReconciliationTab } from "@/components/openfinance/ReconciliationTab";
 import { BankAccountForm } from "@/components/openfinance/BankAccountForm";
 import { StatementDashboard } from "@/components/openfinance/StatementDashboard";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 const BankIntegrations = () => {
+  const { currentOrganization, isLoading: orgLoading } = useOrganization();
   const [payerId, setPayerId] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [companyData, setCompanyData] = useState<{
@@ -19,33 +21,31 @@ const BankIntegrations = () => {
   } | null>(null);
 
   useEffect(() => {
-    loadCompanyData();
-  }, []);
+    if (currentOrganization?.id) {
+      loadPlugBankStatus(currentOrganization.id);
+    } else {
+      setCompanyData(null);
+      setPayerId(null);
+    }
+  }, [currentOrganization?.id]);
 
-  const loadCompanyData = async () => {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("company_id")
+  const loadPlugBankStatus = async (companyId: string) => {
+    const { data: company } = await supabase
+      .from("company_settings")
+      .select("id, cnpj, company_name, plugbank_payer_id, plugbank_status")
+      .eq("id", companyId)
       .single();
 
-    if (profile?.company_id) {
-      const { data: company } = await supabase
-        .from("company_settings")
-        .select("id, cnpj, company_name, plugbank_payer_id, plugbank_status")
-        .eq("id", profile.company_id)
-        .single();
-
-      if (company) {
-        setCompanyData({
-          id: company.id,
-          cnpj: company.cnpj,
-          companyName: company.company_name,
-          payerStatus: company.plugbank_status,
-          payerId: company.plugbank_payer_id,
-        });
-        if (company.plugbank_payer_id) {
-          setPayerId(company.plugbank_payer_id);
-        }
+    if (company) {
+      setCompanyData({
+        id: company.id,
+        cnpj: company.cnpj,
+        companyName: company.company_name,
+        payerStatus: company.plugbank_status,
+        payerId: company.plugbank_payer_id,
+      });
+      if (company.plugbank_payer_id) {
+        setPayerId(company.plugbank_payer_id);
       }
     }
   };
@@ -86,7 +86,9 @@ const BankIntegrations = () => {
               companyData={companyData}
               onPayerRegistered={(id) => {
                 setPayerId(id);
-                loadCompanyData();
+                if (currentOrganization?.id) {
+                  loadPlugBankStatus(currentOrganization.id);
+                }
               }}
               onAccountConnected={(accId) => setAccountId(accId)}
             />
