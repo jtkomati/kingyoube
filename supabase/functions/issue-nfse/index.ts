@@ -261,13 +261,14 @@ Deno.serve(async (req) => {
       try {
         console.log(`Enviando para: ${baseUrl}/nfse`)
         
+        // IMPORTANTE: PlugNotas espera um ARRAY de documentos, mesmo para 1 nota
         const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
           method: 'POST',
           headers: {
             'X-API-KEY': plugnotasToken,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(plugnotasPayload)
+          body: JSON.stringify([plugnotasPayload])
         })
 
         const responseText = await plugnotasResponse.text()
