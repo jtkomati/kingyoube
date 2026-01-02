@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, CheckCircle2, Loader2, AlertCircle, MapPin, ExternalLink } from "lucide-react";
+import { Building2, CheckCircle2, Loader2, AlertCircle, MapPin, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -47,43 +47,50 @@ export const PlugBankStatusCard = ({
   };
 
   // Buscar dados de endereço da empresa
-  useEffect(() => {
-    const loadCompanyAddress = async () => {
-      if (!companyId) {
-        setIsLoadingAddress(false);
-        return;
-      }
-      
-      setIsLoadingAddress(true);
-      const { data } = await supabase
-        .from("company_settings")
-        .select("address, city, state, neighborhood, zip_code, address_number")
-        .eq("id", companyId)
-        .single();
-      
-      if (data) {
-        setAddressData({
-          address: data.address || "",
-          neighborhood: data.neighborhood || "",
-          number: data.address_number || "",
-          zipCode: data.zip_code || "",
-          state: data.state || "",
-          city: data.city || "",
-        });
-      }
+  const loadCompanyAddress = useCallback(async () => {
+    if (!companyId) {
       setIsLoadingAddress(false);
-    };
+      return;
+    }
     
-    loadCompanyAddress();
+    setIsLoadingAddress(true);
+    const { data } = await supabase
+      .from("company_settings")
+      .select("address, city, state, neighborhood, zip_code, address_number")
+      .eq("id", companyId)
+      .single();
+    
+    if (data) {
+      setAddressData({
+        address: data.address || "",
+        neighborhood: data.neighborhood || "",
+        number: data.address_number || "",
+        zipCode: data.zip_code || "",
+        state: data.state || "",
+        city: data.city || "",
+      });
+    }
+    setIsLoadingAddress(false);
   }, [companyId]);
 
-  const isAddressComplete = addressData && 
-    addressData.neighborhood && 
-    addressData.number && 
-    addressData.zipCode && 
-    addressData.state && 
-    addressData.city;
+  useEffect(() => {
+    loadCompanyAddress();
+  }, [loadCompanyAddress]);
 
+  // Calcular campos faltantes
+  const getMissingFields = (): string[] => {
+    if (!addressData) return ["CEP", "Cidade", "Estado", "Bairro", "Número"];
+    const missing: string[] = [];
+    if (!addressData.zipCode) missing.push("CEP");
+    if (!addressData.city) missing.push("Cidade");
+    if (!addressData.state) missing.push("Estado");
+    if (!addressData.neighborhood) missing.push("Bairro");
+    if (!addressData.number) missing.push("Número");
+    return missing;
+  };
+
+  const missingFields = getMissingFields();
+  const isAddressComplete = missingFields.length === 0;
   const handleRegister = async () => {
     if (!companyId || !cnpj || !companyName) {
       toast.error("Dados da empresa incompletos. Complete o cadastro em Cadastros > Empresas.");
@@ -215,18 +222,31 @@ export const PlugBankStatusCard = ({
         {!isRegistered && !isAddressComplete && (
           <Alert variant="destructive" className="bg-amber-500/10 border-amber-500/30 text-amber-700">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
+            <AlertDescription className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                <span>Endereço incompleto. Complete o cadastro da empresa para registrar no Open Finance.</span>
+                <span>
+                  Endereço incompleto. Falta preencher: <strong>{missingFields.join(", ")}</strong>
+                </span>
               </div>
-              <Link 
-                to="/cadastros" 
-                className="inline-flex items-center gap-1 text-sm font-medium underline hover:no-underline"
-              >
-                Ir para Cadastros
-                <ExternalLink className="h-3 w-3" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link 
+                  to={`/cadastros?editCompanyId=${companyId}`}
+                  className="inline-flex items-center gap-1 text-sm font-medium underline hover:no-underline"
+                >
+                  Editar Empresa
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadCompanyAddress}
+                  className="h-6 px-2 text-xs"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Recarregar
+                </Button>
+              </div>
             </AlertDescription>
           </Alert>
         )}
