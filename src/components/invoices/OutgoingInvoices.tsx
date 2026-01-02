@@ -65,7 +65,7 @@ export const OutgoingInvoices = () => {
         .select(`
           *,
           categories(name),
-          customers(first_name, last_name, company_name)
+          customers!customer_id(first_name, last_name, company_name)
         `)
         .eq("type", "RECEIVABLE")
         .eq("company_id", currentOrganization.id)
