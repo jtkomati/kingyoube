@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 // Eagerly loaded - critical path
 import Index from "./pages/Index";
@@ -99,10 +100,11 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
+      <LanguageProvider>
+        <BrowserRouter>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/reset-password" element={<LazyRoute><ResetPassword /></LazyRoute>} />
@@ -183,8 +185,9 @@ const App = () => {
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </TooltipProvider>
-      </BrowserRouter>
+          </TooltipProvider>
+        </BrowserRouter>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 };
