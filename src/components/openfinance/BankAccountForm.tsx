@@ -147,10 +147,11 @@ export const BankAccountForm = ({
         throw new Error("Erro ao salvar conta bancária");
       }
 
-      // 3. Call PlugBank API with bankAccountId
+      // 3. Call PlugBank API with bankAccountId and payerCnpj
       const { data, error } = await supabase.functions.invoke("plugbank-create-account", {
         body: {
           payerId: companyData.payerId,
+          payerCnpj: companyData.cnpj, // CNPJ necessário para header payercpfcnpj
           bankCode: formData.bankCode,
           agency: formData.agency,
           agencyDigit: formData.agencyDigit,

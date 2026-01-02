@@ -48,58 +48,66 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { payerId, bankCode, agency, agencyDigit, accountNumber, accountDigit, accountType = "checking" } = body;
+    const { 
+      payerId, 
+      payerCnpj,  // CNPJ do pagador - necessário para o header
+      bankCode, 
+      agency, 
+      agencyDigit, 
+      accountNumber, 
+      accountDigit, 
+      accountType = "checking" 
+    } = body;
 
-    if (!payerId || !bankCode || !agency || !accountNumber) {
+    if (!payerCnpj || !bankCode || !agency || !accountNumber) {
       return new Response(
-        JSON.stringify({ success: false, error: "Todos os campos são obrigatórios" }),
+        JSON.stringify({ success: false, error: "CNPJ do pagador e dados da conta são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const baseUrl = getBaseUrl();
-    // Endpoint correto: PUT /payer para atualizar o payer com as contas
-    const requestUrl = `${baseUrl}/payer`;
+    // Endpoint CORRETO conforme documentação oficial: POST /account
+    const requestUrl = `${baseUrl}/account`;
     
-    console.log("Adding account to payer via PUT /payer:", { 
-      payerId, 
+    console.log("Creating account with TecnoSpeed API:", { 
+      payerCnpj,
       bankCode, 
       agency, 
       accountNumber,
       requestUrl
     });
 
-    // Payload: atualizar payer existente com nova conta no array accounts
-    const payerUpdatePayload = {
-      token: payerId, // O payerId é o token do payer retornado na criação
-      accounts: [
-        {
-          bankCode: bankCode,
-          agency: agency.replace(/\D/g, ""),
-          agencyDigit: agencyDigit || "",
-          accountNumber: accountNumber.replace(/\D/g, ""),
-          accountDac: accountDigit || "",
-          convenioAgency: "",
-          convenioNumber: "",
-          remessaSequential: 0,
-          accountPayment: false,
-          webservice: false,
-          recipientNotification: false,
-          statementActived: true, // Obrigatório para Open Finance
-        }
-      ]
-    };
+    // Payload conforme documentação oficial: ARRAY de contas
+    const accountPayload = [
+      {
+        bankCode: bankCode,
+        agency: agency.replace(/\D/g, ""),
+        agencyDigit: agencyDigit || "",
+        accountNumber: accountNumber.replace(/\D/g, ""),
+        accountDac: accountDigit || "",
+        convenioAgency: "",
+        convenioNumber: "",
+        remessaSequential: 0,
+        accountPayment: false,
+        webservice: false,
+        recipientNotification: false,
+        statementActived: true, // Obrigatório para Open Finance
+      }
+    ];
 
-    console.log("Payer update payload:", JSON.stringify(payerUpdatePayload, null, 2));
+    console.log("Account payload:", JSON.stringify(accountPayload, null, 2));
 
+    // Headers conforme documentação oficial - incluindo payercpfcnpj
     const response = await fetch(requestUrl, {
-      method: "PUT",
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         "cnpjsh": CNPJ_SH,
         "tokensh": TOKEN,
+        "payercpfcnpj": payerCnpj.replace(/\D/g, ""), // CNPJ do pagador (limpo)
       },
-      body: JSON.stringify(payerUpdatePayload),
+      body: JSON.stringify(accountPayload),
     });
 
     const responseText = await response.text();
@@ -139,8 +147,8 @@ serve(async (req) => {
     }
 
     // Conforme documentação, resposta retorna array de accounts com accountHash e openfinanceLink
-    const accounts = responseData.accounts || responseData;
-    const firstAccount = Array.isArray(accounts) ? accounts[0] : accounts;
+    const accounts = Array.isArray(responseData) ? responseData : (responseData.accounts || [responseData]);
+    const firstAccount = accounts[0];
     
     const accountHash = firstAccount?.accountHash || firstAccount?.id;
     const consentLink = firstAccount?.openfinanceLink || firstAccount?.consentLink;
@@ -156,7 +164,7 @@ serve(async (req) => {
           account_hash: accountHash,
           consent_link: consentLink,
           bank_code: bankCode,
-          open_finance_status: "awaiting_consent"
+          open_finance_status: consentLink ? "awaiting_consent" : "connected"
         })
         .eq("id", body.bankAccountId);
 
