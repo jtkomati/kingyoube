@@ -175,14 +175,19 @@ export function TecnoSpeedDiagnostics() {
       return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Credenciais OK - Dados Pendentes', variant: 'default' as const };
     }
     
+    // Calculate from results array (source of truth)
+    const results = result.results || [];
+    const status422Count = results.filter(r => r.status === 422).length;
+    const authErrors = results.filter(r => r.status === 401 || r.status === 403).length;
+    const totalTests = results.length;
+    
     // Check if all tests failed with 422
-    const all422 = result.summary?.status422Count === result.summary?.totalTests;
-    if (all422) {
+    if (status422Count > 0 && status422Count === totalTests) {
       return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'API Retornou 422', variant: 'default' as const };
     }
     
     // Check if we have auth errors (401/403)
-    if ((result.summary?.authErrors || 0) > 0) {
+    if (authErrors > 0) {
       return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Credenciais Rejeitadas', variant: 'destructive' as const };
     }
     
@@ -341,36 +346,46 @@ export function TecnoSpeedDiagnostics() {
               </div>
             )}
 
-            {/* Resumo - Fixed counters */}
-            {result.summary && (
-              <div className="grid grid-cols-5 gap-2">
-                <div className="text-center p-2 rounded-lg bg-muted/50">
-                  <Server className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-lg font-bold">{result.summary.totalTests}</p>
-                  <p className="text-xs text-muted-foreground">Testes</p>
+            {/* Resumo - Calculate from results for reliability */}
+            {(result.summary || result.results) && (() => {
+              // Calculate counters from results array (source of truth)
+              const results = result.results || [];
+              const totalTests = results.length || result.summary?.totalTests || 0;
+              const successful = results.filter(r => r.success).length;
+              const authErrors = results.filter(r => r.status === 401 || r.status === 403).length;
+              const status422Count = results.filter(r => r.status === 422).length;
+              const totalTimeMs = result.summary?.totalTimeMs ?? Math.max(...results.map(r => r.latencyMs || 0), 0);
+              
+              return (
+                <div className="grid grid-cols-5 gap-2">
+                  <div className="text-center p-2 rounded-lg bg-muted/50">
+                    <Server className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-lg font-bold">{totalTests}</p>
+                    <p className="text-xs text-muted-foreground">Testes</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-green-500/10">
+                    <CheckCircle2 className="h-4 w-4 mx-auto mb-1 text-green-500" />
+                    <p className="text-lg font-bold text-green-600">{successful}</p>
+                    <p className="text-xs text-muted-foreground">OK</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-destructive/10">
+                    <XCircle className="h-4 w-4 mx-auto mb-1 text-destructive" />
+                    <p className="text-lg font-bold text-destructive">{authErrors}</p>
+                    <p className="text-xs text-muted-foreground">Auth</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-amber-500/10">
+                    <AlertTriangle className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                    <p className="text-lg font-bold text-amber-600">{status422Count}</p>
+                    <p className="text-xs text-muted-foreground">422</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-muted/50">
+                    <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-lg font-bold">{totalTimeMs}ms</p>
+                    <p className="text-xs text-muted-foreground">Tempo</p>
+                  </div>
                 </div>
-                <div className="text-center p-2 rounded-lg bg-green-500/10">
-                  <CheckCircle2 className="h-4 w-4 mx-auto mb-1 text-green-500" />
-                  <p className="text-lg font-bold text-green-600">{result.summary.successful}</p>
-                  <p className="text-xs text-muted-foreground">OK</p>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-destructive/10">
-                  <XCircle className="h-4 w-4 mx-auto mb-1 text-destructive" />
-                  <p className="text-lg font-bold text-destructive">{result.summary.authErrors}</p>
-                  <p className="text-xs text-muted-foreground">Auth</p>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-amber-500/10">
-                  <AlertTriangle className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-                  <p className="text-lg font-bold text-amber-600">{result.summary.status422Count}</p>
-                  <p className="text-xs text-muted-foreground">422</p>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-muted/50">
-                  <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-lg font-bold">{result.summary.totalTimeMs}ms</p>
-                  <p className="text-xs text-muted-foreground">Tempo</p>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Método Funcional */}
             {result.workingMethod && (
