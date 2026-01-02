@@ -161,17 +161,20 @@ Deno.serve(async (req) => {
       .eq('company_id', transaction.company_id)
       .maybeSingle()
 
-    // SANDBOX AUTOMÁTICO: Se não tem token configurado, usar sandbox
+    // SANDBOX AUTOMÁTICO: Token oficial do sandbox PlugNotas
     const SANDBOX_TOKEN = '2da392a6-79d2-4304-a8b7-959572c7e44d'
-    const useSandbox = !fiscalConfig?.plugnotas_token
-    const plugnotasToken = fiscalConfig?.plugnotas_token || SANDBOX_TOKEN
-    const plugnotasEnvironment = useSandbox ? 'SANDBOX' : (fiscalConfig?.plugnotas_environment || 'SANDBOX')
+    const isSandboxEnvironment = !fiscalConfig?.plugnotas_environment || fiscalConfig.plugnotas_environment === 'SANDBOX'
+    
+    // Se ambiente é SANDBOX, SEMPRE usar o token sandbox oficial (ignora token salvo)
+    // Isso evita erros 401 por token incorreto no sandbox
+    const plugnotasToken = isSandboxEnvironment ? SANDBOX_TOKEN : (fiscalConfig?.plugnotas_token || SANDBOX_TOKEN)
+    const plugnotasEnvironment = isSandboxEnvironment ? 'SANDBOX' : fiscalConfig.plugnotas_environment
 
     console.log('Fiscal Config:', {
       environment: plugnotasEnvironment,
       status: fiscalConfig?.plugnotas_status,
       hasToken: !!fiscalConfig?.plugnotas_token,
-      usingSandbox: useSandbox
+      usingSandbox: isSandboxEnvironment
     })
 
     let invoiceNumber = `NF-${Date.now()}`
@@ -179,7 +182,7 @@ Deno.serve(async (req) => {
     let integrationUsed = 'MOCK'
     let plugnotasId: string | null = null
     let plugnotasError: string | null = null
-    let sandboxMode = useSandbox
+    let sandboxMode = isSandboxEnvironment
     
     // 5. Tentar PlugNotas (sempre, pois usamos sandbox automático)
     const baseUrl = plugnotasEnvironment === 'PRODUCTION'
