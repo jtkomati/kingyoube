@@ -98,3 +98,9 @@ verify_jwt = true
 
 [functions.consultar-cidades-tomadas]
 verify_jwt = true
+
+[functions.replace-nfse]
+verify_jwt = true
+
+[functions.check-cancel-status]
+verify_jwt = true
