@@ -561,6 +561,7 @@ Deno.serve(async (req) => {
           invoice_key: invoiceKey,
           invoice_status: 'issued',
           invoice_integration_id: plugnotasId,
+          invoice_environment: plugnotasEnvironment,
           updated_at: new Date().toISOString(),
         })
         .eq('id', transaction_id)
@@ -660,6 +661,7 @@ Deno.serve(async (req) => {
         invoice_key: invoiceKey,
         invoice_status: integrationUsed === 'MOCK' ? 'pending' : 'processing',
         invoice_integration_id: plugnotasId,
+        invoice_environment: plugnotasEnvironment,
         updated_at: new Date().toISOString(),
       })
       .eq('id', transaction_id)
