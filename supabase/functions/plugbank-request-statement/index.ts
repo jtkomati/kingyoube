@@ -6,12 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// TecnoSpeed Open Finance API URLs
+// TecnoSpeed Pagamento Bancário API URLs (conforme documentação oficial)
 const getBaseUrl = () => {
-  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox";
+  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "staging";
   return env === "production"
-    ? "https://api.openfinance.tecnospeed.com.br/v1"
-    : "https://api.sandbox.openfinance.tecnospeed.com.br/v1";
+    ? "https://api.pagamentobancario.com.br/api/v1"
+    : "https://staging.pagamentobancario.com.br/api/v1";
 };
 
 serve(async (req) => {
@@ -35,10 +35,11 @@ serve(async (req) => {
       );
     }
 
+    // TecnoSpeed credentials - usando headers conforme documentação
     const TOKEN = Deno.env.get("TECNOSPEED_TOKEN");
-    const LOGIN_AUTH = Deno.env.get("TECNOSPEED_LOGIN_AUTH") || Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
+    const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
-    if (!TOKEN || !LOGIN_AUTH) {
+    if (!TOKEN || !CNPJ_SH) {
       console.error("Missing credentials");
       return new Response(
         JSON.stringify({ success: false, error: "Credenciais TecnoSpeed não configuradas" }),
@@ -47,32 +48,33 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { accountId, startDate, endDate, bankAccountId, companyId } = body;
+    const { accountHash, startDate, endDate, bankAccountId, companyId } = body;
 
-    if (!accountId || !startDate || !endDate) {
+    if (!accountHash || !startDate || !endDate) {
       return new Response(
-        JSON.stringify({ success: false, error: "ID da conta e período são obrigatórios" }),
+        JSON.stringify({ success: false, error: "Hash da conta e período são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const baseUrl = getBaseUrl();
-    const requestUrl = `${baseUrl}/statements`;
+    const requestUrl = `${baseUrl}/statement/openfinance`;
     
-    console.log("Requesting statement from TecnoSpeed:", { accountId, startDate, endDate, requestUrl });
+    console.log("Requesting statement from TecnoSpeed:", { accountHash, startDate, endDate, requestUrl });
 
+    // Payload conforme documentação
     const statementPayload = {
-      accountId,
-      startDate,
-      endDate,
+      accountHash: accountHash,
+      startDate: startDate, // formato: YYYY-MM-DD
+      endDate: endDate,     // formato: YYYY-MM-DD
     };
 
     const response = await fetch(requestUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${TOKEN}`,
-        "LoginAuth": LOGIN_AUTH,
+        "cnpj-sh": CNPJ_SH,
+        "token-sh": TOKEN,
       },
       body: JSON.stringify(statementPayload),
     });
@@ -97,7 +99,7 @@ serve(async (req) => {
       }
       if (response.status === 404) {
         return new Response(
-          JSON.stringify({ success: false, error: "Endpoint não encontrado. Verifique a configuração da API." }),
+          JSON.stringify({ success: false, error: "Conta não encontrada ou endpoint inválido." }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -105,7 +107,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Você precisa reconectar sua conta bancária. Clique em 'Conectar' para autorizar novamente.",
+            error: "Você precisa reconectar sua conta bancária. Clique em 'Autorizar' para dar consentimento novamente.",
             needsConsent: true
           }),
           { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }

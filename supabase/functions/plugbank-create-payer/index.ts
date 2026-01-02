@@ -6,12 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// TecnoSpeed Open Finance API URLs
+// TecnoSpeed Pagamento Bancário API URLs (conforme documentação oficial)
 const getBaseUrl = () => {
-  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox";
+  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "staging";
   return env === "production"
-    ? "https://api.openfinance.tecnospeed.com.br/v1"
-    : "https://api.sandbox.openfinance.tecnospeed.com.br/v1";
+    ? "https://api.pagamentobancario.com.br/api/v1"
+    : "https://staging.pagamentobancario.com.br/api/v1";
 };
 
 serve(async (req) => {
@@ -35,23 +35,24 @@ serve(async (req) => {
       );
     }
 
+    // TecnoSpeed credentials - usando headers conforme documentação
     const TOKEN = Deno.env.get("TECNOSPEED_TOKEN");
-    const LOGIN_AUTH = Deno.env.get("TECNOSPEED_LOGIN_AUTH") || Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
+    const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
     console.log("TecnoSpeed credentials check:", {
       hasToken: !!TOKEN,
       tokenLength: TOKEN?.length,
-      hasLoginAuth: !!LOGIN_AUTH,
-      loginAuthLength: LOGIN_AUTH?.length,
-      environment: Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox",
+      hasCnpjSh: !!CNPJ_SH,
+      cnpjShLength: CNPJ_SH?.length,
+      environment: Deno.env.get("TECNOSPEED_ENVIRONMENT") || "staging",
     });
 
-    if (!TOKEN || !LOGIN_AUTH) {
-      console.error("Missing credentials - TOKEN or LOGIN_AUTH not set");
+    if (!TOKEN || !CNPJ_SH) {
+      console.error("Missing credentials - TOKEN or CNPJ_SH not set");
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Credenciais TecnoSpeed não configuradas. Verifique TECNOSPEED_TOKEN e TECNOSPEED_LOGIN_AUTH." 
+          error: "Credenciais TecnoSpeed não configuradas. Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE." 
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -67,38 +68,47 @@ serve(async (req) => {
       );
     }
 
+    // Validar campos de endereço obrigatórios conforme documentação
+    if (!address?.neighborhood || !address?.number || !address?.zipCode || !address?.state || !address?.city) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Endereço completo é obrigatório: bairro, número, CEP, estado e cidade" 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const baseUrl = getBaseUrl();
-    const requestUrl = `${baseUrl}/customers`;
+    const requestUrl = `${baseUrl}/payer`;
     
     console.log("Creating payer with TecnoSpeed API:", { 
       cpfCnpj: cpfCnpj.substring(0, 6) + "...", 
       name,
       requestUrl,
-      environment: Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox",
+      environment: Deno.env.get("TECNOSPEED_ENVIRONMENT") || "staging",
     });
 
+    // Payload conforme documentação oficial TecnoSpeed
     const payerPayload = {
+      name: name,
       cpfCnpj: cpfCnpj.replace(/\D/g, ""),
-      name,
-      ...(address && {
-        address: {
-          street: address.street,
-          number: address.number,
-          complement: address.complement,
-          neighborhood: address.neighborhood,
-          city: address.city,
-          state: address.state,
-          zipCode: address.zipCode?.replace(/\D/g, ""),
-        }
-      }),
+      neighborhood: address.neighborhood,
+      addressNumber: address.number,
+      zipcode: address.zipCode.replace(/\D/g, ""),
+      state: address.state,
+      city: address.city,
+      statementActived: true, // Obrigatório para Open Finance
     };
+
+    console.log("Payer payload:", payerPayload);
 
     const response = await fetch(requestUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${TOKEN}`,
-        "LoginAuth": LOGIN_AUTH,
+        "cnpj-sh": CNPJ_SH,
+        "token-sh": TOKEN,
       },
       body: JSON.stringify(payerPayload),
     });
@@ -151,7 +161,8 @@ serve(async (req) => {
       );
     }
 
-    const payerId = responseData.id || responseData.customerId || responseData.payerId;
+    // Conforme documentação, resposta retorna token do pagador
+    const payerId = responseData.token || responseData.id || responseData.payerId;
 
     // Update company_settings with payer ID
     if (companyId && payerId) {
