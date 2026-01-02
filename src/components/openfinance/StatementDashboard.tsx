@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   RefreshCw, 
   TrendingUp, 
@@ -14,7 +15,8 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  CreditCard
 } from "lucide-react";
 import { useStatementPolling } from "@/hooks/useStatementPolling";
 import { toast } from "sonner";
@@ -29,13 +31,31 @@ interface Transaction {
   document?: string;
 }
 
-interface StatementDashboardProps {
-  accountId?: string;
-  bankAccountId?: string;
-  companyId?: string;
+interface BankAccount {
+  id: string;
+  bank_name: string;
+  bank_code: string;
+  agency: string;
+  account_number: string;
+  account_hash: string | null;
+  open_finance_status: string;
 }
 
-export function StatementDashboard({ accountId, bankAccountId, companyId }: StatementDashboardProps) {
+interface StatementDashboardProps {
+  bankAccounts: BankAccount[];
+  selectedAccountId: string | null;
+  selectedAccountHash: string | null;
+  companyId?: string;
+  onAccountSelect: (accountId: string) => void;
+}
+
+export function StatementDashboard({ 
+  bankAccounts, 
+  selectedAccountId, 
+  selectedAccountHash, 
+  companyId, 
+  onAccountSelect 
+}: StatementDashboardProps) {
   const today = new Date();
   const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -43,6 +63,8 @@ export function StatementDashboard({ accountId, bankAccountId, companyId }: Stat
   const [endDate, setEndDate] = useState(format(today, "yyyy-MM-dd"));
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totals, setTotals] = useState({ credits: 0, debits: 0 });
+
+  const selectedAccount = bankAccounts.find(a => a.id === selectedAccountId);
 
   const { 
     requestStatement, 
@@ -73,18 +95,18 @@ export function StatementDashboard({ accountId, bankAccountId, companyId }: Stat
   });
 
   const handleRefresh = async () => {
-    if (!accountId) {
+    if (!selectedAccountHash) {
       toast.error("Nenhuma conta selecionada", { 
-        description: "Conecte uma conta bancária primeiro" 
+        description: "Selecione uma conta bancária conectada" 
       });
       return;
     }
 
     const result = await requestStatement(
-      accountId,
+      selectedAccountHash,
       startDate,
       endDate,
-      bankAccountId,
+      selectedAccountId || undefined,
       companyId
     );
 
@@ -108,7 +130,7 @@ export function StatementDashboard({ accountId, bankAccountId, companyId }: Stat
     }
   };
 
-  if (!accountId) {
+  if (bankAccounts.length === 0) {
     return (
       <Card className="opacity-60">
         <CardHeader>
@@ -126,14 +148,39 @@ export function StatementDashboard({ accountId, bankAccountId, companyId }: Stat
       {/* Header with filters */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Extrato Bancário</CardTitle>
-              <CardDescription>
-                Visualize e sincronize suas transações via Open Finance
-              </CardDescription>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>Extrato Bancário</CardTitle>
+                <CardDescription>
+                  Visualize e sincronize suas transações via Open Finance
+                </CardDescription>
+              </div>
             </div>
+            
+            {/* Account selector and filters */}
             <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-1.5 min-w-[200px]">
+                <Label htmlFor="account" className="text-xs">Conta Bancária</Label>
+                <Select
+                  value={selectedAccountId || ""}
+                  onValueChange={onAccountSelect}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma conta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          <span>{account.bank_name} - Ag: {account.agency} Cc: {account.account_number}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="startDate" className="text-xs">Data Inicial</Label>
                 <Input
@@ -156,7 +203,7 @@ export function StatementDashboard({ accountId, bankAccountId, companyId }: Stat
               </div>
               <Button 
                 onClick={handleRefresh} 
-                disabled={isPolling}
+                disabled={isPolling || !selectedAccountHash}
                 className="min-w-32"
               >
                 {isPolling ? (
@@ -172,6 +219,13 @@ export function StatementDashboard({ accountId, bankAccountId, companyId }: Stat
                 )}
               </Button>
             </div>
+            
+            {selectedAccount && !selectedAccountHash && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Esta conta ainda não está conectada via Open Finance. Complete a autorização na aba "Contas Bancárias".</span>
+              </div>
+            )}
           </div>
         </CardHeader>
       </Card>
