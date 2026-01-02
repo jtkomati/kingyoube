@@ -1,159 +1,117 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, RefreshCw, Settings, Building2, BarChart3, List, Link2, GitCompare } from "lucide-react";
-import { BankConnectionHub } from "@/components/openfinance/BankConnectionHub";
-import { FinancialDashboard } from "@/components/openfinance/FinancialDashboard";
-import { TransactionsList } from "@/components/openfinance/TransactionsList";
+import { Building2, CreditCard, BarChart3, GitCompare } from "lucide-react";
 import { ReconciliationTab } from "@/components/openfinance/ReconciliationTab";
-import { TecnoSpeedDiagnostics } from "@/components/openfinance/TecnoSpeedDiagnostics";
+import { PayerRegistrationForm } from "@/components/openfinance/PayerRegistrationForm";
+import { BankAccountForm } from "@/components/openfinance/BankAccountForm";
+import { StatementDashboard } from "@/components/openfinance/StatementDashboard";
+import { supabase } from "@/integrations/supabase/client";
 
 const BankIntegrations = () => {
-  const [connectedBanks, setConnectedBanks] = useState<string[]>([]);
+  const [payerId, setPayerId] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [companyData, setCompanyData] = useState<{
+    id?: string;
+    cnpj?: string;
+    companyName?: string;
+    payerStatus?: string;
+    payerId?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    loadCompanyData();
+  }, []);
+
+  const loadCompanyData = async () => {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("company_id")
+      .single();
+
+    if (profile?.company_id) {
+      const { data: company } = await supabase
+        .from("company_settings")
+        .select("id, cnpj, company_name, plugbank_payer_id, plugbank_status")
+        .eq("id", profile.company_id)
+        .single();
+
+      if (company) {
+        setCompanyData({
+          id: company.id,
+          cnpj: company.cnpj,
+          companyName: company.company_name,
+          payerStatus: company.plugbank_status,
+          payerId: company.plugbank_payer_id,
+        });
+        if (company.plugbank_payer_id) {
+          setPayerId(company.plugbank_payer_id);
+        }
+      }
+    }
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
-            <Link2 className="h-6 w-6 text-primary" />
+            <Building2 className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Integrações</h1>
+            <h1 className="text-2xl font-bold text-foreground">Open Finance</h1>
             <p className="text-sm text-muted-foreground">
-              Conecte suas contas bancárias e APIs externas
+              Conecte suas contas bancárias via Open Finance
             </p>
           </div>
         </div>
 
-        <Tabs defaultValue="open-finance" className="space-y-6">
+        <Tabs defaultValue="empresa" className="space-y-6">
           <TabsList className="flex flex-wrap h-auto gap-2 bg-muted/50 p-2">
-            <TabsTrigger value="open-finance" className="gap-2 data-[state=active]:bg-background">
+            <TabsTrigger value="empresa" className="gap-2 data-[state=active]:bg-background">
               <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Open Finance</span>
+              Minha Empresa
             </TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-background" disabled={connectedBanks.length === 0}>
+            <TabsTrigger value="contas" className="gap-2 data-[state=active]:bg-background">
+              <CreditCard className="h-4 w-4" />
+              Contas Bancárias
+            </TabsTrigger>
+            <TabsTrigger value="extrato" className="gap-2 data-[state=active]:bg-background" disabled={!accountId}>
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard Financeiro</span>
+              Extrato
             </TabsTrigger>
-            <TabsTrigger value="transactions" className="gap-2 data-[state=active]:bg-background" disabled={connectedBanks.length === 0}>
-              <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Extrato Inteligente</span>
-            </TabsTrigger>
-            <TabsTrigger value="apis" className="gap-2 data-[state=active]:bg-background">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">APIs Bancárias</span>
-            </TabsTrigger>
-            <TabsTrigger value="reconciliation" className="gap-2 data-[state=active]:bg-background">
+            <TabsTrigger value="conciliacao" className="gap-2 data-[state=active]:bg-background">
               <GitCompare className="h-4 w-4" />
-              <span className="hidden sm:inline">Conciliação</span>
+              Conciliação
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="open-finance">
-            <div className="space-y-6">
-              <TecnoSpeedDiagnostics />
-              <BankConnectionHub 
-                connectedBanks={connectedBanks}
-                onBankConnected={(bankId) => setConnectedBanks([...connectedBanks, bankId])}
-              />
-            </div>
+          <TabsContent value="empresa">
+            <PayerRegistrationForm
+              companyId={companyData?.id}
+              initialData={companyData || undefined}
+              onSuccess={(id) => {
+                setPayerId(id);
+                loadCompanyData();
+              }}
+            />
           </TabsContent>
 
-          <TabsContent value="dashboard">
-            <FinancialDashboard />
+          <TabsContent value="contas">
+            <BankAccountForm
+              payerId={payerId || ""}
+              onSuccess={(accId) => setAccountId(accId)}
+            />
           </TabsContent>
 
-          <TabsContent value="transactions">
-            <TransactionsList />
+          <TabsContent value="extrato">
+            <StatementDashboard
+              accountId={accountId || undefined}
+              companyId={companyData?.id}
+            />
           </TabsContent>
 
-          <TabsContent value="apis">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold">APIs Bancárias</h2>
-                  <p className="text-sm text-muted-foreground">Integrações diretas com APIs corporativas</p>
-                </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Conectar Banco
-                </Button>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>Bradesco</CardTitle>
-                        <CardDescription>Open Finance Brasil</CardDescription>
-                      </div>
-                      <Badge variant="outline">Não Conectado</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Sincronize extratos bancários automaticamente via Open Finance
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Sincronizar
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Configurar
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>Bank of America</CardTitle>
-                        <CardDescription>Business Banking API</CardDescription>
-                      </div>
-                      <Badge variant="outline">Não Conectado</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Integração com API corporativa do Bank of America
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Sincronizar
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Configurar
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Histórico de Sincronizações</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma sincronização realizada ainda
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="reconciliation">
+          <TabsContent value="conciliacao">
             <ReconciliationTab />
           </TabsContent>
         </Tabs>

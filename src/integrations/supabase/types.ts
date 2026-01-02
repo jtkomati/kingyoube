@@ -1235,12 +1235,14 @@ export type Database = {
           api_environment: string | null
           auto_sync_enabled: boolean | null
           balance: number | null
+          bank_code: string | null
           bank_name: string
           certificate_path: string | null
           client_id: string | null
           client_secret: string | null
           company_id: string | null
           consent_expires_at: string | null
+          consent_link: string | null
           created_at: string
           currency: string | null
           id: string
@@ -1248,6 +1250,7 @@ export type Database = {
           open_finance_consent_id: string | null
           open_finance_status: string | null
           permissions_granted: string[] | null
+          plugbank_account_id: string | null
           refresh_token: string | null
           tecnospeed_item_id: string | null
           token_expires_at: string | null
@@ -1262,12 +1265,14 @@ export type Database = {
           api_environment?: string | null
           auto_sync_enabled?: boolean | null
           balance?: number | null
+          bank_code?: string | null
           bank_name: string
           certificate_path?: string | null
           client_id?: string | null
           client_secret?: string | null
           company_id?: string | null
           consent_expires_at?: string | null
+          consent_link?: string | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -1275,6 +1280,7 @@ export type Database = {
           open_finance_consent_id?: string | null
           open_finance_status?: string | null
           permissions_granted?: string[] | null
+          plugbank_account_id?: string | null
           refresh_token?: string | null
           tecnospeed_item_id?: string | null
           token_expires_at?: string | null
@@ -1289,12 +1295,14 @@ export type Database = {
           api_environment?: string | null
           auto_sync_enabled?: boolean | null
           balance?: number | null
+          bank_code?: string | null
           bank_name?: string
           certificate_path?: string | null
           client_id?: string | null
           client_secret?: string | null
           company_id?: string | null
           consent_expires_at?: string | null
+          consent_link?: string | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -1302,6 +1310,7 @@ export type Database = {
           open_finance_consent_id?: string | null
           open_finance_status?: string | null
           permissions_granted?: string[] | null
+          plugbank_account_id?: string | null
           refresh_token?: string | null
           tecnospeed_item_id?: string | null
           token_expires_at?: string | null
@@ -2049,6 +2058,8 @@ export type Database = {
           nfse_password: string | null
           nome_fantasia: string | null
           notification_email: string | null
+          plugbank_payer_id: string | null
+          plugbank_status: string | null
           state_inscription: string | null
           status: string | null
           tax_regime: string | null
@@ -2074,6 +2085,8 @@ export type Database = {
           nfse_password?: string | null
           nome_fantasia?: string | null
           notification_email?: string | null
+          plugbank_payer_id?: string | null
+          plugbank_status?: string | null
           state_inscription?: string | null
           status?: string | null
           tax_regime?: string | null
@@ -2099,6 +2112,8 @@ export type Database = {
           nfse_password?: string | null
           nome_fantasia?: string | null
           notification_email?: string | null
+          plugbank_payer_id?: string | null
+          plugbank_status?: string | null
           state_inscription?: string | null
           status?: string | null
           tax_regime?: string | null
@@ -3357,37 +3372,49 @@ export type Database = {
       sync_protocols: {
         Row: {
           bank_account_id: string | null
+          company_id: string | null
           completed_at: string | null
           created_at: string | null
           created_by: string | null
+          end_date: string | null
           error_message: string | null
           id: string
+          plugbank_unique_id: string | null
           protocol_number: string | null
           records_imported: number | null
+          start_date: string | null
           started_at: string | null
           status: string | null
         }
         Insert: {
           bank_account_id?: string | null
+          company_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          end_date?: string | null
           error_message?: string | null
           id?: string
+          plugbank_unique_id?: string | null
           protocol_number?: string | null
           records_imported?: number | null
+          start_date?: string | null
           started_at?: string | null
           status?: string | null
         }
         Update: {
           bank_account_id?: string | null
+          company_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           created_by?: string | null
+          end_date?: string | null
           error_message?: string | null
           id?: string
+          plugbank_unique_id?: string | null
           protocol_number?: string | null
           records_imported?: number | null
+          start_date?: string | null
           started_at?: string | null
           status?: string | null
         }

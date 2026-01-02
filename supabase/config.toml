@@ -107,3 +107,15 @@ verify_jwt = true
 
 [functions.validate-certificate]
 verify_jwt = true
+
+[functions.plugbank-create-payer]
+verify_jwt = true
+
+[functions.plugbank-create-account]
+verify_jwt = true
+
+[functions.plugbank-request-statement]
+verify_jwt = true
+
+[functions.plugbank-get-statement]
+verify_jwt = true
