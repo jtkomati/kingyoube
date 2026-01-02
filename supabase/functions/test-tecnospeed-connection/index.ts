@@ -15,11 +15,16 @@ interface TestResult {
   error?: string;
   latencyMs: number;
   errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
+  headerVariant?: string;
+}
+
+interface HeaderVariant {
+  name: string;
+  headers: Record<string, string>;
 }
 
 // Get base URL based on environment
-function getBaseUrl(): string {
-  const env = Deno.env.get('TECNOSPEED_ENVIRONMENT') || 'staging';
+function getBaseUrl(env: string): string {
   return env === 'production' 
     ? 'https://api.pagamentobancario.com.br/api/v1'
     : 'https://staging.pagamentobancario.com.br/api/v1';
@@ -34,13 +39,15 @@ serve(async (req) => {
   const results: TestResult[] = [];
   
   try {
-    // Parse request body for optional payerCpfCnpj
+    // Parse request body
     let payerCpfCnpj: string | null = null;
     let companyCnpj: string | null = null;
+    let testEnvironment: string | null = null;
     
     try {
       const body = await req.json();
       payerCpfCnpj = body?.payerCpfCnpj || null;
+      testEnvironment = body?.environment || null; // Allow overriding environment for testing
     } catch {
       // No body or invalid JSON, that's ok
     }
@@ -57,7 +64,6 @@ serve(async (req) => {
         
         const { data: userData } = await supabase.auth.getUser();
         if (userData?.user?.id) {
-          // Get user's company CNPJ
           const { data: profile } = await supabase
             .from('profiles')
             .select('company_id')
@@ -73,7 +79,6 @@ serve(async (req) => {
             
             if (company?.cnpj) {
               companyCnpj = company.cnpj.replace(/\D/g, '');
-              console.log('Found company CNPJ:', companyCnpj ? companyCnpj.substring(0, 4) + '...' : 'N/A');
             }
           }
         }
@@ -82,21 +87,18 @@ serve(async (req) => {
       }
     }
     
-    // Use provided payerCpfCnpj or company CNPJ
     const effectivePayerCnpj = payerCpfCnpj?.replace(/\D/g, '') || companyCnpj;
     
-    // Get credentials from environment - same as other plugbank functions
+    // Get credentials
     const TOKEN = Deno.env.get('TECNOSPEED_TOKEN');
     const CNPJ_SH = Deno.env.get('TECNOSPEED_CNPJ_SOFTWAREHOUSE');
-    const env = Deno.env.get('TECNOSPEED_ENVIRONMENT') || 'staging';
+    const defaultEnv = Deno.env.get('TECNOSPEED_ENVIRONMENT') || 'staging';
+    const env = testEnvironment || defaultEnv;
     
     console.log('=== TecnoSpeed Connection Test ===');
-    console.log('Environment:', env);
+    console.log('Environment:', env, testEnvironment ? '(override)' : '(default)');
     console.log('Token configured:', !!TOKEN);
-    console.log('Token length:', TOKEN?.length ?? 0);
     console.log('CNPJ_SH configured:', !!CNPJ_SH);
-    console.log('CNPJ_SH value:', CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : 'N/A');
-    console.log('Effective Payer CNPJ:', effectivePayerCnpj ? `${effectivePayerCnpj.substring(0, 4)}...` : 'Not available');
     
     if (!TOKEN || !CNPJ_SH) {
       const missingSecrets: string[] = [];
@@ -111,295 +113,265 @@ serve(async (req) => {
           cnpjShConfigured: !!CNPJ_SH,
           missingSecrets
         },
-        recommendations: missingSecrets.map(s => `Configure ${s} nas secrets do Supabase`)
+        recommendations: [
+          ...missingSecrets.map(s => `Configure ${s} nas secrets do Lovable Cloud`),
+          '📋 Acesse https://conta.tecnospeed.com.br para obter suas credenciais'
+        ]
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const baseUrl = getBaseUrl();
-    console.log('Base URL:', baseUrl);
-
-    // Validate CNPJ format (should be 14 numeric digits)
+    const baseUrl = getBaseUrl(env);
+    
+    // Clean CNPJ and validate
     const cnpjClean = CNPJ_SH.replace(/\D/g, '');
+    const cnpjFormatted = CNPJ_SH.replace(/[^\d./\-]/g, ''); // Keep only digits and formatting
     const cnpjValid = cnpjClean.length === 14;
-    console.log('CNPJ clean (digits only):', cnpjClean.length, 'digits');
-    console.log('CNPJ format valid:', cnpjValid);
+    
+    console.log('CNPJ clean:', cnpjClean.length, 'digits');
+    console.log('CNPJ valid:', cnpjValid);
     
     if (!cnpjValid) {
-      console.warn('CNPJ format invalid! Expected 14 digits, got:', cnpjClean.length);
-    }
-
-    // Log the exact headers being sent (masked for security)
-    console.log('=== Headers Being Sent ===');
-    console.log('cnpjsh:', cnpjClean.substring(0, 4) + '****' + cnpjClean.substring(cnpjClean.length - 2));
-    console.log('tokensh:', TOKEN.substring(0, 4) + '****' + TOKEN.substring(TOKEN.length - 4));
-
-    // Standard headers - same as other plugbank functions (use clean CNPJ)
-    const standardHeaders = {
-      'Content-Type': 'application/json',
-      'cnpjsh': cnpjClean,
-      'tokensh': TOKEN,
-    };
-
-    // Build endpoints to test
-    const endpoints: Array<{ path: string; method: string; name: string; requiresPayerCnpj: boolean }> = [];
-    
-    // First test: /account endpoint (doesn't require payer CNPJ, good for auth test)
-    endpoints.push({ 
-      path: '/account', 
-      method: 'GET', 
-      name: 'Listar Contas (Teste de Auth)', 
-      requiresPayerCnpj: false 
-    });
-    
-    // Second test: /payer with CNPJ if available
-    if (effectivePayerCnpj) {
-      endpoints.push({ 
-        path: `/payer?payercpfcnpj=${effectivePayerCnpj}`, 
-        method: 'GET', 
-        name: 'Buscar Pagador por CNPJ',
-        requiresPayerCnpj: true
+      return new Response(JSON.stringify({
+        success: false,
+        error: `CNPJ da Software House inválido: esperado 14 dígitos, encontrado ${cnpjClean.length}`,
+        recommendations: [
+          'O CNPJ deve ter exatamente 14 dígitos numéricos',
+          `Valor atual (mascarado): ${cnpjClean.substring(0, 4)}...${cnpjClean.substring(cnpjClean.length - 2)}`,
+          'Atualize TECNOSPEED_CNPJ_SOFTWAREHOUSE nas secrets do Lovable Cloud'
+        ]
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Test each endpoint
-    for (const endpoint of endpoints) {
-      const url = `${baseUrl}${endpoint.path}`;
+    // Define header variants to test
+    const headerVariants: HeaderVariant[] = [
+      {
+        name: 'lowercase (cnpjsh/tokensh)',
+        headers: {
+          'Content-Type': 'application/json',
+          'cnpjsh': cnpjClean,
+          'tokensh': TOKEN,
+        }
+      },
+      {
+        name: 'camelCase (cnpjSh/tokenSh)',
+        headers: {
+          'Content-Type': 'application/json',
+          'cnpjSh': cnpjClean,
+          'tokenSh': TOKEN,
+        }
+      },
+      {
+        name: 'UPPERCASE (CNPJSH/TOKENSH)',
+        headers: {
+          'Content-Type': 'application/json',
+          'CNPJSH': cnpjClean,
+          'TOKENSH': TOKEN,
+        }
+      },
+      {
+        name: 'with-dash (cnpj-sh/token-sh)',
+        headers: {
+          'Content-Type': 'application/json',
+          'cnpj-sh': cnpjClean,
+          'token-sh': TOKEN,
+        }
+      },
+      {
+        name: 'formatted CNPJ',
+        headers: {
+          'Content-Type': 'application/json',
+          'cnpjsh': cnpjFormatted,
+          'tokensh': TOKEN,
+        }
+      }
+    ];
+
+    console.log(`Testing ${headerVariants.length} header variants...`);
+    
+    let workingVariant: string | null = null;
+    let firstSuccessResult: TestResult | null = null;
+
+    // Test /account endpoint with each header variant
+    for (const variant of headerVariants) {
+      const url = `${baseUrl}/account`;
       const testStart = Date.now();
       
       try {
-        console.log(`Testing: ${endpoint.name} -> ${endpoint.method} ${url}`);
+        console.log(`Testing variant: ${variant.name}`);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         
         const response = await fetch(url, {
-          method: endpoint.method,
-          headers: standardHeaders,
+          method: 'GET',
+          headers: variant.headers,
           signal: controller.signal
         });
         
         clearTimeout(timeoutId);
-
+        
         const latencyMs = Date.now() - testStart;
         let responseBody: unknown;
         
-        const responseClone = response.clone();
         try {
           responseBody = await response.json();
         } catch {
-          try {
-            responseBody = await responseClone.text();
-          } catch {
-            responseBody = 'Unable to read response body';
-          }
+          responseBody = null;
         }
-
-        // Classify error types properly
-        let errorType: TestResult['errorType'] = undefined;
+        
         const status = response.status;
+        const success = status >= 200 && status < 300;
         
-        console.log(`Response status: ${status}, body:`, JSON.stringify(responseBody).substring(0, 200));
-        
-        // Analyze response body for specific error patterns
-        const bodyStr = JSON.stringify(responseBody || {}).toLowerCase();
-        const hasPayerCnpjError = bodyStr.includes('payercpfcnpj') && (bodyStr.includes('obrigatório') || bodyStr.includes('required'));
-        
-        if (status === 0) {
-          errorType = 'network';
-        } else if (status === 401 || status === 403) {
-          errorType = 'auth';
-        } else if (status === 422) {
-          // 422 can mean validation OR auth issues depending on context
-          // If we sent payercpfcnpj but still got "required" error, it's likely an auth issue
-          if (hasPayerCnpjError && endpoint.requiresPayerCnpj && effectivePayerCnpj) {
-            console.log('⚠️ 422 with payercpfcnpj error even though we sent the param - likely auth header issue');
-            errorType = 'auth'; // Treat as auth error if we sent the param but API says it's missing
-          } else {
-            errorType = 'validation';
-          }
-        } else if (status === 404) {
-          errorType = 'not_found';
-        } else if (status >= 500) {
-          errorType = 'server';
+        let errorType: TestResult['errorType'];
+        if (status === 401 || status === 403) errorType = 'auth';
+        else if (status === 422) {
+          // Check if it's really an auth issue
+          const bodyStr = JSON.stringify(responseBody || {}).toLowerCase();
+          errorType = bodyStr.includes('cnpjsh') || bodyStr.includes('tokensh') ? 'auth' : 'validation';
         }
-
-        const authWorks = status >= 200 && status < 300;
-        // 404 means auth passed but resource not found
-        // 422 validation (not auth-related) means auth passed but params missing
-        const credentialsOk = authWorks || status === 404 || (status === 422 && errorType === 'validation');
-
+        else if (status === 404) errorType = 'not_found';
+        else if (status >= 500) errorType = 'server';
+        
         const result: TestResult = {
-          method: `${endpoint.method} ${endpoint.name}`,
+          method: 'GET /account',
           endpoint: url,
-          status: response.status,
-          success: authWorks,
+          status,
+          success,
           response: responseBody,
           latencyMs,
-          errorType
+          errorType,
+          headerVariant: variant.name
         };
-
+        
         results.push(result);
         
-        const statusLabel = authWorks ? 'SUCCESS' : 
-                           errorType === 'auth' ? 'AUTH_ERROR' :
-                           errorType === 'validation' ? 'VALIDATION' : 
-                           errorType === 'not_found' ? 'NOT_FOUND' : 'FAILED';
-        console.log(`Result: ${response.status} - ${statusLabel}`);
+        console.log(`  -> Status: ${status}, Success: ${success}`);
         
-        if (authWorks) {
-          console.log('✅ ENDPOINT WORKING!');
-        } else if (credentialsOk) {
-          console.log('⚠️ Credentials seem OK, but endpoint returned:', status);
-        } else if (errorType === 'auth') {
-          console.log('❌ Auth error detected - check headers');
+        if (success && !workingVariant) {
+          workingVariant = variant.name;
+          firstSuccessResult = result;
+          console.log(`✅ Working variant found: ${variant.name}`);
         }
+        
+        // If we found a working variant, no need to test more
+        if (workingVariant) break;
+        
       } catch (error) {
         const latencyMs = Date.now() - testStart;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
         results.push({
-          method: `${endpoint.method} ${endpoint.name}`,
+          method: 'GET /account',
           endpoint: url,
           status: 0,
           success: false,
-          error: errorMessage,
+          error: error instanceof Error ? error.message : 'Unknown error',
           latencyMs,
-          errorType: 'network'
+          errorType: 'network',
+          headerVariant: variant.name
         });
-        console.log(`Error: ${errorMessage}`);
       }
     }
 
-    // Analyze results with proper classification
+    // If we found a working variant, test /payer endpoint with it
+    if (workingVariant && effectivePayerCnpj) {
+      const workingHeaders = headerVariants.find(v => v.name === workingVariant)?.headers;
+      if (workingHeaders) {
+        const url = `${baseUrl}/payer?payercpfcnpj=${effectivePayerCnpj}`;
+        const testStart = Date.now();
+        
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: workingHeaders
+          });
+          
+          const latencyMs = Date.now() - testStart;
+          let responseBody: unknown;
+          try { responseBody = await response.json(); } catch { responseBody = null; }
+          
+          const status = response.status;
+          const success = status >= 200 && status < 300;
+          
+          results.push({
+            method: 'GET /payer',
+            endpoint: url,
+            status,
+            success,
+            response: responseBody,
+            latencyMs,
+            errorType: status === 404 ? 'not_found' : status >= 400 ? 'validation' : undefined,
+            headerVariant: workingVariant
+          });
+          
+        } catch (error) {
+          results.push({
+            method: 'GET /payer',
+            endpoint: url,
+            status: 0,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            latencyMs: Date.now() - testStart,
+            errorType: 'network',
+            headerVariant: workingVariant
+          });
+        }
+      }
+    }
+
+    // Analyze results
     const successfulTests = results.filter(r => r.success);
-    const authErrors = results.filter(r => r.errorType === 'auth'); // Only 401/403
-    const validationErrors = results.filter(r => r.errorType === 'validation'); // 422
-    const notFoundErrors = results.filter(r => r.errorType === 'not_found'); // 404
+    const authErrors = results.filter(r => r.errorType === 'auth');
+    const validationErrors = results.filter(r => r.errorType === 'validation');
+    const notFoundErrors = results.filter(r => r.errorType === 'not_found');
     const networkErrors = results.filter(r => r.errorType === 'network');
     const serverErrors = results.filter(r => r.errorType === 'server');
 
     // Generate recommendations
     const recommendations: string[] = [];
     
-    if (!cnpjValid) {
-      recommendations.push(`❌ CNPJ da Software House inválido: esperado 14 dígitos, encontrado ${cnpjClean.length}`);
-      recommendations.push('O CNPJ deve conter apenas números (sem pontos, barras ou traços)');
-    }
-    
-    if (successfulTests.length > 0) {
-      recommendations.push(`✅ Conexão e credenciais funcionando! ${successfulTests.length} endpoint(s) respondendo`);
+    if (workingVariant) {
+      recommendations.push(`✅ Conexão funcionando com headers: ${workingVariant}`);
+      recommendations.push('A integração está pronta para uso');
     } else if (networkErrors.length === results.length) {
-      recommendations.push('❌ Erro de rede - não foi possível conectar à API TecnoSpeed');
-      recommendations.push('Verifique se a URL está correta: ' + baseUrl);
-    } else if (authErrors.length > 0) {
-      // Real auth errors (401/403 OR 422 with param-sent-but-rejected pattern)
-      recommendations.push('❌ Problema de autenticação detectado');
-      recommendations.push('🔑 Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE no Lovable Cloud');
-      recommendations.push('⚠️ IMPORTANTE: TECNOSPEED_CNPJ_SOFTWAREHOUSE é o CNPJ da Software House (sua empresa de software), não da empresa cliente');
-      
-      const firstAuthError = authErrors[0];
-      if (firstAuthError.response && typeof firstAuthError.response === 'object') {
-        const resp = firstAuthError.response as Record<string, unknown>;
-        if (resp.message) {
-          recommendations.push(`Mensagem da API: ${resp.message}`);
-        }
-        // Check if the error mentions payercpfcnpj but we sent it
-        const errors = resp.errors as Array<{ message?: string }> | undefined;
-        if (errors && errors.length > 0) {
-          const errorMsg = errors[0].message || '';
-          if (errorMsg.toLowerCase().includes('payercpfcnpj') && effectivePayerCnpj) {
-            recommendations.push('⚠️ API rejeitou dizendo "payercpfcnpj obrigatório" mas o parâmetro foi enviado');
-            recommendations.push('🔍 Isso indica que a API não está aceitando os headers de autenticação (cnpjsh/tokensh)');
-          }
-        }
-      }
-      console.log('Auth error details:', JSON.stringify(authErrors[0], null, 2));
+      recommendations.push('❌ Erro de rede em todos os testes');
+      recommendations.push(`Verifique se a URL está acessível: ${baseUrl}`);
+    } else if (authErrors.length > 0 || results.every(r => !r.success)) {
+      recommendations.push('❌ Nenhuma variante de header funcionou');
+      recommendations.push('');
+      recommendations.push('🔍 Possíveis causas:');
+      recommendations.push('1. Token não está vinculado ao CNPJ da Software House no TecnoAccount');
+      recommendations.push('2. Conta da Software House não está ativa no ambiente ' + env);
+      recommendations.push('3. Token expirado ou inválido');
+      recommendations.push('');
+      recommendations.push('📋 Ações recomendadas:');
+      recommendations.push('1. Acesse https://conta.tecnospeed.com.br');
+      recommendations.push('2. Verifique se a conta está ativa');
+      recommendations.push('3. Confirme o token para o ambiente: ' + env);
+      recommendations.push('4. Verifique se o CNPJ da Software House está correto');
+      recommendations.push('5. Entre em contato com suporte TecnoSpeed se o problema persistir');
     } else if (validationErrors.length > 0) {
-      // 422 - Validation errors (missing params, not auth issues)
-      const firstValidationError = validationErrors[0];
-      let specificMessage = '';
-      
-      if (firstValidationError.response && typeof firstValidationError.response === 'object') {
-        const resp = firstValidationError.response as Record<string, unknown>;
-        const errors = resp.errors as Array<{ message?: string }> | undefined;
-        
-        if (errors && errors.length > 0 && errors[0].message) {
-          specificMessage = errors[0].message;
-        } else if (resp.message) {
-          specificMessage = String(resp.message);
-        }
+      recommendations.push('⚠️ Credenciais parecem OK, mas há erros de validação');
+      if (!effectivePayerCnpj) {
+        recommendations.push('💡 Informe o CNPJ do pagador para testes completos');
       }
-      
-      if (specificMessage.toLowerCase().includes('payercpfcnpj')) {
-        recommendations.push('⚠️ Credenciais parecem OK, mas falta o CNPJ do pagador (empresa)');
-        if (!effectivePayerCnpj) {
-          recommendations.push('💡 Cadastre o CNPJ da empresa em Configurações da Empresa');
-          recommendations.push('Ou informe o CNPJ no campo de diagnóstico acima');
-        }
-      } else {
-        recommendations.push('⚠️ Erro de validação (422) - parâmetro obrigatório ausente');
-        if (specificMessage) {
-          recommendations.push(`Detalhe: ${specificMessage}`);
-        }
-      }
-      
-      // This is NOT an auth error
-      recommendations.push('ℹ️ As credenciais (TOKEN e CNPJ_SH) parecem estar corretas');
-      
-      console.log('Validation error details:', JSON.stringify(validationErrors[0], null, 2));
-    } else if (notFoundErrors.length > 0) {
-      // 404 - Resource not found but auth passed
-      recommendations.push('✅ Credenciais OK - autenticação passou');
-      recommendations.push('⚠️ Recurso não encontrado (404)');
-      recommendations.push('💡 Próximo passo: cadastrar pagador/conta no sistema');
-    } else if (serverErrors.length > 0) {
-      recommendations.push('⚠️ Servidor TecnoSpeed retornando erros 5xx');
-      recommendations.push('Pode ser um problema temporário - tente novamente');
     }
 
     const totalTime = Date.now() - startTime;
-
-    // Log to Supabase if user is authenticated
-    if (authHeader) {
-      try {
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        );
-
-        await supabase.from('audit_logs').insert({
-          user_id: '00000000-0000-0000-0000-000000000000',
-          user_role: 'SUPERADMIN',
-          action: 'tecnospeed_connection_test',
-          details: JSON.stringify({
-            environment: env,
-            baseUrl,
-            totalTests: results.length,
-            successfulTests: successfulTests.length,
-            authErrors: authErrors.length,
-            validationErrors: validationErrors.length,
-            totalTimeMs: totalTime,
-            hasPayerCnpj: !!effectivePayerCnpj
-          })
-        });
-      } catch (logError) {
-        console.error('Failed to log audit:', logError);
-      }
-    }
-
-    // Determine overall success - consider validation errors as "credentials OK but missing data"
-    const credentialsWork = successfulTests.length > 0 || validationErrors.length > 0 || notFoundErrors.length > 0;
-    const hasAuthIssues = authErrors.length > 0;
+    const credentialsWork = successfulTests.length > 0 || notFoundErrors.length > 0;
 
     return new Response(JSON.stringify({
       success: successfulTests.length > 0,
-      credentialsOk: credentialsWork && !hasAuthIssues,
+      credentialsOk: credentialsWork,
       environment: env,
       baseUrl,
       payerCnpjUsed: effectivePayerCnpj ? `${effectivePayerCnpj.substring(0, 4)}...` : null,
+      workingHeaderVariant: workingVariant,
+      testedVariants: headerVariants.map(v => v.name),
       summary: {
         totalTests: results.length,
         successful: successfulTests.length,
@@ -410,18 +382,18 @@ serve(async (req) => {
         serverErrors: serverErrors.length,
         totalTimeMs: totalTime
       },
-      workingMethod: successfulTests.length > 0 ? {
-        method: 'Headers cnpjsh + tokensh',
-        endpoint: successfulTests[0].endpoint,
-        latencyMs: successfulTests[0].latencyMs
+      workingMethod: firstSuccessResult ? {
+        method: `Headers ${workingVariant}`,
+        endpoint: firstSuccessResult.endpoint,
+        latencyMs: firstSuccessResult.latencyMs
       } : null,
       recommendations,
       results,
       credentials: {
-        tokenConfigured: !!TOKEN,
-        tokenLength: TOKEN?.length ?? 0,
-        cnpjShConfigured: !!CNPJ_SH,
-        cnpjShPreview: CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : null
+        tokenConfigured: true,
+        tokenLength: TOKEN.length,
+        cnpjShConfigured: true,
+        cnpjShPreview: `${cnpjClean.substring(0, 4)}...${cnpjClean.substring(cnpjClean.length - 2)}`
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
