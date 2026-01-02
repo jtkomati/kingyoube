@@ -27,8 +27,14 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Shield } from "lucide-react";
+import { Loader2, Shield, MapPin } from "lucide-react";
 import { CertificateUpload } from "./CertificateUpload";
+
+const ESTADOS_BRASIL = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
+  "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
+  "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+];
 
 const companySchema = z.object({
   company_name: z.string().min(2, "Razão Social deve ter pelo menos 2 caracteres"),
@@ -37,6 +43,11 @@ const companySchema = z.object({
   municipal_inscription: z.string().optional(),
   state_inscription: z.string().optional(),
   address: z.string().optional(),
+  address_number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  zip_code: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
   city_code: z.string().optional(),
   tax_regime: z.string().optional(),
   status: z.string().optional(),
@@ -53,6 +64,11 @@ interface Company {
   municipal_inscription: string | null;
   state_inscription: string | null;
   address: string | null;
+  address_number: string | null;
+  neighborhood: string | null;
+  zip_code: string | null;
+  city: string | null;
+  state: string | null;
   city_code: string | null;
   tax_regime: string | null;
   status: string | null;
@@ -69,6 +85,7 @@ interface CompanyDialogProps {
 
 export function CompanyDialog({ open, onOpenChange, company, onSuccess }: CompanyDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [loadingCep, setLoadingCep] = useState(false);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -79,6 +96,11 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       municipal_inscription: "",
       state_inscription: "",
       address: "",
+      address_number: "",
+      neighborhood: "",
+      zip_code: "",
+      city: "",
+      state: "",
       city_code: "",
       tax_regime: "SIMPLES",
       status: "ACTIVE",
@@ -95,6 +117,11 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         municipal_inscription: company.municipal_inscription || "",
         state_inscription: company.state_inscription || "",
         address: company.address || "",
+        address_number: company.address_number || "",
+        neighborhood: company.neighborhood || "",
+        zip_code: company.zip_code || "",
+        city: company.city || "",
+        state: company.state || "",
         city_code: company.city_code || "",
         tax_regime: company.tax_regime || "SIMPLES",
         status: company.status || "ACTIVE",
@@ -108,6 +135,11 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         municipal_inscription: "",
         state_inscription: "",
         address: "",
+        address_number: "",
+        neighborhood: "",
+        zip_code: "",
+        city: "",
+        state: "",
         city_code: "",
         tax_regime: "SIMPLES",
         status: "ACTIVE",
@@ -115,6 +147,33 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       });
     }
   }, [company, form]);
+
+  const fetchAddressFromCEP = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+    
+    setLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        form.setValue("address", data.logradouro || "");
+        form.setValue("neighborhood", data.bairro || "");
+        form.setValue("city", data.localidade || "");
+        form.setValue("state", data.uf || "");
+        form.setValue("city_code", data.ibge || "");
+        toast.success("Endereço preenchido automaticamente!");
+      } else {
+        toast.error("CEP não encontrado");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error);
+      toast.error("Erro ao buscar CEP");
+    } finally {
+      setLoadingCep(false);
+    }
+  };
 
   const onSubmit = async (data: CompanyFormData) => {
     setLoading(true);
@@ -126,6 +185,11 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         municipal_inscription: data.municipal_inscription || null,
         state_inscription: data.state_inscription || null,
         address: data.address || null,
+        address_number: data.address_number || null,
+        neighborhood: data.neighborhood || null,
+        zip_code: data.zip_code || null,
+        city: data.city || null,
+        state: data.state || null,
         city_code: data.city_code || null,
         tax_regime: data.tax_regime || "SIMPLES",
         status: data.status || "ACTIVE",
@@ -252,16 +316,119 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                     </FormItem>
                   )}
                 />
+              </div>
+            </div>
+
+            {/* Endereço */}
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground">Endereço</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Necessário para integração com Open Finance</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <FormField
+                  control={form.control}
+                  name="zip_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CEP</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            {...field} 
+                            placeholder="00000-000"
+                            onBlur={(e) => {
+                              field.onBlur();
+                              fetchAddressFromCEP(e.target.value);
+                            }}
+                          />
+                          {loadingCep && (
+                            <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
                   name="address"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Endereço</FormLabel>
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Logradouro</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Endereço completo" />
+                        <Input {...field} placeholder="Rua, Avenida, etc." />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="address_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="123" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="neighborhood"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Bairro</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Centro" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cidade</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="São Paulo" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="UF" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {ESTADOS_BRASIL.map((uf) => (
+                            <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
