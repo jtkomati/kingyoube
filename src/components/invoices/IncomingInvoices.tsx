@@ -456,8 +456,17 @@ export const IncomingInvoices = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleSyncNfeDestinadas}
-                disabled={isSyncingNfe || plugNotasConfig?.plugnotas_status !== 'connected'}
+                disabled={
+                  isSyncingNfe || 
+                  plugNotasConfig?.plugnotas_status !== 'connected' ||
+                  plugNotasConfig?.plugnotas_environment === 'SANDBOX'
+                }
                 className="gap-2"
+                title={
+                  plugNotasConfig?.plugnotas_environment === 'SANDBOX' 
+                    ? 'Disponível apenas em ambiente de Produção' 
+                    : undefined
+                }
               >
                 {isSyncingNfe ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -483,8 +492,11 @@ export const IncomingInvoices = () => {
               <strong>NFS-e (Notas de Serviço):</strong> A busca automática requer integração com a prefeitura local. 
               Importe manualmente via upload de PDF/XML.
               <br />
-              <strong>NF-e (Notas de Produto):</strong> Use o botão "Sincronizar NF-e" para buscar notas destinadas à sua empresa 
-              (requer certificado digital A1 cadastrado na PlugNotas).
+              <strong>NF-e (Notas de Produto):</strong> Use o botão "Sincronizar NF-e" para buscar notas destinadas à sua empresa.
+              <br />
+              <span className="text-muted-foreground">
+                Requisitos: ambiente de <strong>Produção</strong>, certificado digital A1 cadastrado e DF-e habilitado na PlugNotas.
+              </span>
             </AlertDescription>
           </Alert>
         </CardContent>
