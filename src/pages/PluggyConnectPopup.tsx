@@ -1,268 +1,217 @@
-import { useEffect, useState } from 'react';
-import { PluggyConnect } from 'react-pluggy-connect';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, ExternalLink, AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const BROADCAST_CHANNEL_NAME = 'pluggy_oauth';
-const STORAGE_KEY = 'pluggy_oauth_callback';
-
+/**
+ * PluggyConnectPopup - Redirects directly to Pluggy Connect URL
+ * 
+ * This approach completely avoids iframe/embedding issues by redirecting
+ * this popup window directly to Pluggy's connect page.
+ * 
+ * Flow:
+ * 1. User clicks "Conectar via Open Finance" -> opens this popup
+ * 2. This page fetches connectToken from our edge function
+ * 3. Redirects to https://connect.pluggy.ai with token and redirect_uri
+ * 4. User completes flow on Pluggy's domain
+ * 5. Pluggy redirects back to /pluggy/oauth/callback
+ * 6. Callback page notifies parent window and closes
+ */
 export default function PluggyConnectPopup() {
-  const { user } = useAuth();
-  const [connectToken, setConnectToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInIframe, setIsInIframe] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
   // Get URL params
   const urlParams = new URLSearchParams(window.location.search);
   const companyId = urlParams.get('companyId');
   const cnpj = urlParams.get('cnpj');
   const includeSandbox = urlParams.get('sandbox') === 'true';
+  const showDebug = urlParams.has('debug');
 
-  // Detect if we're running inside an iframe
-  useEffect(() => {
-    try {
-      setIsInIframe(window.self !== window.top);
-    } catch {
-      // If we can't access window.top, we're definitely in an iframe
-      setIsInIframe(true);
-    }
-  }, []);
+  const addDebug = (msg: string) => {
+    const timestamp = new Date().toISOString().slice(11, 23);
+    setDebugInfo(prev => [...prev.slice(-19), `[${timestamp}] ${msg}`]);
+    console.log(`[PluggyPopup] ${msg}`);
+  };
 
-  // Listen for OAuth callback via BroadcastChannel and localStorage
-  useEffect(() => {
-    // BroadcastChannel listener
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-      channel.onmessage = (event) => {
-        console.log('Received OAuth callback via BroadcastChannel:', event.data);
-        if (event.data?.type === 'pluggy:oauth_callback') {
-          // OAuth callback received - the widget should handle this automatically
-          console.log('OAuth callback detected, widget should continue...');
-        }
-      };
-    } catch (e) {
-      console.log('BroadcastChannel not supported');
-    }
-
-    // localStorage listener
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE_KEY && event.newValue) {
-        try {
-          const data = JSON.parse(event.newValue);
-          console.log('Received OAuth callback via localStorage:', data);
-        } catch (e) {
-          console.log('Error parsing storage event:', e);
-        }
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      channel?.close();
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Don't fetch token if we're in an iframe - show escape UI instead
-    if (isInIframe) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchToken = async () => {
-      try {
-        console.log('Fetching Pluggy connect token...');
-        
-        const { data, error: fnError } = await supabase.functions.invoke('create-pluggy-token', {
-          body: { 
-            companyId: companyId || undefined,
-            userId: user?.id || undefined,
-            origin: window.location.origin
-          }
-        });
-
-        if (fnError) {
-          throw new Error(fnError.message || 'Failed to get connect token');
-        }
-
-        if (!data?.accessToken) {
-          throw new Error('No access token received');
-        }
-
-        console.log('Connect token received');
-        setConnectToken(data.accessToken);
-      } catch (err) {
-        console.error('Error fetching token:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        
-        // Notify parent window of error
-        notifyParent({ 
-          type: 'pluggy:error', 
-          error: err instanceof Error ? err.message : 'Unknown error' 
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchToken();
-  }, [companyId, user?.id, isInIframe]);
-
-  const notifyParent = (message: object) => {
-    // Try postMessage to opener
-    if (window.opener) {
+  const notifyParent = (type: string, data?: Record<string, unknown>) => {
+    const message = { type, ...data };
+    
+    // 1. postMessage to opener
+    if (window.opener && !window.opener.closed) {
       try {
         window.opener.postMessage(message, window.location.origin);
+        addDebug(`postMessage sent: ${type}`);
       } catch (e) {
-        console.log('postMessage to opener failed:', e);
+        addDebug(`postMessage failed: ${e}`);
       }
     }
     
-    // Try BroadcastChannel
+    // 2. BroadcastChannel fallback
     try {
-      const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-      channel.postMessage(message);
-      channel.close();
+      const bc = new BroadcastChannel('pluggy_connect');
+      bc.postMessage(message);
+      bc.close();
+      addDebug(`BroadcastChannel sent: ${type}`);
     } catch (e) {
-      console.log('BroadcastChannel not available');
+      addDebug(`BroadcastChannel failed: ${e}`);
+    }
+    
+    // 3. localStorage fallback
+    try {
+      if (type === 'pluggy:error') {
+        localStorage.setItem('pluggy_last_error', JSON.stringify({
+          error: data?.error || 'Unknown error',
+          timestamp: Date.now()
+        }));
+      }
+    } catch (e) {
+      addDebug(`localStorage failed: ${e}`);
     }
   };
 
-  const handleSuccess = (data: { item: { id: string } }) => {
-    console.log('Pluggy connection successful:', data.item.id);
-    
-    // Notify via multiple channels for resilience
-    const successMessage = { 
-      type: 'pluggy:success', 
-      itemId: data.item.id 
-    };
-    
-    notifyParent(successMessage);
-    
-    // Also store in localStorage for fallback
+  const initiatePluggyRedirect = async () => {
+    setIsLoading(true);
+    setError(null);
+    addDebug('Fetching connect token...');
+
     try {
-      localStorage.setItem('pluggy_last_success', JSON.stringify({
-        ...successMessage,
-        timestamp: Date.now()
-      }));
-    } catch (e) {
-      console.log('localStorage not available');
+      const { data, error: fnError } = await supabase.functions.invoke('create-pluggy-token', {
+        body: { 
+          companyId: companyId || undefined,
+          origin: window.location.origin
+        }
+      });
+      
+      if (fnError) {
+        throw new Error(fnError.message || 'Failed to create connect token');
+      }
+      
+      if (!data?.accessToken) {
+        throw new Error('No access token received from server');
+      }
+
+      addDebug('Token received, preparing redirect...');
+
+      // Build the Pluggy Connect URL with redirect
+      const redirectUri = `${window.location.origin}/pluggy/oauth/callback`;
+      const pluggyConnectUrl = new URL('https://connect.pluggy.ai');
+      pluggyConnectUrl.searchParams.set('connect_token', data.accessToken);
+      pluggyConnectUrl.searchParams.set('redirect_uri', redirectUri);
+      
+      // Optional: include sandbox mode
+      if (includeSandbox) {
+        pluggyConnectUrl.searchParams.set('include_sandbox', 'true');
+      }
+      
+      // Optional: pre-fill CNPJ for companies
+      if (cnpj) {
+        pluggyConnectUrl.searchParams.set('cpf_cnpj', cnpj.replace(/\D/g, ''));
+      }
+      
+      addDebug(`Redirect URI: ${redirectUri}`);
+      addDebug(`Redirecting to Pluggy Connect...`);
+
+      // Redirect this popup window directly to Pluggy
+      window.location.href = pluggyConnectUrl.toString();
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao conectar';
+      setError(errorMessage);
+      addDebug(`Error: ${errorMessage}`);
+      notifyParent('pluggy:error', { error: errorMessage });
+      setIsLoading(false);
     }
-    
-    // Close this popup
-    window.close();
   };
 
-  const handleError = (error: { message?: string; code?: string }) => {
-    console.error('Pluggy connection error:', error);
+  useEffect(() => {
+    addDebug(`Popup initialized at ${window.location.origin}`);
+    addDebug(`Opener present: ${!!window.opener}`);
     
-    notifyParent({ 
-      type: 'pluggy:error', 
-      error: error.message || 'Connection failed' 
-    });
-  };
+    // Small delay to ensure the popup is fully rendered
+    const timer = setTimeout(() => {
+      initiatePluggyRedirect();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleClose = () => {
-    console.log('Pluggy widget closed');
-    
-    notifyParent({ type: 'pluggy:close' });
-    
-    // Close this popup
+    notifyParent('pluggy:close');
     window.close();
   };
 
-  const handleOpenInNewWindow = () => {
-    // Open the same URL in a new window (outside iframe)
-    const newWindow = window.open(
-      window.location.href,
-      'PluggyConnect',
-      'width=500,height=700,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
-    );
-    newWindow?.focus();
+  const handleRetry = () => {
+    setError(null);
+    initiatePluggyRedirect();
   };
-
-  // If we're in an iframe, show escape UI
-  if (isInIframe) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <div className="text-center max-w-md">
-          <ExternalLink className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            Abrir em nova janela
-          </h2>
-          <p className="text-muted-foreground mb-4">
-            Por segurança, a conexão bancária precisa ser aberta em uma janela separada.
-          </p>
-          <button 
-            onClick={handleOpenInNewWindow}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 font-medium"
-          >
-            Abrir conexão segura
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Preparando conexão segura...</p>
-      </div>
-    );
-  }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <div className="text-center max-w-md">
-          <h2 className="text-lg font-semibold text-destructive mb-2">Erro ao conectar</h2>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <button 
-            onClick={() => window.close()}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            Fechar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!connectToken) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <p className="text-muted-foreground">Token não disponível</p>
-        <button 
-          onClick={() => window.close()}
-          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-        >
-          Fechar
-        </button>
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 p-3 rounded-full bg-destructive/10">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle>Erro na conexão</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button onClick={handleRetry} className="w-full" variant="default">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Tentar novamente
+            </Button>
+            <Button onClick={handleClose} variant="outline" className="w-full">
+              Fechar
+            </Button>
+            
+            {showDebug && (
+              <div className="mt-4 p-3 bg-muted rounded-md text-xs font-mono max-h-40 overflow-y-auto">
+                {debugInfo.map((log, i) => (
+                  <div key={i} className="text-muted-foreground">{log}</div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <PluggyConnect
-        connectToken={connectToken}
-        includeSandbox={includeSandbox}
-        updateItem={undefined}
-        onSuccess={handleSuccess}
-        onError={handleError}
-        onClose={handleClose}
-        language="pt"
-        // Force OAuth to open in system browser instead of webview/iframe
-        forceOauthInBrowser={true}
-        // Pass CNPJ for pre-filling if available (for companies/PJ)
-        {...(cnpj ? { openFinanceParameters: { cnpj: cnpj.replace(/\D/g, '') } } : {})}
-      />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+          <CardTitle>Conectando ao Open Finance</CardTitle>
+          <CardDescription>
+            Você será redirecionado para a página segura do Pluggy...
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <ExternalLink className="h-4 w-4" />
+            <span>Abrindo conexão segura</span>
+          </div>
+          
+          <Button onClick={handleClose} variant="ghost" size="sm">
+            Cancelar
+          </Button>
+
+          {showDebug && (
+            <div className="mt-4 p-3 bg-muted rounded-md text-xs font-mono max-h-40 overflow-y-auto text-left">
+              {debugInfo.map((log, i) => (
+                <div key={i} className="text-muted-foreground">{log}</div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
