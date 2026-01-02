@@ -122,3 +122,9 @@ verify_jwt = true
 
 [functions.plugbank-consent-callback]
 verify_jwt = false
+
+[functions.pluggy-create-connect-token]
+verify_jwt = true
+
+[functions.pluggy-webhook]
+verify_jwt = false
