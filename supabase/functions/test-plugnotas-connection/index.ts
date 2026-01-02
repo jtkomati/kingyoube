@@ -31,9 +31,8 @@ Deno.serve(async (req) => {
       ? 'https://api.plugnotas.com.br'
       : 'https://api.sandbox.plugnotas.com.br'
 
-    // Test connection using municipios endpoint (lightweight, validates auth)
-    // Using Maringá (4115200) as test - TecnoSpeed headquarters
-    const testUrl = `${baseUrl}/nfse/municipios?codigoIbge=4115200`
+    // Test connection using /empresa endpoint - more reliable for auth validation
+    const testUrl = `${baseUrl}/empresa`
     
     console.log('Testing URL:', testUrl)
 
@@ -53,12 +52,20 @@ Deno.serve(async (req) => {
     let errorMessage = null
 
     if (response.ok) {
+      // 200 - Authentication successful
       newStatus = 'connected'
       console.log('Connection successful!')
-    } else if (response.status === 401) {
+    } else if (response.status === 401 || response.status === 403) {
+      // 401/403 - Invalid or expired token
       newStatus = 'error'
-      errorMessage = 'Token inválido ou expirado'
+      const envName = environment === 'PRODUCTION' ? 'produção' : 'sandbox'
+      errorMessage = `Token inválido para ambiente de ${envName}. Acesse app2.plugnotas.com.br para gerar um novo token.`
       console.log('Authentication failed')
+    } else if (response.status === 404) {
+      // 404 on /empresa likely means auth succeeded but no companies registered
+      // This is still a successful connection
+      newStatus = 'connected'
+      console.log('Connection successful (no companies registered)')
     } else {
       newStatus = 'error'
       errorMessage = `Erro ${response.status}: ${responseText}`
