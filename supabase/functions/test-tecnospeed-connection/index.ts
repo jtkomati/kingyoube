@@ -14,6 +14,7 @@ interface TestResult {
   response?: unknown;
   error?: string;
   latencyMs: number;
+  errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
 }
 
 // Get base URL based on environment
@@ -33,6 +34,57 @@ serve(async (req) => {
   const results: TestResult[] = [];
   
   try {
+    // Parse request body for optional payerCpfCnpj
+    let payerCpfCnpj: string | null = null;
+    let companyCnpj: string | null = null;
+    
+    try {
+      const body = await req.json();
+      payerCpfCnpj = body?.payerCpfCnpj || null;
+    } catch {
+      // No body or invalid JSON, that's ok
+    }
+    
+    // Try to get company CNPJ from user's profile if authenticated
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader && !payerCpfCnpj) {
+      try {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user?.id) {
+          // Get user's company CNPJ
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', userData.user.id)
+            .single();
+          
+          if (profile?.company_id) {
+            const { data: company } = await supabase
+              .from('company_settings')
+              .select('cnpj, plugbank_payer_id')
+              .eq('id', profile.company_id)
+              .single();
+            
+            if (company?.cnpj) {
+              companyCnpj = company.cnpj.replace(/\D/g, '');
+              console.log('Found company CNPJ:', companyCnpj ? companyCnpj.substring(0, 4) + '...' : 'N/A');
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Could not fetch company CNPJ:', e);
+      }
+    }
+    
+    // Use provided payerCpfCnpj or company CNPJ
+    const effectivePayerCnpj = payerCpfCnpj?.replace(/\D/g, '') || companyCnpj;
+    
     // Get credentials from environment - same as other plugbank functions
     const TOKEN = Deno.env.get('TECNOSPEED_TOKEN');
     const CNPJ_SH = Deno.env.get('TECNOSPEED_CNPJ_SOFTWAREHOUSE');
@@ -44,6 +96,7 @@ serve(async (req) => {
     console.log('Token length:', TOKEN?.length ?? 0);
     console.log('CNPJ_SH configured:', !!CNPJ_SH);
     console.log('CNPJ_SH value:', CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : 'N/A');
+    console.log('Effective Payer CNPJ:', effectivePayerCnpj ? `${effectivePayerCnpj.substring(0, 4)}...` : 'Not available');
     
     if (!TOKEN || !CNPJ_SH) {
       const missingSecrets: string[] = [];
@@ -85,11 +138,22 @@ serve(async (req) => {
       'tokensh': TOKEN,
     };
 
-    // Endpoints to test
-    const endpoints = [
-      { path: '/payer', method: 'GET', name: 'Listar Pagadores' },
-      { path: '/account', method: 'GET', name: 'Listar Contas' },
-    ];
+    // Build endpoints to test - include payercpfcnpj if available
+    const endpoints: Array<{ path: string; method: string; name: string }> = [];
+    
+    if (effectivePayerCnpj) {
+      // If we have payer CNPJ, use it in the query
+      endpoints.push({ 
+        path: `/payer?payercpfcnpj=${effectivePayerCnpj}`, 
+        method: 'GET', 
+        name: 'Buscar Pagador por CNPJ' 
+      });
+    } else {
+      // Without payer CNPJ, we'll get a 422 - but we can still test connectivity
+      endpoints.push({ path: '/payer', method: 'GET', name: 'Listar Pagadores (sem CNPJ)' });
+    }
+    
+    endpoints.push({ path: '/account', method: 'GET', name: 'Listar Contas' });
 
     // Test each endpoint
     for (const endpoint of endpoints) {
@@ -124,9 +188,25 @@ serve(async (req) => {
           }
         }
 
-        // Consider 2xx and some 4xx as "connection working" (auth might be the issue, not connectivity)
-        const connectionWorks = response.status !== 0;
-        const authWorks = response.status >= 200 && response.status < 300;
+        // Classify error types properly
+        let errorType: TestResult['errorType'] = undefined;
+        const status = response.status;
+        
+        if (status === 0) {
+          errorType = 'network';
+        } else if (status === 401 || status === 403) {
+          errorType = 'auth';
+        } else if (status === 422) {
+          errorType = 'validation';
+        } else if (status === 404) {
+          errorType = 'not_found';
+        } else if (status >= 500) {
+          errorType = 'server';
+        }
+
+        const authWorks = status >= 200 && status < 300;
+        // Consider 404 and 422 as "credentials work but resource/params missing"
+        const credentialsOk = authWorks || status === 404 || status === 422;
 
         const result: TestResult = {
           method: `${endpoint.method} ${endpoint.name}`,
@@ -134,15 +214,21 @@ serve(async (req) => {
           status: response.status,
           success: authWorks,
           response: responseBody,
-          latencyMs
+          latencyMs,
+          errorType
         };
 
         results.push(result);
         
-        console.log(`Result: ${response.status} - ${authWorks ? 'SUCCESS' : connectionWorks ? 'AUTH ERROR' : 'FAILED'}`);
+        const statusLabel = authWorks ? 'SUCCESS' : 
+                           credentialsOk ? 'VALIDATION/NOT_FOUND' : 
+                           status === 401 || status === 403 ? 'AUTH_ERROR' : 'FAILED';
+        console.log(`Result: ${response.status} - ${statusLabel}`);
         
         if (authWorks) {
           console.log('✅ ENDPOINT WORKING!');
+        } else if (credentialsOk) {
+          console.log('⚠️ Credentials seem OK, but endpoint returned:', status);
         }
       } catch (error) {
         const latencyMs = Date.now() - testStart;
@@ -154,49 +240,85 @@ serve(async (req) => {
           status: 0,
           success: false,
           error: errorMessage,
-          latencyMs
+          latencyMs,
+          errorType: 'network'
         });
         console.log(`Error: ${errorMessage}`);
       }
     }
 
-    // Analyze results
+    // Analyze results with proper classification
     const successfulTests = results.filter(r => r.success);
-    const authErrors = results.filter(r => r.status === 401 || r.status === 403 || r.status === 422);
-    const networkErrors = results.filter(r => r.status === 0);
-    const serverErrors = results.filter(r => r.status >= 500);
+    const authErrors = results.filter(r => r.errorType === 'auth'); // Only 401/403
+    const validationErrors = results.filter(r => r.errorType === 'validation'); // 422
+    const notFoundErrors = results.filter(r => r.errorType === 'not_found'); // 404
+    const networkErrors = results.filter(r => r.errorType === 'network');
+    const serverErrors = results.filter(r => r.errorType === 'server');
 
     // Generate recommendations
     const recommendations: string[] = [];
     
     if (!cnpjValid) {
-      recommendations.push(`❌ CNPJ inválido: esperado 14 dígitos, encontrado ${cnpjClean.length}`);
+      recommendations.push(`❌ CNPJ da Software House inválido: esperado 14 dígitos, encontrado ${cnpjClean.length}`);
       recommendations.push('O CNPJ deve conter apenas números (sem pontos, barras ou traços)');
     }
     
     if (successfulTests.length > 0) {
-      recommendations.push(`✅ Conexão funcionando! ${successfulTests.length} endpoint(s) respondendo`);
+      recommendations.push(`✅ Conexão e credenciais funcionando! ${successfulTests.length} endpoint(s) respondendo`);
     } else if (networkErrors.length === results.length) {
       recommendations.push('❌ Erro de rede - não foi possível conectar à API TecnoSpeed');
       recommendations.push('Verifique se a URL está correta: ' + baseUrl);
     } else if (authErrors.length > 0) {
-      recommendations.push('⚠️ Credenciais podem estar inválidas');
-      recommendations.push('Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE');
+      // Real auth errors (401/403)
+      recommendations.push('❌ Credenciais inválidas (401/403)');
+      recommendations.push('Atualize TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE no Lovable Cloud');
       
-      // Check for specific error messages
       const firstAuthError = authErrors[0];
       if (firstAuthError.response && typeof firstAuthError.response === 'object') {
         const resp = firstAuthError.response as Record<string, unknown>;
         if (resp.message) {
           recommendations.push(`Mensagem da API: ${resp.message}`);
         }
-        if (resp.error) {
-          recommendations.push(`Erro: ${resp.error}`);
+      }
+      console.log('Auth error details:', JSON.stringify(authErrors[0], null, 2));
+    } else if (validationErrors.length > 0) {
+      // 422 - Validation errors (missing params, not auth issues)
+      const firstValidationError = validationErrors[0];
+      let specificMessage = '';
+      
+      if (firstValidationError.response && typeof firstValidationError.response === 'object') {
+        const resp = firstValidationError.response as Record<string, unknown>;
+        const errors = resp.errors as Array<{ message?: string }> | undefined;
+        
+        if (errors && errors.length > 0 && errors[0].message) {
+          specificMessage = errors[0].message;
+        } else if (resp.message) {
+          specificMessage = String(resp.message);
         }
       }
       
-      // Log detailed error info
-      console.log('Auth error details:', JSON.stringify(authErrors[0], null, 2));
+      if (specificMessage.toLowerCase().includes('payercpfcnpj')) {
+        recommendations.push('⚠️ Credenciais parecem OK, mas falta o CNPJ do pagador (empresa)');
+        if (!effectivePayerCnpj) {
+          recommendations.push('💡 Cadastre o CNPJ da empresa em Configurações da Empresa');
+          recommendations.push('Ou informe o CNPJ no campo de diagnóstico acima');
+        }
+      } else {
+        recommendations.push('⚠️ Erro de validação (422) - parâmetro obrigatório ausente');
+        if (specificMessage) {
+          recommendations.push(`Detalhe: ${specificMessage}`);
+        }
+      }
+      
+      // This is NOT an auth error
+      recommendations.push('ℹ️ As credenciais (TOKEN e CNPJ_SH) parecem estar corretas');
+      
+      console.log('Validation error details:', JSON.stringify(validationErrors[0], null, 2));
+    } else if (notFoundErrors.length > 0) {
+      // 404 - Resource not found but auth passed
+      recommendations.push('✅ Credenciais OK - autenticação passou');
+      recommendations.push('⚠️ Recurso não encontrado (404)');
+      recommendations.push('💡 Próximo passo: cadastrar pagador/conta no sistema');
     } else if (serverErrors.length > 0) {
       recommendations.push('⚠️ Servidor TecnoSpeed retornando erros 5xx');
       recommendations.push('Pode ser um problema temporário - tente novamente');
@@ -205,7 +327,6 @@ serve(async (req) => {
     const totalTime = Date.now() - startTime;
 
     // Log to Supabase if user is authenticated
-    const authHeader = req.headers.get('Authorization');
     if (authHeader) {
       try {
         const supabase = createClient(
@@ -223,7 +344,9 @@ serve(async (req) => {
             totalTests: results.length,
             successfulTests: successfulTests.length,
             authErrors: authErrors.length,
-            totalTimeMs: totalTime
+            validationErrors: validationErrors.length,
+            totalTimeMs: totalTime,
+            hasPayerCnpj: !!effectivePayerCnpj
           })
         });
       } catch (logError) {
@@ -231,14 +354,22 @@ serve(async (req) => {
       }
     }
 
+    // Determine overall success - consider validation errors as "credentials OK but missing data"
+    const credentialsWork = successfulTests.length > 0 || validationErrors.length > 0 || notFoundErrors.length > 0;
+    const hasAuthIssues = authErrors.length > 0;
+
     return new Response(JSON.stringify({
       success: successfulTests.length > 0,
+      credentialsOk: credentialsWork && !hasAuthIssues,
       environment: env,
       baseUrl,
+      payerCnpjUsed: effectivePayerCnpj ? `${effectivePayerCnpj.substring(0, 4)}...` : null,
       summary: {
         totalTests: results.length,
         successful: successfulTests.length,
         authErrors: authErrors.length,
+        validationErrors: validationErrors.length,
+        notFoundErrors: notFoundErrors.length,
         networkErrors: networkErrors.length,
         serverErrors: serverErrors.length,
         totalTimeMs: totalTime

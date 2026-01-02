@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -16,7 +18,8 @@ import {
   Wifi,
   Key,
   Server,
-  Clock
+  Clock,
+  Building2
 } from "lucide-react";
 
 interface TestResult {
@@ -27,16 +30,21 @@ interface TestResult {
   response?: unknown;
   error?: string;
   latencyMs: number;
+  errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
 }
 
 interface DiagnosticsResult {
   success: boolean;
+  credentialsOk?: boolean;
+  payerCnpjUsed?: string | null;
   summary?: {
     totalTests: number;
     successful: number;
     authErrors: number;
-    notFound: number;
+    validationErrors: number;
+    notFoundErrors: number;
     networkErrors: number;
+    serverErrors: number;
     totalTimeMs: number;
   };
   workingMethod?: {
@@ -59,6 +67,7 @@ export function TecnoSpeedDiagnostics() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<DiagnosticsResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [payerCpfCnpj, setPayerCpfCnpj] = useState("");
 
   const runDiagnostics = async () => {
     setIsLoading(true);
@@ -67,7 +76,11 @@ export function TecnoSpeedDiagnostics() {
     try {
       toast.info("Executando diagnóstico da conexão TecnoSpeed...");
       
-      const { data, error } = await supabase.functions.invoke('test-tecnospeed-connection');
+      const body = payerCpfCnpj.trim() ? { payerCpfCnpj: payerCpfCnpj.trim() } : undefined;
+      
+      const { data, error } = await supabase.functions.invoke('test-tecnospeed-connection', {
+        body
+      });
       
       if (error) {
         throw error;
@@ -77,6 +90,8 @@ export function TecnoSpeedDiagnostics() {
       
       if (data?.success) {
         toast.success("Conexão com TecnoSpeed funcionando!");
+      } else if (data?.credentialsOk) {
+        toast.info("Credenciais OK - verifique os dados da empresa");
       } else {
         toast.warning("Diagnóstico concluído - verifique os resultados");
       }
@@ -100,13 +115,30 @@ export function TecnoSpeedDiagnostics() {
     );
   };
 
-  const getStatusBadge = (status: number) => {
+  const getStatusBadge = (status: number, errorType?: string) => {
     if (status === 0) return <Badge variant="outline">Erro de Rede</Badge>;
     if (status >= 200 && status < 300) return <Badge className="bg-green-500">OK</Badge>;
     if (status === 401 || status === 403) return <Badge variant="destructive">Auth Inválido</Badge>;
+    if (status === 422) return <Badge variant="outline" className="border-amber-500 text-amber-600">Parâmetro Obrigatório</Badge>;
     if (status === 404) return <Badge variant="secondary">Não Encontrado</Badge>;
+    if (status >= 500) return <Badge variant="destructive">Erro Servidor</Badge>;
     return <Badge variant="outline">{status}</Badge>;
   };
+
+  // Determine overall status color/icon
+  const getOverallStatus = () => {
+    if (!result) return null;
+    
+    if (result.success) {
+      return { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', title: 'Conexão Funcionando', variant: 'default' as const };
+    }
+    if (result.credentialsOk) {
+      return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Credenciais OK - Dados Pendentes', variant: 'default' as const };
+    }
+    return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Problemas Detectados', variant: 'destructive' as const };
+  };
+
+  const overallStatus = getOverallStatus();
 
   return (
     <Card>
@@ -144,26 +176,52 @@ export function TecnoSpeedDiagnostics() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Campo opcional de CNPJ do pagador */}
+        <div className="p-4 rounded-lg border bg-muted/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="payerCnpj" className="text-sm font-medium">
+              CNPJ do Pagador (Empresa) - Opcional
+            </Label>
+          </div>
+          <Input
+            id="payerCnpj"
+            placeholder="00.000.000/0001-00 ou apenas números"
+            value={payerCpfCnpj}
+            onChange={(e) => setPayerCpfCnpj(e.target.value)}
+            className="max-w-xs"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Se não informado, será buscado das configurações da empresa
+          </p>
+        </div>
+
         {result && (
           <>
             {/* Status Geral */}
-            <Alert variant={result.success ? "default" : "destructive"}>
-              <div className="flex items-center gap-2">
-                {result.success ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                ) : (
-                  <AlertTriangle className="h-5 w-5" />
-                )}
-                <AlertTitle>
-                  {result.success ? "Conexão Funcionando" : "Problemas Detectados"}
-                </AlertTitle>
+            {overallStatus && (
+              <Alert variant={overallStatus.variant} className={overallStatus.bg}>
+                <div className="flex items-center gap-2">
+                  <overallStatus.icon className={`h-5 w-5 ${overallStatus.color}`} />
+                  <AlertTitle>{overallStatus.title}</AlertTitle>
+                </div>
+                <AlertDescription className="mt-2">
+                  {result.success 
+                    ? `Método funcional: ${result.workingMethod?.method}` 
+                    : result.credentialsOk
+                    ? "As credenciais estão funcionando. Verifique se o CNPJ do pagador está cadastrado."
+                    : result.error || "Verifique as recomendações abaixo"}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* CNPJ do Pagador usado */}
+            {result.payerCnpjUsed && (
+              <div className="flex items-center gap-2 p-2 rounded bg-muted/50 text-sm">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <span>CNPJ do pagador utilizado: {result.payerCnpjUsed}</span>
               </div>
-              <AlertDescription className="mt-2">
-                {result.success 
-                  ? `Método funcional: ${result.workingMethod?.method}` 
-                  : result.error || "Verifique as recomendações abaixo"}
-              </AlertDescription>
-            </Alert>
+            )}
 
             {/* Credenciais */}
             {result.credentials && (
@@ -197,26 +255,31 @@ export function TecnoSpeedDiagnostics() {
 
             {/* Resumo */}
             {result.summary && (
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-3">
                 <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <Server className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-2xl font-bold">{result.summary.totalTests}</p>
+                  <Server className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                  <p className="text-xl font-bold">{result.summary.totalTests}</p>
                   <p className="text-xs text-muted-foreground">Testes</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-green-500/10">
-                  <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
-                  <p className="text-2xl font-bold text-green-600">{result.summary.successful}</p>
+                  <CheckCircle2 className="h-4 w-4 mx-auto mb-1 text-green-500" />
+                  <p className="text-xl font-bold text-green-600">{result.summary.successful}</p>
                   <p className="text-xs text-muted-foreground">Sucesso</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-destructive/10">
-                  <XCircle className="h-5 w-5 mx-auto mb-1 text-destructive" />
-                  <p className="text-2xl font-bold text-destructive">{result.summary.authErrors}</p>
-                  <p className="text-xs text-muted-foreground">Auth Errors</p>
+                  <XCircle className="h-4 w-4 mx-auto mb-1 text-destructive" />
+                  <p className="text-xl font-bold text-destructive">{result.summary.authErrors}</p>
+                  <p className="text-xs text-muted-foreground">Auth Erro</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                  <p className="text-xl font-bold text-amber-600">{result.summary.validationErrors}</p>
+                  <p className="text-xs text-muted-foreground">Validação</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-2xl font-bold">{result.summary.totalTimeMs}ms</p>
-                  <p className="text-xs text-muted-foreground">Tempo Total</p>
+                  <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                  <p className="text-xl font-bold">{result.summary.totalTimeMs}ms</p>
+                  <p className="text-xs text-muted-foreground">Tempo</p>
                 </div>
               </div>
             )}
@@ -265,12 +328,18 @@ export function TecnoSpeedDiagnostics() {
                     {result.results.map((test, idx) => (
                       <div 
                         key={idx} 
-                        className={`p-3 rounded-lg border ${test.success ? 'border-green-500/50 bg-green-500/5' : 'border-border'}`}
+                        className={`p-3 rounded-lg border ${
+                          test.success 
+                            ? 'border-green-500/50 bg-green-500/5' 
+                            : test.errorType === 'validation'
+                            ? 'border-amber-500/50 bg-amber-500/5'
+                            : 'border-border'
+                        }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-medium">{test.method}</span>
                           <div className="flex items-center gap-2">
-                            {getStatusBadge(test.status)}
+                            {getStatusBadge(test.status, test.errorType)}
                             <span className="text-xs text-muted-foreground">{test.latencyMs}ms</span>
                           </div>
                         </div>
@@ -291,7 +360,7 @@ export function TecnoSpeedDiagnostics() {
           <div className="text-center py-8 text-muted-foreground">
             <Wifi className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Clique em "Executar Diagnóstico" para testar a conexão</p>
-            <p className="text-sm mt-1">O teste verificará diferentes métodos de autenticação e endpoints</p>
+            <p className="text-sm mt-1">O teste verificará credenciais e conectividade com a API TecnoSpeed</p>
           </div>
         )}
       </CardContent>
