@@ -16,6 +16,14 @@ interface TestResult {
   latencyMs: number;
 }
 
+// Get base URL based on environment
+function getBaseUrl(): string {
+  const env = Deno.env.get('TECNOSPEED_ENVIRONMENT') || 'staging';
+  return env === 'production' 
+    ? 'https://api.pagamentobancario.com.br/api/v1'
+    : 'https://staging.pagamentobancario.com.br/api/v1';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,174 +33,152 @@ serve(async (req) => {
   const results: TestResult[] = [];
   
   try {
-    // Get credentials from environment
-    const token = Deno.env.get('TECNOSPEED_TOKEN');
-    const loginAuth = Deno.env.get('TECNOSPEED_LOGIN_AUTH');
+    // Get credentials from environment - same as other plugbank functions
+    const TOKEN = Deno.env.get('TECNOSPEED_TOKEN');
+    const CNPJ_SH = Deno.env.get('TECNOSPEED_CNPJ_SOFTWAREHOUSE');
+    const env = Deno.env.get('TECNOSPEED_ENVIRONMENT') || 'staging';
     
     console.log('=== TecnoSpeed Connection Test ===');
-    console.log('Token configured:', !!token);
-    console.log('LoginAuth configured:', !!loginAuth);
+    console.log('Environment:', env);
+    console.log('Token configured:', !!TOKEN);
+    console.log('Token length:', TOKEN?.length ?? 0);
+    console.log('CNPJ_SH configured:', !!CNPJ_SH);
+    console.log('CNPJ_SH value:', CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : 'N/A');
     
-    if (!token || !loginAuth) {
+    if (!TOKEN || !CNPJ_SH) {
+      const missingSecrets: string[] = [];
+      if (!TOKEN) missingSecrets.push('TECNOSPEED_TOKEN');
+      if (!CNPJ_SH) missingSecrets.push('TECNOSPEED_CNPJ_SOFTWAREHOUSE');
+      
       return new Response(JSON.stringify({
         success: false,
         error: 'Credenciais não configuradas',
         details: {
-          tokenConfigured: !!token,
-          loginAuthConfigured: !!loginAuth
+          tokenConfigured: !!TOKEN,
+          cnpjShConfigured: !!CNPJ_SH,
+          missingSecrets
         },
-        recommendations: [
-          'Configure TECNOSPEED_TOKEN nas secrets do Supabase',
-          'Configure TECNOSPEED_LOGIN_AUTH nas secrets do Supabase'
-        ]
+        recommendations: missingSecrets.map(s => `Configure ${s} nas secrets do Supabase`)
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Environment detection
-    const isProduction = Deno.env.get('TECNOSPEED_ENVIRONMENT') === 'production';
-    
-    // Base URLs to test - TecnoSpeed official endpoints
-    const baseUrls = isProduction ? [
-      'https://api.openfinance.tecnospeed.com.br',
-      'https://openfinance.tecnospeed.com.br',
-    ] : [
-      'https://api.sandbox.openfinance.tecnospeed.com.br',
-      'https://sandbox.openfinance.tecnospeed.com.br',
-      'https://api.openfinance.tecnospeed.com.br', // fallback to production for testing
-    ];
+    const baseUrl = getBaseUrl();
+    console.log('Base URL:', baseUrl);
 
-    // Auth methods to test
-    const authMethods: Array<{ name: string; headers: Record<string, string> }> = [
-      {
-        name: 'Bearer + LoginAuth Header',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'LoginAuth': loginAuth,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      },
-      {
-        name: 'Basic Auth (cnpj:token)',
-        headers: {
-          'Authorization': `Basic ${btoa(`${loginAuth}:${token}`)}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      },
-      {
-        name: 'Token Header Only',
-        headers: {
-          'Token': token,
-          'CNPJ': loginAuth,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      }
-    ];
+    // Standard headers - same as other plugbank functions
+    const standardHeaders = {
+      'Content-Type': 'application/json',
+      'cnpjsh': CNPJ_SH,
+      'tokensh': TOKEN,
+    };
 
     // Endpoints to test
     const endpoints = [
-      '/v1/status',
-      '/v1/health',
-      '/status',
-      '/health'
+      { path: '/payer', method: 'GET', name: 'Listar Pagadores' },
+      { path: '/account', method: 'GET', name: 'Listar Contas' },
     ];
 
-    // Test each combination (limited to avoid too many requests)
-    for (const baseUrl of baseUrls) {
-      for (const endpoint of endpoints.slice(0, 3)) {
-        for (const auth of authMethods.slice(0, 2)) {
-          const url = `${baseUrl}${endpoint}`;
-          const testStart = Date.now();
-          
+    // Test each endpoint
+    for (const endpoint of endpoints) {
+      const url = `${baseUrl}${endpoint.path}`;
+      const testStart = Date.now();
+      
+      try {
+        console.log(`Testing: ${endpoint.name} -> ${endpoint.method} ${url}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+        
+        const response = await fetch(url, {
+          method: endpoint.method,
+          headers: standardHeaders,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
+        const latencyMs = Date.now() - testStart;
+        let responseBody: unknown;
+        
+        const responseClone = response.clone();
+        try {
+          responseBody = await response.json();
+        } catch {
           try {
-            console.log(`Testing: ${auth.name} -> ${url}`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-            
-            const response = await fetch(url, {
-              method: 'GET',
-              headers: auth.headers,
-              signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-
-            const latencyMs = Date.now() - testStart;
-            let responseBody: unknown;
-            
-            // Clone response before reading body to avoid "Body already consumed" error
-            const responseClone = response.clone();
-            try {
-              responseBody = await response.json();
-            } catch {
-              try {
-                responseBody = await responseClone.text();
-              } catch {
-                responseBody = 'Unable to read response body';
-              }
-            }
-
-            const result: TestResult = {
-              method: auth.name,
-              endpoint: url,
-              status: response.status,
-              success: response.ok,
-              response: responseBody,
-              latencyMs
-            };
-
-            results.push(result);
-            
-            console.log(`Result: ${response.status} - ${response.ok ? 'SUCCESS' : 'FAILED'}`);
-            
-            // If we found a working combination, log it prominently
-            if (response.ok) {
-              console.log('✅ WORKING AUTH METHOD FOUND!');
-              console.log('Method:', auth.name);
-              console.log('URL:', url);
-            }
-          } catch (error) {
-            const latencyMs = Date.now() - testStart;
-            results.push({
-              method: auth.name,
-              endpoint: url,
-              status: 0,
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
-              latencyMs
-            });
-            console.log(`Error: ${error}`);
+            responseBody = await responseClone.text();
+          } catch {
+            responseBody = 'Unable to read response body';
           }
         }
+
+        // Consider 2xx and some 4xx as "connection working" (auth might be the issue, not connectivity)
+        const connectionWorks = response.status !== 0;
+        const authWorks = response.status >= 200 && response.status < 300;
+
+        const result: TestResult = {
+          method: `${endpoint.method} ${endpoint.name}`,
+          endpoint: url,
+          status: response.status,
+          success: authWorks,
+          response: responseBody,
+          latencyMs
+        };
+
+        results.push(result);
+        
+        console.log(`Result: ${response.status} - ${authWorks ? 'SUCCESS' : connectionWorks ? 'AUTH ERROR' : 'FAILED'}`);
+        
+        if (authWorks) {
+          console.log('✅ ENDPOINT WORKING!');
+        }
+      } catch (error) {
+        const latencyMs = Date.now() - testStart;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        results.push({
+          method: `${endpoint.method} ${endpoint.name}`,
+          endpoint: url,
+          status: 0,
+          success: false,
+          error: errorMessage,
+          latencyMs
+        });
+        console.log(`Error: ${errorMessage}`);
       }
     }
 
     // Analyze results
     const successfulTests = results.filter(r => r.success);
-    const authErrors = results.filter(r => r.status === 401 || r.status === 403);
+    const authErrors = results.filter(r => r.status === 401 || r.status === 403 || r.status === 422);
     const networkErrors = results.filter(r => r.status === 0);
-    const notFoundErrors = results.filter(r => r.status === 404);
+    const serverErrors = results.filter(r => r.status >= 500);
 
     // Generate recommendations
     const recommendations: string[] = [];
     
     if (successfulTests.length > 0) {
-      recommendations.push(`Método de autenticação funcional encontrado: ${successfulTests[0].method}`);
-      recommendations.push(`Endpoint funcional: ${successfulTests[0].endpoint}`);
+      recommendations.push(`✅ Conexão funcionando! ${successfulTests.length} endpoint(s) respondendo`);
+    } else if (networkErrors.length === results.length) {
+      recommendations.push('❌ Erro de rede - não foi possível conectar à API TecnoSpeed');
+      recommendations.push('Verifique se a URL está correta: ' + baseUrl);
     } else if (authErrors.length > 0) {
-      recommendations.push('Credenciais parecem inválidas - verifique TECNOSPEED_TOKEN e TECNOSPEED_LOGIN_AUTH');
-      recommendations.push('Confirme se as credenciais são para ambiente de produção ou homologação');
-    } else if (notFoundErrors.length === results.length) {
-      recommendations.push('Nenhum endpoint encontrado - verifique a URL base da API TecnoSpeed');
-      recommendations.push('Consulte a documentação oficial em https://atendimento.tecnospeed.com.br');
-    } else if (networkErrors.length > 0) {
-      recommendations.push('Erros de rede detectados - verifique se a API está acessível');
+      recommendations.push('⚠️ Credenciais podem estar inválidas');
+      recommendations.push('Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE');
+      
+      // Check for specific error messages
+      const firstAuthError = authErrors[0];
+      if (firstAuthError.response && typeof firstAuthError.response === 'object') {
+        const resp = firstAuthError.response as Record<string, unknown>;
+        if (resp.message) {
+          recommendations.push(`Mensagem da API: ${resp.message}`);
+        }
+      }
+    } else if (serverErrors.length > 0) {
+      recommendations.push('⚠️ Servidor TecnoSpeed retornando erros 5xx');
+      recommendations.push('Pode ser um problema temporário - tente novamente');
     }
 
     const totalTime = Date.now() - startTime;
@@ -207,10 +193,12 @@ serve(async (req) => {
         );
 
         await supabase.from('audit_logs').insert({
-          user_id: '00000000-0000-0000-0000-000000000000', // System user
+          user_id: '00000000-0000-0000-0000-000000000000',
           user_role: 'SUPERADMIN',
           action: 'tecnospeed_connection_test',
           details: JSON.stringify({
+            environment: env,
+            baseUrl,
             totalTests: results.length,
             successfulTests: successfulTests.length,
             authErrors: authErrors.length,
@@ -224,26 +212,28 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: successfulTests.length > 0,
+      environment: env,
+      baseUrl,
       summary: {
         totalTests: results.length,
         successful: successfulTests.length,
         authErrors: authErrors.length,
-        notFound: notFoundErrors.length,
         networkErrors: networkErrors.length,
+        serverErrors: serverErrors.length,
         totalTimeMs: totalTime
       },
       workingMethod: successfulTests.length > 0 ? {
-        method: successfulTests[0].method,
+        method: 'Headers cnpjsh + tokensh',
         endpoint: successfulTests[0].endpoint,
         latencyMs: successfulTests[0].latencyMs
       } : null,
       recommendations,
-      results: results.slice(0, 20), // Limit results in response
+      results,
       credentials: {
-        tokenConfigured: !!token,
-        tokenLength: token?.length ?? 0,
-        loginAuthConfigured: !!loginAuth,
-        loginAuthLength: loginAuth?.length ?? 0
+        tokenConfigured: !!TOKEN,
+        tokenLength: TOKEN?.length ?? 0,
+        cnpjShConfigured: !!CNPJ_SH,
+        cnpjShPreview: CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : null
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
