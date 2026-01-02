@@ -24,7 +24,8 @@ export default function PluggyConnectPopup() {
         const { data, error: fnError } = await supabase.functions.invoke('create-pluggy-token', {
           body: { 
             companyId: companyId || undefined,
-            userId: user?.id || undefined
+            userId: user?.id || undefined,
+            origin: window.location.origin
           }
         });
 
@@ -148,6 +149,8 @@ export default function PluggyConnectPopup() {
         onError={handleError}
         onClose={handleClose}
         language="pt"
+        // Force OAuth to open in system browser instead of webview/iframe
+        forceOauthInBrowser={true}
         // Pass CNPJ for pre-filling if available (for companies/PJ)
         {...(cnpj ? { openFinanceParameters: { cnpj: cnpj.replace(/\D/g, '') } } : {})}
       />

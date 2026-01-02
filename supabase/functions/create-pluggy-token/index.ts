@@ -26,7 +26,15 @@ serve(async (req) => {
 
     // Parse request body
     const body = await req.json().catch(() => ({}));
-    const { companyId, userId, itemId } = body;
+    const { companyId, userId, itemId, origin: clientOrigin } = body;
+
+    // Determine origin for OAuth redirect
+    const headerOrigin = req.headers.get('origin');
+    const origin = clientOrigin || headerOrigin || 'https://preview--kingyoube.lovable.app';
+    const oauthRedirectUri = `${origin}/pluggy/oauth/callback`;
+    
+    console.log('Using origin:', origin);
+    console.log('OAuth redirect URI:', oauthRedirectUri);
 
     // Step 1: Get API Key (access token)
     console.log('Requesting Pluggy API key...');
@@ -52,20 +60,26 @@ serve(async (req) => {
     const apiKey = authData.apiKey;
     console.log('Pluggy API key obtained successfully');
 
-    // Step 2: Create Connect Token with proper options
-    const connectTokenPayload: Record<string, unknown> = {
-      // Webhook URL to receive item updates
+    // Step 2: Create Connect Token with options including oauthRedirectUri
+    const options: Record<string, unknown> = {
       webhookUrl: `${SUPABASE_URL}/functions/v1/pluggy-webhook`,
+      oauthRedirectUri: oauthRedirectUri,
+      avoidDuplicates: true,
     };
     
-    // Add clientUserId for tracking (helps with avoiding duplicates)
+    // Add clientUserId for tracking
     if (companyId && userId) {
-      connectTokenPayload.clientUserId = `${companyId}:${userId}`;
+      options.clientUserId = `${companyId}:${userId}`;
     } else if (companyId) {
-      connectTokenPayload.clientUserId = companyId;
+      options.clientUserId = companyId;
     }
 
-    // If updating an existing item, include the itemId
+    // Build the payload with proper structure
+    const connectTokenPayload: Record<string, unknown> = {
+      options: options,
+    };
+
+    // If updating an existing item, include the itemId at root level
     if (itemId) {
       connectTokenPayload.itemId = itemId;
     }
@@ -91,9 +105,8 @@ serve(async (req) => {
     }
 
     const connectData = await connectResponse.json();
-    console.log('Connect token created successfully');
+    console.log('Connect token created successfully with oauthRedirectUri:', oauthRedirectUri);
 
-    // Only return the accessToken (don't expose apiKey to frontend)
     return new Response(
       JSON.stringify({ 
         accessToken: connectData.accessToken
