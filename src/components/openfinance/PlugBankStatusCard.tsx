@@ -56,7 +56,16 @@ export const PlugBankStatusCard = ({
         onRegistered?.(data.payerId);
       }
     } catch (error: any) {
-      toast.error(error.message || "Erro ao registrar empresa");
+      console.error("PlugBank registration error:", error);
+      
+      const errorMessage = error.message || "Erro desconhecido";
+      if (errorMessage.includes("404") || errorMessage.includes("não encontrada")) {
+        toast.error("Erro de configuração: API PlugBank não disponível. Verifique a URL da API e credenciais com a TecnoSpeed.");
+      } else if (errorMessage.includes("401") || errorMessage.includes("Token inválido")) {
+        toast.error("Credenciais inválidas. Verifique o token e CNPJ da Software House com a TecnoSpeed.");
+      } else {
+        toast.error(`Erro ao registrar: ${errorMessage}`);
+      }
     } finally {
       setIsLoading(false);
     }
