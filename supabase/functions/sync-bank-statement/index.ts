@@ -256,17 +256,31 @@ serve(async (req) => {
     const endDateParam = end_date || new Date().toISOString().split('T')[0];
 
     // TecnoSpeed Open Finance API call
+    const isProduction = Deno.env.get('TECNOSPEED_ENVIRONMENT') === 'production';
+    const baseUrl = isProduction 
+      ? 'https://api.openfinance.tecnospeed.com.br'
+      : 'https://api.sandbox.openfinance.tecnospeed.com.br';
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    
+    console.log(`Calling TecnoSpeed API: ${baseUrl}/v1/extrato/${accountHash}`);
+    
     const tecnospeedResponse = await fetch(
-      `https://openfinance.tecnospeed.com.br/api/v1/extrato/${accountHash}?dataInicio=${startDateParam}&dataFim=${endDateParam}`,
+      `${baseUrl}/v1/extrato/${accountHash}?dataInicio=${startDateParam}&dataFim=${endDateParam}`,
       {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${TECNOSPEED_TOKEN}`,
           'LoginAuth': TECNOSPEED_LOGIN_AUTH,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
+        signal: controller.signal
       }
     );
+    
+    clearTimeout(timeoutId);
 
     if (!tecnospeedResponse.ok) {
       const errorText = await tecnospeedResponse.text();
