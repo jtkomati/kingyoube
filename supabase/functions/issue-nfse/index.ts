@@ -554,7 +554,8 @@ Deno.serve(async (req) => {
       integrationUsed = 'PLUGNOTAS'
       
       // Update transaction with existing data
-      await supabase
+      console.log('📝 Atualizando transação (409 - já emitida):', transaction_id)
+      const { error: update409Error, data: update409Data } = await supabase
         .from('transactions')
         .update({
           invoice_number: invoiceNumber,
@@ -565,6 +566,15 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', transaction_id)
+        .select('id')
+      
+      if (update409Error) {
+        console.error('❌ Erro ao atualizar transação (409):', update409Error)
+      } else if (!update409Data || update409Data.length === 0) {
+        console.error('⚠️ UPDATE (409) não afetou nenhuma linha! transaction_id:', transaction_id)
+      } else {
+        console.log('✅ Transação atualizada com sucesso (409). Linhas afetadas:', update409Data.length)
+      }
       
       return new Response(
         JSON.stringify({
@@ -654,7 +664,10 @@ Deno.serve(async (req) => {
     }
 
     // 7. Atualizar transação com dados da NF
-    const { error: updateError } = await supabase
+    console.log('📝 Atualizando transação:', transaction_id)
+    console.log('   Dados do UPDATE:', { invoiceNumber, invoiceKey, plugnotasId, plugnotasEnvironment })
+    
+    const { error: updateError, data: updateData } = await supabase
       .from('transactions')
       .update({
         invoice_number: invoiceNumber,
@@ -665,13 +678,21 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', transaction_id)
+      .select('id')
 
     if (updateError) {
-      console.error('Erro ao atualizar transação:', updateError)
+      console.error('❌ Erro ao atualizar transação:', updateError)
       return new Response(
         JSON.stringify({ success: false, message: 'Erro ao atualizar transação: ' + updateError.message }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+    
+    if (!updateData || updateData.length === 0) {
+      console.error('⚠️ UPDATE não afetou nenhuma linha! transaction_id:', transaction_id)
+      console.error('   Possíveis causas: RLS bloqueando, transação não existe, ou ID incorreto')
+    } else {
+      console.log('✅ Transação atualizada com sucesso. Linhas afetadas:', updateData.length)
     }
 
     // 8. Registrar log de sincronização
