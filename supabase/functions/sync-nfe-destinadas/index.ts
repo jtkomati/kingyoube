@@ -82,10 +82,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine API base URL
-    const baseUrl = config.plugnotas_environment === 'PRODUCTION'
-      ? 'https://api.plugnotas.com.br'
-      : 'https://api.sandbox.plugnotas.com.br';
+    // Block SANDBOX environment - DF-e requires production and digital certificate
+    if (config.plugnotas_environment === 'SANDBOX') {
+      console.log('[sync-nfe-destinadas] Blocked: SANDBOX environment does not support DF-e');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'A sincronização de NF-e Destinadas não está disponível em ambiente Sandbox. Configure o ambiente de Produção e cadastre um certificado digital A1 na PlugNotas para utilizar esta funcionalidade.' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Production base URL only
+    const baseUrl = 'https://api.plugnotas.com.br';
 
     // Get company CNPJ for the query
     const { data: company, error: companyError } = await supabase
@@ -107,9 +117,9 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-nfe-destinadas] Consultando NF-e destinadas para CNPJ: ${cleanCnpj}`);
 
-    // Call PlugNotas API to get NF-e destinadas
+    // Call PlugNotas API to get NF-e destinadas - CNPJ goes in the path
     // Note: This endpoint requires a digital certificate registered with PlugNotas
-    const response = await fetch(`${baseUrl}/nfe/destinadas?cnpj=${cleanCnpj}&pagina=1&porPagina=50`, {
+    const response = await fetch(`${baseUrl}/nfe/${cleanCnpj}/destinadas?pagina=1&porPagina=50`, {
       method: 'GET',
       headers: {
         'x-api-key': config.plugnotas_token,
@@ -121,10 +131,23 @@ Deno.serve(async (req) => {
       const errorText = await response.text();
       console.error('[sync-nfe-destinadas] Erro da API PlugNotas:', response.status, errorText);
       
-      if (response.status === 401) {
+      if (response.status === 404) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Token PlugNotas inválido ou expirado' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            success: false, 
+            error: 'Funcionalidade de NF-e Destinadas não habilitada. Verifique se sua empresa possui certificado digital A1 cadastrado na PlugNotas e se a opção DF-e está ativa no cadastro da empresa.' 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (response.status === 401 || response.status === 403) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Token de API inválido ou sem permissão. Verifique suas credenciais na PlugNotas.' 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
