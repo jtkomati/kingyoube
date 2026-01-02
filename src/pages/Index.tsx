@@ -6,7 +6,7 @@ import { ProblemSection } from '@/components/landing/ProblemSection';
 import { SolutionSection } from '@/components/landing/SolutionSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { PricingSection } from '@/components/landing/PricingSection';
-
+import { CTASection } from '@/components/landing/CTASection';
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -33,7 +33,7 @@ export default function Index() {
       <SolutionSection />
       <FeaturesSection />
       <PricingSection />
-      
+      <CTASection />
     </div>
   );
 }
