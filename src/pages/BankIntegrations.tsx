@@ -3,7 +3,6 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, CreditCard, BarChart3, GitCompare } from "lucide-react";
 import { ReconciliationTab } from "@/components/openfinance/ReconciliationTab";
-import { PayerRegistrationForm } from "@/components/openfinance/PayerRegistrationForm";
 import { BankAccountForm } from "@/components/openfinance/BankAccountForm";
 import { StatementDashboard } from "@/components/openfinance/StatementDashboard";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,12 +65,8 @@ const BankIntegrations = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="empresa" className="space-y-6">
+        <Tabs defaultValue="contas" className="space-y-6">
           <TabsList className="flex flex-wrap h-auto gap-2 bg-muted/50 p-2">
-            <TabsTrigger value="empresa" className="gap-2 data-[state=active]:bg-background">
-              <Building2 className="h-4 w-4" />
-              Minha Empresa
-            </TabsTrigger>
             <TabsTrigger value="contas" className="gap-2 data-[state=active]:bg-background">
               <CreditCard className="h-4 w-4" />
               Contas Bancárias
@@ -86,21 +81,14 @@ const BankIntegrations = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="empresa">
-            <PayerRegistrationForm
-              companyId={companyData?.id}
-              initialData={companyData || undefined}
-              onSuccess={(id) => {
+          <TabsContent value="contas">
+            <BankAccountForm
+              companyData={companyData}
+              onPayerRegistered={(id) => {
                 setPayerId(id);
                 loadCompanyData();
               }}
-            />
-          </TabsContent>
-
-          <TabsContent value="contas">
-            <BankAccountForm
-              payerId={payerId || ""}
-              onSuccess={(accId) => setAccountId(accId)}
+              onAccountConnected={(accId) => setAccountId(accId)}
             />
           </TabsContent>
 
