@@ -25,11 +25,13 @@ import { toast } from "sonner";
 interface EnvironmentSwitcherProps {
   currentEnvironment: string;
   companyId: string;
+  onEnvironmentChange?: () => void;
 }
 
 export const EnvironmentSwitcher = ({
   currentEnvironment,
   companyId,
+  onEnvironmentChange,
 }: EnvironmentSwitcherProps) => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingEnvironment, setPendingEnvironment] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export const EnvironmentSwitcher = ({
           : "Ambiente alterado para SANDBOX"
       );
       setPendingEnvironment(null);
+      onEnvironmentChange?.();
     },
     onError: (error: any) => {
       toast.error("Erro ao alterar ambiente: " + error.message);
