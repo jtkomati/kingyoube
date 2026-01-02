@@ -21,7 +21,9 @@ Deno.serve(async (req) => {
     const requestSchema = z.object({
       transaction_id: z.string().uuid('transaction_id deve ser um UUID válido'),
       service_code: z.string().optional(),
-      service_description: z.string().optional()
+      service_description: z.string().optional(),
+      nature_operation: z.string().optional(),
+      special_tax_regime: z.string().optional(),
     });
 
     const body = await req.json();
@@ -34,9 +36,15 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { transaction_id, service_code, service_description } = validation.data;
+    const { 
+      transaction_id, 
+      service_code, 
+      service_description,
+      nature_operation,
+      special_tax_regime 
+    } = validation.data;
 
-    console.log('Emitindo NFS-e:', { transaction_id, service_code })
+    console.log('Emitindo NFS-e:', { transaction_id, service_code, nature_operation })
 
     // 1. Buscar transação com o relacionamento correto
     const { data: transaction, error: txError } = await supabase
@@ -67,7 +75,7 @@ Deno.serve(async (req) => {
     const { data: companySettings } = await supabase
       .from('company_settings')
       .select('*')
-      .limit(1)
+      .eq('id', transaction.company_id)
       .maybeSingle()
 
     if (!companySettings) {
@@ -95,6 +103,7 @@ Deno.serve(async (req) => {
     let invoiceNumber = `NF-${Date.now()}`
     let invoiceKey = `CHAVE-${Date.now()}`
     let integrationUsed = 'MOCK'
+    let plugnotasId: string | null = null
     
     // 5. Tentar PlugNotas primeiro se configurado
     if (fiscalConfig?.plugnotas_status === 'connected' && fiscalConfig?.plugnotas_token) {
@@ -102,30 +111,61 @@ Deno.serve(async (req) => {
         ? 'https://api.plugnotas.com.br'
         : 'https://api.sandbox.plugnotas.com.br'
 
+      // Preparar endereço do tomador se disponível
+      const tomadorEndereco = transaction.customers?.address ? {
+        logradouro: transaction.customers.address,
+        numero: transaction.customers.address_number || 'S/N',
+        complemento: transaction.customers.address_complement || undefined,
+        bairro: transaction.customers.neighborhood || 'Centro',
+        codigoCidade: transaction.customers.city_code || companySettings.city_code,
+        cep: transaction.customers.postal_code?.replace(/\D/g, ''),
+        uf: transaction.customers.state || companySettings.state,
+      } : undefined;
+
       // Preparar payload para PlugNotas NFS-e
       const plugnotasPayload = {
         idIntegracao: transaction_id,
         prestador: {
           cpfCnpj: companySettings.cnpj?.replace(/\D/g, ''),
           inscricaoMunicipal: companySettings.municipal_inscription,
-          razaoSocial: companySettings.company_name
+          razaoSocial: companySettings.company_name,
+          simplesNacional: companySettings.tax_regime === 'SIMPLES',
+          regimeEspecialTributacao: special_tax_regime || companySettings.special_tax_regime || '6', // Microempresa Municipal
+          incentivadorCultural: false,
         },
         tomador: {
           cpfCnpj: (transaction.customers?.cnpj || transaction.customers?.cpf)?.replace(/\D/g, ''),
           razaoSocial: transaction.customers?.company_name || 
                        `${transaction.customers?.first_name || ''} ${transaction.customers?.last_name || ''}`.trim(),
-          email: transaction.customers?.email
+          email: transaction.customers?.email,
+          endereco: tomadorEndereco,
         },
         servico: [{
-          codigo: service_code || '1.01',
-          discriminacao: service_description || transaction.description || 'Serviços prestados',
-          valorServico: transaction.gross_amount,
-          aliquotaIss: transaction.iss_rate || 5
-        }]
+          codigo: service_code || '01.01',
+          codigoTributacao: service_code || '01.01',
+          discriminacao: service_description || transaction.description || 'Serviços prestados conforme contrato',
+          cnae: companySettings.cnae || undefined,
+          iss: {
+            tipoTributacao: 6, // Tributável dentro do município
+            exigibilidade: 1, // Exigível
+            aliquota: transaction.iss_rate || 5,
+            valorAliquota: transaction.iss_rate || 5,
+            retido: false,
+          },
+          valor: {
+            servico: transaction.gross_amount,
+            baseCalculo: transaction.gross_amount,
+          },
+        }],
+        naturezaOperacao: nature_operation || '1', // Tributação no município
       }
 
       try {
-        console.log('Emitindo NFS-e via PlugNotas:', { baseUrl, environment: fiscalConfig.plugnotas_environment })
+        console.log('Emitindo NFS-e via PlugNotas:', { 
+          baseUrl, 
+          environment: fiscalConfig.plugnotas_environment,
+          payload: JSON.stringify(plugnotasPayload).substring(0, 500)
+        })
         
         const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
           method: 'POST',
@@ -141,17 +181,26 @@ Deno.serve(async (req) => {
 
         if (plugnotasResponse.ok) {
           const plugnotasData = JSON.parse(responseText)
-          invoiceNumber = plugnotasData.id?.nfse || plugnotasData.numero || invoiceNumber
-          invoiceKey = plugnotasData.protocolo || plugnotasData.id?.integracao || invoiceKey
+          // Resposta do PlugNotas retorna um array com o resultado
+          const result = Array.isArray(plugnotasData) ? plugnotasData[0] : plugnotasData
+          
+          plugnotasId = result.id?.integracao || result.id || transaction_id
+          invoiceNumber = result.protocolo?.numero || result.id?.nfse || `PN-${Date.now()}`
+          invoiceKey = result.protocolo?.id || result.id?.integracao || invoiceKey
           integrationUsed = 'PLUGNOTAS'
-          console.log('NFS-e emitida via PlugNotas:', plugnotasData)
+          console.log('NFS-e enviada via PlugNotas:', { plugnotasId, invoiceNumber, invoiceKey })
         } else {
           console.error('Erro PlugNotas:', responseText)
-          // Fall through to Focus NFe or mock
+          // Parse error for better message
+          try {
+            const errorData = JSON.parse(responseText)
+            console.error('PlugNotas error details:', errorData)
+          } catch {
+            // ignore parse error
+          }
         }
       } catch (error) {
         console.error('Erro ao chamar PlugNotas:', error)
-        // Fall through to Focus NFe or mock
       }
     }
     
@@ -200,7 +249,6 @@ Deno.serve(async (req) => {
         }
       } catch (error) {
         console.error('Erro ao chamar Focus NFe:', error)
-        // Continua sem integração se falhar
       }
     }
 
@@ -210,7 +258,8 @@ Deno.serve(async (req) => {
       .update({
         invoice_number: invoiceNumber,
         invoice_key: invoiceKey,
-        invoice_status: 'issued',
+        invoice_status: integrationUsed === 'MOCK' ? 'pending' : 'processing',
+        invoice_integration_id: plugnotasId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', transaction_id)
@@ -246,7 +295,11 @@ Deno.serve(async (req) => {
         invoice_number: invoiceNumber,
         invoice_key: invoiceKey,
         integration: integrationUsed,
-        message: 'Nota fiscal emitida com sucesso',
+        plugnotas_id: plugnotasId,
+        status: integrationUsed === 'MOCK' ? 'pending' : 'processing',
+        message: integrationUsed === 'MOCK' 
+          ? 'Nota fiscal gerada em modo demonstração. Configure o PlugNotas para emissão real.'
+          : 'Nota fiscal enviada para processamento. Consulte o status em alguns segundos.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

@@ -71,3 +71,15 @@ verify_jwt = true
 
 [functions.test-tecnospeed-connection]
 verify_jwt = true
+
+[functions.issue-nfse]
+verify_jwt = true
+
+[functions.check-nfse-status]
+verify_jwt = true
+
+[functions.download-nfse]
+verify_jwt = true
+
+[functions.cancel-nfse]
+verify_jwt = true
