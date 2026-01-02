@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { OrganizationProvider } from "@/contexts/OrganizationContext";
 
 // Eagerly loaded - critical path
 import Index from "./pages/Index";
@@ -101,9 +102,10 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <BrowserRouter>
-          <TooltipProvider>
-            <Toaster />
+        <OrganizationProvider>
+          <BrowserRouter>
+            <TooltipProvider>
+              <Toaster />
             <Sonner />
           <Routes>
             <Route path="/" element={<Index />} />
@@ -185,8 +187,9 @@ const App = () => {
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          </TooltipProvider>
-        </BrowserRouter>
+            </TooltipProvider>
+          </BrowserRouter>
+        </OrganizationProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
