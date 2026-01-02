@@ -34,12 +34,14 @@ Deno.serve(async (req) => {
     // Test connection using /empresa endpoint - more reliable for auth validation
     const testUrl = `${baseUrl}/empresa`
     
+    const version = '2026-01-02-v3'
+    console.log(`PlugNotas test version: ${version}`)
     console.log('Testing URL:', testUrl)
 
     const response = await fetch(testUrl, {
       method: 'GET',
       headers: {
-        'x-api-key': token,
+        'X-API-KEY': token,
         'Content-Type': 'application/json'
       }
     })
@@ -117,13 +119,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (response.ok) {
+    if (newStatus === 'connected') {
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: 'Conexão estabelecida com sucesso!',
           environment,
-          status: newStatus
+          status: newStatus,
+          version
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -132,7 +135,8 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: errorMessage,
-          status: newStatus
+          status: newStatus,
+          version
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
