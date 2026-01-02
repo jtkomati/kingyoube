@@ -68,10 +68,20 @@ serve(async (req) => {
     const baseUrl = getBaseUrl();
     console.log('Base URL:', baseUrl);
 
-    // Standard headers - same as other plugbank functions
+    // Validate CNPJ format (should be 14 numeric digits)
+    const cnpjClean = CNPJ_SH.replace(/\D/g, '');
+    const cnpjValid = cnpjClean.length === 14;
+    console.log('CNPJ clean (digits only):', cnpjClean.length, 'digits');
+    console.log('CNPJ format valid:', cnpjValid);
+    
+    if (!cnpjValid) {
+      console.warn('CNPJ format invalid! Expected 14 digits, got:', cnpjClean.length);
+    }
+
+    // Standard headers - same as other plugbank functions (use clean CNPJ)
     const standardHeaders = {
       'Content-Type': 'application/json',
-      'cnpjsh': CNPJ_SH,
+      'cnpjsh': cnpjClean,
       'tokensh': TOKEN,
     };
 
@@ -159,6 +169,11 @@ serve(async (req) => {
     // Generate recommendations
     const recommendations: string[] = [];
     
+    if (!cnpjValid) {
+      recommendations.push(`❌ CNPJ inválido: esperado 14 dígitos, encontrado ${cnpjClean.length}`);
+      recommendations.push('O CNPJ deve conter apenas números (sem pontos, barras ou traços)');
+    }
+    
     if (successfulTests.length > 0) {
       recommendations.push(`✅ Conexão funcionando! ${successfulTests.length} endpoint(s) respondendo`);
     } else if (networkErrors.length === results.length) {
@@ -175,7 +190,13 @@ serve(async (req) => {
         if (resp.message) {
           recommendations.push(`Mensagem da API: ${resp.message}`);
         }
+        if (resp.error) {
+          recommendations.push(`Erro: ${resp.error}`);
+        }
       }
+      
+      // Log detailed error info
+      console.log('Auth error details:', JSON.stringify(authErrors[0], null, 2));
     } else if (serverErrors.length > 0) {
       recommendations.push('⚠️ Servidor TecnoSpeed retornando erros 5xx');
       recommendations.push('Pode ser um problema temporário - tente novamente');

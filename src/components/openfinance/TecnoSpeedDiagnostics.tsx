@@ -49,8 +49,8 @@ interface DiagnosticsResult {
   credentials?: {
     tokenConfigured: boolean;
     tokenLength: number;
-    loginAuthConfigured: boolean;
-    loginAuthLength: number;
+    cnpjShConfigured: boolean;
+    cnpjShPreview: string | null;
   };
   error?: string;
 }
@@ -183,14 +183,14 @@ export function TecnoSpeedDiagnostics() {
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
                   <Key className="h-4 w-4 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">TECNOSPEED_LOGIN_AUTH</p>
+                    <p className="text-sm font-medium">TECNOSPEED_CNPJ_SOFTWAREHOUSE</p>
                     <p className="text-xs text-muted-foreground">
-                      {result.credentials.loginAuthConfigured 
-                        ? `Configurado (${result.credentials.loginAuthLength} chars)` 
+                      {result.credentials.cnpjShConfigured 
+                        ? `Configurado (${result.credentials.cnpjShPreview})` 
                         : "Não configurado"}
                     </p>
                   </div>
-                  {getStatusIcon(result.credentials.loginAuthConfigured)}
+                  {getStatusIcon(result.credentials.cnpjShConfigured)}
                 </div>
               </div>
             )}
