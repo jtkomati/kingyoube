@@ -23,7 +23,8 @@ import {
   Building2,
   ExternalLink,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  Copy
 } from "lucide-react";
 
 interface TestResult {
@@ -37,7 +38,8 @@ interface TestResult {
   errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
   headerVariant?: string;
   message?: string;
-  hint?: string;
+  internalCode?: string | number;
+  responseSnippet?: string;
 }
 
 interface DiagnosticsResult {
@@ -52,6 +54,7 @@ interface DiagnosticsResult {
     successful: number;
     authErrors: number;
     validationErrors: number;
+    status422Count: number;
     notFoundErrors: number;
     networkErrors: number;
     serverErrors: number;
@@ -119,6 +122,31 @@ export function TecnoSpeedDiagnostics() {
     }
   };
 
+  const copyReport = () => {
+    if (!result) return;
+    
+    // Sanitize report - remove any sensitive data
+    const sanitizedReport = {
+      success: result.success,
+      environment: result.environment,
+      summary: result.summary,
+      recommendations: result.recommendations,
+      results: result.results?.map(r => ({
+        method: r.method,
+        status: r.status,
+        success: r.success,
+        errorType: r.errorType,
+        message: r.message,
+        internalCode: r.internalCode,
+        latencyMs: r.latencyMs,
+        headerVariant: r.headerVariant
+      }))
+    };
+    
+    navigator.clipboard.writeText(JSON.stringify(sanitizedReport, null, 2));
+    toast.success("Relatório copiado para área de transferência");
+  };
+
   const getStatusIcon = (success: boolean) => {
     return success ? (
       <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -130,11 +158,8 @@ export function TecnoSpeedDiagnostics() {
   const getStatusBadge = (status: number, errorType?: string) => {
     if (status === 0) return <Badge variant="outline">Rede</Badge>;
     if (status >= 200 && status < 300) return <Badge className="bg-green-500">OK</Badge>;
-    if (status === 401 || status === 403) return <Badge variant="destructive">Auth</Badge>;
-    if (status === 422) {
-      if (errorType === 'auth') return <Badge variant="destructive">Rejeitado</Badge>;
-      return <Badge variant="outline" className="border-amber-500 text-amber-600">422</Badge>;
-    }
+    if (status === 401 || status === 403) return <Badge variant="destructive">Auth {status}</Badge>;
+    if (status === 422) return <Badge variant="outline" className="border-amber-500 text-amber-600">422</Badge>;
     if (status === 404) return <Badge variant="secondary">404</Badge>;
     if (status >= 500) return <Badge variant="destructive">5xx</Badge>;
     return <Badge variant="outline">{status}</Badge>;
@@ -150,14 +175,18 @@ export function TecnoSpeedDiagnostics() {
       return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Credenciais OK - Dados Pendentes', variant: 'default' as const };
     }
     
-    // Check if most errors are auth-related (including 422 treated as auth)
-    const authCount = result.summary?.authErrors || 0;
-    const total = result.summary?.totalTests || 1;
-    if (authCount >= total / 2) {
+    // Check if all tests failed with 422
+    const all422 = result.summary?.status422Count === result.summary?.totalTests;
+    if (all422) {
+      return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'API Retornou 422', variant: 'default' as const };
+    }
+    
+    // Check if we have auth errors (401/403)
+    if ((result.summary?.authErrors || 0) > 0) {
       return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Credenciais Rejeitadas', variant: 'destructive' as const };
     }
     
-    return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Autenticação Falhou', variant: 'destructive' as const };
+    return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Falha na Conexão', variant: 'destructive' as const };
   };
 
   const overallStatus = getOverallStatus();
@@ -260,7 +289,7 @@ export function TecnoSpeedDiagnostics() {
                 </div>
                 <AlertDescription className="mt-2">
                   {result.success 
-                    ? `Ambiente: ${result.environment} | Headers: ${result.workingHeaderVariant}` 
+                    ? `Ambiente: ${result.environment} | Variante: ${result.workingHeaderVariant}` 
                     : result.credentialsOk
                     ? "Credenciais funcionando - verifique dados do pagador"
                     : result.error || "Verifique as recomendações abaixo"}
@@ -312,7 +341,7 @@ export function TecnoSpeedDiagnostics() {
               </div>
             )}
 
-            {/* Resumo */}
+            {/* Resumo - Fixed counters */}
             {result.summary && (
               <div className="grid grid-cols-5 gap-2">
                 <div className="text-center p-2 rounded-lg bg-muted/50">
@@ -332,7 +361,7 @@ export function TecnoSpeedDiagnostics() {
                 </div>
                 <div className="text-center p-2 rounded-lg bg-amber-500/10">
                   <AlertTriangle className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-                  <p className="text-lg font-bold text-amber-600">{result.summary.validationErrors}</p>
+                  <p className="text-lg font-bold text-amber-600">{result.summary.status422Count}</p>
                   <p className="text-xs text-muted-foreground">422</p>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted/50">
@@ -349,7 +378,7 @@ export function TecnoSpeedDiagnostics() {
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
                 <AlertTitle className="text-green-600">Autenticação Funcional</AlertTitle>
                 <AlertDescription className="mt-2 text-sm">
-                  <p><strong>Headers:</strong> {result.workingMethod.method}</p>
+                  <p><strong>Variante:</strong> {result.workingHeaderVariant}</p>
                   <p><strong>Latência:</strong> {result.workingMethod.latencyMs}ms</p>
                 </AlertDescription>
               </Alert>
@@ -387,6 +416,8 @@ export function TecnoSpeedDiagnostics() {
                         className={`p-3 rounded-lg border ${
                           test.success 
                             ? 'border-green-500/50 bg-green-500/5' 
+                            : test.status === 422
+                            ? 'border-amber-500/50 bg-amber-500/5'
                             : test.errorType === 'auth'
                             ? 'border-destructive/50 bg-destructive/5'
                             : 'border-border bg-muted/30'
@@ -406,33 +437,65 @@ export function TecnoSpeedDiagnostics() {
                             <span className="text-xs text-muted-foreground">{test.latencyMs}ms</span>
                           </div>
                         </div>
+                        
+                        {/* Show actual error message */}
                         {test.message && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            <strong>Resposta:</strong> {test.message}
+                          <p className="text-xs mt-1">
+                            <strong className="text-foreground">Mensagem:</strong>{' '}
+                            <span className="text-amber-600">{test.message}</span>
+                            {test.internalCode && (
+                              <span className="text-muted-foreground ml-1">(código: {test.internalCode})</span>
+                            )}
                           </p>
                         )}
-                        {test.hint && (
-                          <p className="text-xs text-amber-600 mt-1">
-                            💡 {test.hint}
-                          </p>
+                        
+                        {/* Show response snippet for debugging */}
+                        {test.responseSnippet && !test.message && (
+                          <details className="mt-1">
+                            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                              Ver resposta da API
+                            </summary>
+                            <pre className="text-xs mt-1 p-2 bg-muted rounded overflow-x-auto max-h-32">
+                              {test.responseSnippet}
+                            </pre>
+                          </details>
                         )}
+                        
                         {test.error && (
                           <p className="text-xs text-destructive mt-1">{test.error}</p>
                         )}
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Copy report button */}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-3"
+                    onClick={copyReport}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copiar Relatório (para suporte)
+                  </Button>
                 </CollapsibleContent>
               </Collapsible>
+            )}
+
+            {!result.results?.length && result.error && (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertTitle>Erro</AlertTitle>
+                <AlertDescription>{result.error}</AlertDescription>
+              </Alert>
             )}
           </>
         )}
 
-        {!result && !isLoading && (
-          <div className="text-center py-6 text-muted-foreground">
-            <Wifi className="h-10 w-10 mx-auto mb-3 opacity-50" />
-            <p>Clique em "Executar" para testar a conexão</p>
-            <p className="text-sm mt-1">O teste verificará múltiplas variantes de headers</p>
+        {!result && (
+          <div className="text-center py-8 text-muted-foreground">
+            <Wifi className="h-12 w-12 mx-auto mb-3 opacity-30" />
+            <p>Clique em "Executar" para testar a conexão com a API TecnoSpeed</p>
           </div>
         )}
       </CardContent>
