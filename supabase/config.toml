@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.cancel-nfse]
 verify_jwt = true
+
+[functions.sync-nfe-destinadas]
+verify_jwt = true

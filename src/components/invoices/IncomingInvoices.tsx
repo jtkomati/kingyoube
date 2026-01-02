@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, DollarSign, Download, Eye, Trash2 } from "lucide-react";
+import { FileText, Upload, DollarSign, Download, Eye, Trash2, RefreshCw, Settings, AlertCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Link } from "react-router-dom";
 
 interface IncomingInvoice {
   id: string;
@@ -32,6 +34,12 @@ interface IncomingInvoice {
   ocr_data?: any;
 }
 
+interface PlugNotasConfig {
+  plugnotas_status: string | null;
+  plugnotas_environment: string | null;
+  plugnotas_last_test: string | null;
+}
+
 export const IncomingInvoices = () => {
   const { toast } = useToast();
   const { currentOrganization } = useAuth();
@@ -45,12 +53,94 @@ export const IncomingInvoices = () => {
   const [selectedInvoiceForOCR, setSelectedInvoiceForOCR] = useState<IncomingInvoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<IncomingInvoice | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [plugNotasConfig, setPlugNotasConfig] = useState<PlugNotasConfig | null>(null);
+  const [isSyncingNfe, setIsSyncingNfe] = useState(false);
 
   useEffect(() => {
     if (currentOrganization?.id) {
       fetchInvoices();
+      fetchPlugNotasConfig();
     }
   }, [currentOrganization?.id]);
+
+  const fetchPlugNotasConfig = async () => {
+    if (!currentOrganization?.id) return;
+
+    const { data, error } = await supabase
+      .from('config_fiscal')
+      .select('plugnotas_status, plugnotas_environment, plugnotas_last_test')
+      .eq('company_id', currentOrganization.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      setPlugNotasConfig(data);
+    }
+  };
+
+  const handleSyncNfeDestinadas = async () => {
+    setIsSyncingNfe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-nfe-destinadas', {
+        body: { company_id: currentOrganization?.id }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Sincronização concluída",
+          description: data.message || `${data.imported_count || 0} NF-e importada(s).`,
+        });
+        await fetchInvoices();
+      } else {
+        throw new Error(data.error || 'Erro ao sincronizar');
+      }
+    } catch (error) {
+      console.error('Erro ao sincronizar NF-e:', error);
+      toast({
+        title: "Erro na sincronização",
+        description: error instanceof Error ? error.message : "Erro ao buscar NF-e destinadas",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingNfe(false);
+    }
+  };
+
+  const getPlugNotasStatusBadge = () => {
+    if (!plugNotasConfig) {
+      return (
+        <Badge variant="outline" className="gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Não configurado
+        </Badge>
+      );
+    }
+
+    switch (plugNotasConfig.plugnotas_status) {
+      case 'connected':
+        return (
+          <Badge variant="default" className="gap-1 bg-green-500">
+            <CheckCircle className="h-3 w-3" />
+            Conectado ({plugNotasConfig.plugnotas_environment})
+          </Badge>
+        );
+      case 'error':
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="h-3 w-3" />
+            Erro de conexão
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary" className="gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Desconectado
+          </Badge>
+        );
+    }
+  };
 
   const fetchInvoices = async () => {
     if (!currentOrganization?.id) return;
@@ -353,6 +443,53 @@ export const IncomingInvoices = () => {
 
   return (
     <div className="space-y-6">
+      {/* PlugNotas Status Card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-base">Status PlugNotas</CardTitle>
+              {getPlugNotasStatusBadge()}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncNfeDestinadas}
+                disabled={isSyncingNfe || plugNotasConfig?.plugnotas_status !== 'connected'}
+                className="gap-2"
+              >
+                {isSyncingNfe ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Sincronizar NF-e
+              </Button>
+              <Link to="/invoices">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Configurações
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Sobre a busca automática de notas</AlertTitle>
+            <AlertDescription className="text-sm">
+              <strong>NFS-e (Notas de Serviço):</strong> A busca automática requer integração com a prefeitura local. 
+              Importe manualmente via upload de PDF/XML.
+              <br />
+              <strong>NF-e (Notas de Produto):</strong> Use o botão "Sincronizar NF-e" para buscar notas destinadas à sua empresa 
+              (requer certificado digital A1 cadastrado na PlugNotas).
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
