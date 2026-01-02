@@ -43,6 +43,11 @@ interface Company {
   municipal_inscription: string | null;
   state_inscription: string | null;
   address: string | null;
+  address_number: string | null;
+  neighborhood: string | null;
+  zip_code: string | null;
+  city: string | null;
+  state: string | null;
   city_code: string | null;
   tax_regime: string | null;
   status: string | null;
