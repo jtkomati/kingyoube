@@ -6,7 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PLUGBANK_BASE_URL = "https://api.pagamentobancario.com.br/api/v1";
+// TecnoSpeed Open Finance API URLs
+const getBaseUrl = () => {
+  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox";
+  return env === "production"
+    ? "https://api.openfinance.tecnospeed.com.br/v1"
+    : "https://api.sandbox.openfinance.tecnospeed.com.br/v1";
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,13 +35,13 @@ serve(async (req) => {
       );
     }
 
-    const TOKEN_SH = Deno.env.get("TECNOSPEED_TOKEN");
-    const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
+    const TOKEN = Deno.env.get("TECNOSPEED_TOKEN");
+    const LOGIN_AUTH = Deno.env.get("TECNOSPEED_LOGIN_AUTH") || Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
-    if (!TOKEN_SH || !CNPJ_SH) {
+    if (!TOKEN || !LOGIN_AUTH) {
       console.error("Missing credentials");
       return new Response(
-        JSON.stringify({ success: false, error: "Credenciais PlugBank não configuradas" }),
+        JSON.stringify({ success: false, error: "Credenciais TecnoSpeed não configuradas" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -50,20 +56,23 @@ serve(async (req) => {
       );
     }
 
-    console.log("Fetching statement from PlugBank:", { uniqueId });
+    const baseUrl = getBaseUrl();
+    const requestUrl = `${baseUrl}/statements/${uniqueId}`;
+    
+    console.log("Fetching statement from TecnoSpeed:", { uniqueId, requestUrl });
 
-    const response = await fetch(`${PLUGBANK_BASE_URL}/statement/openfinance/${uniqueId}`, {
+    const response = await fetch(requestUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "cnpj-sh": CNPJ_SH,
-        "token-sh": TOKEN_SH,
+        "Authorization": `Bearer ${TOKEN}`,
+        "LoginAuth": LOGIN_AUTH,
       },
     });
 
     const responseText = await response.text();
-    console.log("PlugBank response status:", response.status);
-    console.log("PlugBank response:", responseText);
+    console.log("TecnoSpeed response status:", response.status);
+    console.log("TecnoSpeed response:", responseText);
 
     let responseData;
     try {
