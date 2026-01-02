@@ -9,10 +9,22 @@ import { TecnoSpeedDiagnostics } from "@/components/openfinance/TecnoSpeedDiagno
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
+interface BankAccount {
+  id: string;
+  bank_name: string;
+  bank_code: string;
+  agency: string;
+  account_number: string;
+  account_hash: string | null;
+  open_finance_status: string;
+}
+
 const BankIntegrations = () => {
   const { currentOrganization, isLoading: orgLoading } = useOrganization();
   const [payerId, setPayerId] = useState<string | null>(null);
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedAccountHash, setSelectedAccountHash] = useState<string | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [companyData, setCompanyData] = useState<{
     id?: string;
     cnpj?: string;
@@ -24,9 +36,13 @@ const BankIntegrations = () => {
   useEffect(() => {
     if (currentOrganization?.id) {
       loadPlugBankStatus(currentOrganization.id);
+      loadBankAccounts(currentOrganization.id);
     } else {
       setCompanyData(null);
       setPayerId(null);
+      setBankAccounts([]);
+      setSelectedAccountId(null);
+      setSelectedAccountHash(null);
     }
   }, [currentOrganization?.id]);
 
@@ -51,6 +67,31 @@ const BankIntegrations = () => {
     }
   };
 
+  const loadBankAccounts = async (companyId: string) => {
+    const { data, error } = await supabase
+      .from("bank_accounts")
+      .select("id, bank_name, bank_code, agency, account_number, account_hash, open_finance_status")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setBankAccounts(data);
+      // Auto-select first account if none selected
+      if (data.length > 0 && !selectedAccountId) {
+        setSelectedAccountId(data[0].id);
+        setSelectedAccountHash(data[0].account_hash);
+      }
+    }
+  };
+
+  const handleAccountSelect = (accountId: string) => {
+    const account = bankAccounts.find(a => a.id === accountId);
+    if (account) {
+      setSelectedAccountId(account.id);
+      setSelectedAccountHash(account.account_hash);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -72,7 +113,7 @@ const BankIntegrations = () => {
               <CreditCard className="h-4 w-4" />
               Contas Bancárias
             </TabsTrigger>
-            <TabsTrigger value="extrato" className="gap-2 data-[state=active]:bg-background" disabled={!accountId}>
+            <TabsTrigger value="extrato" className="gap-2 data-[state=active]:bg-background" disabled={bankAccounts.length === 0}>
               <BarChart3 className="h-4 w-4" />
               Extrato
             </TabsTrigger>
@@ -95,14 +136,22 @@ const BankIntegrations = () => {
                   loadPlugBankStatus(currentOrganization.id);
                 }
               }}
-              onAccountConnected={(accId) => setAccountId(accId)}
+              onAccountConnected={(accId) => {
+                if (currentOrganization?.id) {
+                  loadBankAccounts(currentOrganization.id);
+                }
+                setSelectedAccountId(accId);
+              }}
             />
           </TabsContent>
 
           <TabsContent value="extrato">
             <StatementDashboard
-              accountId={accountId || undefined}
+              bankAccounts={bankAccounts}
+              selectedAccountId={selectedAccountId}
+              selectedAccountHash={selectedAccountHash}
               companyId={companyData?.id}
+              onAccountSelect={handleAccountSelect}
             />
           </TabsContent>
 
