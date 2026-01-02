@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, Upload } from "lucide-react";
+import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, Upload, Building2, AlertCircle, Stethoscope } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
@@ -23,6 +23,7 @@ import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const OutgoingInvoices = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -32,6 +33,7 @@ export const OutgoingInvoices = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
   const { hasPermission, currentOrganization } = useAuth();
   const canIssue = hasPermission("FISCAL");
   const queryClient = useQueryClient();
@@ -53,7 +55,7 @@ export const OutgoingInvoices = () => {
 
   const currentEnvironment = fiscalConfig?.plugnotas_environment || "SANDBOX";
 
-  const { data: invoices, isLoading } = useQuery({
+  const { data: invoices, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["outgoing-invoices", currentOrganization?.id],
     queryFn: async () => {
       if (!currentOrganization?.id) return [];
@@ -68,7 +70,7 @@ export const OutgoingInvoices = () => {
         .eq("type", "RECEIVABLE")
         .eq("company_id", currentOrganization.id)
         .not("invoice_number", "is", null)
-        .order("created_at", { ascending: false });
+        .order("updated_at", { ascending: false });
 
       if (error) throw error;
 
@@ -173,12 +175,82 @@ export const OutgoingInvoices = () => {
     }
   };
 
+  // Diagnóstico rápido
+  const handleDiagnosis = async () => {
+    if (!currentOrganization?.id) return;
+    setIsDiagnosing(true);
+    try {
+      const { data: totalReceivable, count: countReceivable } = await supabase
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("type", "RECEIVABLE")
+        .eq("company_id", currentOrganization.id);
+
+      const { data: totalIssued, count: countIssued } = await supabase
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("type", "RECEIVABLE")
+        .eq("company_id", currentOrganization.id)
+        .not("invoice_number", "is", null);
+
+      toast.info(
+        `Diagnóstico: ${currentOrganization.company_name}\n` +
+        `Transações RECEIVABLE: ${countReceivable || 0}\n` +
+        `Notas emitidas (invoice_number != null): ${countIssued || 0}`,
+        { duration: 8000 }
+      );
+    } catch (err: any) {
+      toast.error("Erro no diagnóstico: " + err.message);
+    } finally {
+      setIsDiagnosing(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="text-center py-8">Carregando...</div>;
   }
 
   return (
     <div className="space-y-6">
+      {/* Organização atual */}
+      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
+        <Building2 className="h-5 w-5 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Visualizando notas de:</span>
+        <span className="font-medium">
+          {currentOrganization?.company_name || "Nenhuma organização selecionada"}
+        </span>
+        {currentOrganization?.cnpj && (
+          <Badge variant="outline" className="ml-2">
+            CNPJ: {currentOrganization.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}
+          </Badge>
+        )}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleDiagnosis}
+          disabled={isDiagnosing}
+          className="ml-auto"
+          title="Verificar contagem de notas"
+        >
+          <Stethoscope className={`h-4 w-4 ${isDiagnosing ? 'animate-pulse' : ''}`} />
+          <span className="ml-1 hidden sm:inline">Diagnóstico</span>
+        </Button>
+      </div>
+
+      {/* Erro ao carregar */}
+      {isError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro ao carregar notas fiscais</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{(error as Error)?.message || "Erro desconhecido"}</span>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header with action button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
