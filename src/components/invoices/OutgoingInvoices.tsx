@@ -10,14 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, FlaskConical } from "lucide-react";
+import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { IssueInvoiceDialog } from "./IssueInvoiceDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { NewInvoiceDialog } from "./NewInvoiceDialog";
+import { BatchInvoiceDialog } from "./BatchInvoiceDialog";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
+import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -26,12 +28,30 @@ export const OutgoingInvoices = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
+  const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const { hasPermission, currentOrganization } = useAuth();
   const canIssue = hasPermission("FISCAL");
   const queryClient = useQueryClient();
+
+  // Fetch fiscal config for environment
+  const { data: fiscalConfig } = useQuery({
+    queryKey: ["fiscal-config-environment", currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return null;
+      const { data } = await supabase
+        .from("config_fiscal")
+        .select("plugnotas_environment")
+        .eq("company_id", currentOrganization.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!currentOrganization?.id,
+  });
+
+  const currentEnvironment = fiscalConfig?.plugnotas_environment || "SANDBOX";
 
   const { data: invoices, isLoading } = useQuery({
     queryKey: ["outgoing-invoices", currentOrganization?.id],
@@ -163,16 +183,24 @@ export const OutgoingInvoices = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">NFS-e Emitidas</h2>
-          <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
-            <FlaskConical className="h-3 w-3 mr-1" />
-            SANDBOX
-          </Badge>
+          {currentOrganization?.id && (
+            <EnvironmentSwitcher
+              currentEnvironment={currentEnvironment}
+              companyId={currentOrganization.id}
+            />
+          )}
         </div>
         {canIssue && (
-          <Button onClick={() => setIsNewDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Emitir Nova NFS-e
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBatchDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Emissão em Lote
+            </Button>
+            <Button onClick={() => setIsNewDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Emitir Nova NFS-e
+            </Button>
+          </div>
         )}
       </div>
 
@@ -276,7 +304,16 @@ export const OutgoingInvoices = () => {
             <TableBody>
               {invoices?.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {invoice.invoice_number}
+                      {invoice.invoice_environment === 'SANDBOX' && (
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+                          TESTE
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {format(new Date(invoice.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </TableCell>
@@ -381,6 +418,14 @@ export const OutgoingInvoices = () => {
         open={isNewDialogOpen}
         onClose={() => setIsNewDialogOpen(false)}
       />
+
+      {currentOrganization?.id && (
+        <BatchInvoiceDialog
+          open={isBatchDialogOpen}
+          onClose={() => setIsBatchDialogOpen(false)}
+          companyId={currentOrganization.id}
+        />
+      )}
     </div>
   );
 };
