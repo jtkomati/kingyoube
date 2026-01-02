@@ -36,6 +36,8 @@ interface TestResult {
   latencyMs: number;
   errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
   headerVariant?: string;
+  message?: string;
+  hint?: string;
 }
 
 interface DiagnosticsResult {
@@ -147,6 +149,14 @@ export function TecnoSpeedDiagnostics() {
     if (result.credentialsOk) {
       return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Credenciais OK - Dados Pendentes', variant: 'default' as const };
     }
+    
+    // Check if most errors are auth-related (including 422 treated as auth)
+    const authCount = result.summary?.authErrors || 0;
+    const total = result.summary?.totalTests || 1;
+    if (authCount >= total / 2) {
+      return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Credenciais Rejeitadas', variant: 'destructive' as const };
+    }
+    
     return { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', title: 'Autenticação Falhou', variant: 'destructive' as const };
   };
 
@@ -370,13 +380,15 @@ export function TecnoSpeedDiagnostics() {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="mt-2 space-y-2 max-h-64 overflow-y-auto">
+                  <div className="mt-2 space-y-2 max-h-80 overflow-y-auto">
                     {result.results.map((test, idx) => (
                       <div 
                         key={idx} 
                         className={`p-3 rounded-lg border ${
                           test.success 
                             ? 'border-green-500/50 bg-green-500/5' 
+                            : test.errorType === 'auth'
+                            ? 'border-destructive/50 bg-destructive/5'
                             : 'border-border bg-muted/30'
                         }`}
                       >
@@ -394,8 +406,18 @@ export function TecnoSpeedDiagnostics() {
                             <span className="text-xs text-muted-foreground">{test.latencyMs}ms</span>
                           </div>
                         </div>
+                        {test.message && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <strong>Resposta:</strong> {test.message}
+                          </p>
+                        )}
+                        {test.hint && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            💡 {test.hint}
+                          </p>
+                        )}
                         {test.error && (
-                          <p className="text-xs text-destructive">{test.error}</p>
+                          <p className="text-xs text-destructive mt-1">{test.error}</p>
                         )}
                       </div>
                     ))}

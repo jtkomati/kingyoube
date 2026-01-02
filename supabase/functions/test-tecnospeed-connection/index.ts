@@ -16,6 +16,8 @@ interface TestResult {
   latencyMs: number;
   errorType?: 'auth' | 'validation' | 'network' | 'server' | 'not_found';
   headerVariant?: string;
+  message?: string;
+  hint?: string;
 }
 
 interface HeaderVariant {
@@ -228,15 +230,41 @@ serve(async (req) => {
         const status = response.status;
         const success = status >= 200 && status < 300;
         
+        // Extract message from response
+        let message: string | undefined;
+        let hint: string | undefined;
+        const responseObj = responseBody as Record<string, unknown> || {};
+        
+        if (responseObj.message) message = String(responseObj.message);
+        else if (responseObj.error) message = String(responseObj.error);
+        else if (responseObj.msg) message = String(responseObj.msg);
+        
+        const bodyStr = JSON.stringify(responseBody || {}).toLowerCase();
+        
         let errorType: TestResult['errorType'];
-        if (status === 401 || status === 403) errorType = 'auth';
-        else if (status === 422) {
+        if (status === 401 || status === 403) {
+          errorType = 'auth';
+          hint = 'Credenciais rejeitadas pela API';
+        } else if (status === 422) {
           // Check if it's really an auth issue
-          const bodyStr = JSON.stringify(responseBody || {}).toLowerCase();
-          errorType = bodyStr.includes('cnpjsh') || bodyStr.includes('tokensh') ? 'auth' : 'validation';
+          // For /account endpoint, 422 with "payercpfcnpj" message indicates auth rejection
+          // because /account doesn't require payercpfcnpj
+          const mentionsPayerCnpj = bodyStr.includes('payercpfcnpj') || bodyStr.includes('payer') || bodyStr.includes('obrigat');
+          const mentionsAuthHeaders = bodyStr.includes('cnpjsh') || bodyStr.includes('tokensh');
+          
+          if (mentionsAuthHeaders || mentionsPayerCnpj) {
+            errorType = 'auth';
+            hint = 'API rejeitou credenciais - verifique token/CNPJ no TecnoAccount';
+          } else {
+            errorType = 'validation';
+            hint = 'Erro de validação de dados';
+          }
+        } else if (status === 404) {
+          errorType = 'not_found';
+        } else if (status >= 500) {
+          errorType = 'server';
+          hint = 'Erro interno no servidor TecnoSpeed';
         }
-        else if (status === 404) errorType = 'not_found';
-        else if (status >= 500) errorType = 'server';
         
         const result: TestResult = {
           method: 'GET /account',
@@ -246,7 +274,9 @@ serve(async (req) => {
           response: responseBody,
           latencyMs,
           errorType,
-          headerVariant: variant.name
+          headerVariant: variant.name,
+          message,
+          hint
         };
         
         results.push(result);
