@@ -2045,7 +2045,9 @@ export type Database = {
           accountant_linked_at: string | null
           accountant_user_id: string | null
           address: string | null
+          address_number: string | null
           cfo_partner_id: string | null
+          city: string | null
           city_code: string | null
           cnpj: string
           company_name: string
@@ -2053,6 +2055,7 @@ export type Database = {
           created_at: string
           id: string
           municipal_inscription: string | null
+          neighborhood: string | null
           nfse_environment: string | null
           nfse_login: string | null
           nfse_password: string | null
@@ -2060,10 +2063,12 @@ export type Database = {
           notification_email: string | null
           plugbank_payer_id: string | null
           plugbank_status: string | null
+          state: string | null
           state_inscription: string | null
           status: string | null
           tax_regime: string | null
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
           accountant_crc?: string | null
@@ -2072,7 +2077,9 @@ export type Database = {
           accountant_linked_at?: string | null
           accountant_user_id?: string | null
           address?: string | null
+          address_number?: string | null
           cfo_partner_id?: string | null
+          city?: string | null
           city_code?: string | null
           cnpj: string
           company_name: string
@@ -2080,6 +2087,7 @@ export type Database = {
           created_at?: string
           id?: string
           municipal_inscription?: string | null
+          neighborhood?: string | null
           nfse_environment?: string | null
           nfse_login?: string | null
           nfse_password?: string | null
@@ -2087,10 +2095,12 @@ export type Database = {
           notification_email?: string | null
           plugbank_payer_id?: string | null
           plugbank_status?: string | null
+          state?: string | null
           state_inscription?: string | null
           status?: string | null
           tax_regime?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
           accountant_crc?: string | null
@@ -2099,7 +2109,9 @@ export type Database = {
           accountant_linked_at?: string | null
           accountant_user_id?: string | null
           address?: string | null
+          address_number?: string | null
           cfo_partner_id?: string | null
+          city?: string | null
           city_code?: string | null
           cnpj?: string
           company_name?: string
@@ -2107,6 +2119,7 @@ export type Database = {
           created_at?: string
           id?: string
           municipal_inscription?: string | null
+          neighborhood?: string | null
           nfse_environment?: string | null
           nfse_login?: string | null
           nfse_password?: string | null
@@ -2114,10 +2127,12 @@ export type Database = {
           notification_email?: string | null
           plugbank_payer_id?: string | null
           plugbank_status?: string | null
+          state?: string | null
           state_inscription?: string | null
           status?: string | null
           tax_regime?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: [
           {

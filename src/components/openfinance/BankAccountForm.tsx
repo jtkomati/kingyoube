@@ -72,7 +72,9 @@ export const BankAccountForm = ({
   const [formData, setFormData] = useState({
     bankCode: "",
     agency: "",
+    agencyDigit: "",
     accountNumber: "",
+    accountDigit: "",
     accountType: "corrente",
   });
 
@@ -151,7 +153,9 @@ export const BankAccountForm = ({
           payerId: companyData.payerId,
           bankCode: formData.bankCode,
           agency: formData.agency,
+          agencyDigit: formData.agencyDigit,
           accountNumber: formData.accountNumber,
+          accountDigit: formData.accountDigit,
           accountType: formData.accountType === "corrente" ? "checking" : "savings",
           bankAccountId: bankAccount.id,
         },
@@ -173,7 +177,9 @@ export const BankAccountForm = ({
       setFormData({
         bankCode: "",
         agency: "",
+        agencyDigit: "",
         accountNumber: "",
+        accountDigit: "",
         accountType: "corrente",
       });
     } catch (error: any) {
@@ -293,24 +299,48 @@ export const BankAccountForm = ({
 
               <div className="space-y-2">
                 <Label htmlFor="agency">Agência</Label>
-                <Input
-                  id="agency"
-                  placeholder="0000"
-                  value={formData.agency}
-                  onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
-                  disabled={!isRegistered}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="agency"
+                    placeholder="0000"
+                    value={formData.agency}
+                    onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
+                    disabled={!isRegistered}
+                    className="flex-1"
+                  />
+                  <Input
+                    id="agencyDigit"
+                    placeholder="Dígito"
+                    value={formData.agencyDigit}
+                    onChange={(e) => setFormData({ ...formData, agencyDigit: e.target.value })}
+                    disabled={!isRegistered}
+                    className="w-16"
+                    maxLength={1}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="accountNumber">Número da Conta</Label>
-                <Input
-                  id="accountNumber"
-                  placeholder="00000-0"
-                  value={formData.accountNumber}
-                  onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                  disabled={!isRegistered}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="accountNumber"
+                    placeholder="00000"
+                    value={formData.accountNumber}
+                    onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                    disabled={!isRegistered}
+                    className="flex-1"
+                  />
+                  <Input
+                    id="accountDigit"
+                    placeholder="Dígito"
+                    value={formData.accountDigit}
+                    onChange={(e) => setFormData({ ...formData, accountDigit: e.target.value })}
+                    disabled={!isRegistered}
+                    className="w-16"
+                    maxLength={2}
+                  />
+                </div>
               </div>
             </div>
 

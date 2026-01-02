@@ -6,12 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// TecnoSpeed Open Finance API URLs
+// TecnoSpeed Pagamento Bancário API URLs (conforme documentação oficial)
 const getBaseUrl = () => {
-  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox";
+  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "staging";
   return env === "production"
-    ? "https://api.openfinance.tecnospeed.com.br/v1"
-    : "https://api.sandbox.openfinance.tecnospeed.com.br/v1";
+    ? "https://api.pagamentobancario.com.br/api/v1"
+    : "https://staging.pagamentobancario.com.br/api/v1";
 };
 
 serve(async (req) => {
@@ -35,10 +35,11 @@ serve(async (req) => {
       );
     }
 
+    // TecnoSpeed credentials - usando headers conforme documentação
     const TOKEN = Deno.env.get("TECNOSPEED_TOKEN");
-    const LOGIN_AUTH = Deno.env.get("TECNOSPEED_LOGIN_AUTH") || Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
+    const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
-    if (!TOKEN || !LOGIN_AUTH) {
+    if (!TOKEN || !CNPJ_SH) {
       console.error("Missing credentials");
       return new Response(
         JSON.stringify({ success: false, error: "Credenciais TecnoSpeed não configuradas" }),
@@ -57,7 +58,7 @@ serve(async (req) => {
     }
 
     const baseUrl = getBaseUrl();
-    const requestUrl = `${baseUrl}/statements/${uniqueId}`;
+    const requestUrl = `${baseUrl}/statement/openfinance/${uniqueId}`;
     
     console.log("Fetching statement from TecnoSpeed:", { uniqueId, requestUrl });
 
@@ -65,8 +66,8 @@ serve(async (req) => {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${TOKEN}`,
-        "LoginAuth": LOGIN_AUTH,
+        "cnpj-sh": CNPJ_SH,
+        "token-sh": TOKEN,
       },
     });
 

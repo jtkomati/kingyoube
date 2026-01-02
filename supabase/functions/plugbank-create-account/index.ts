@@ -6,12 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// TecnoSpeed Open Finance API URLs
+// TecnoSpeed Pagamento Bancário API URLs (conforme documentação oficial)
 const getBaseUrl = () => {
-  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "sandbox";
+  const env = Deno.env.get("TECNOSPEED_ENVIRONMENT") || "staging";
   return env === "production"
-    ? "https://api.openfinance.tecnospeed.com.br/v1"
-    : "https://api.sandbox.openfinance.tecnospeed.com.br/v1";
+    ? "https://api.pagamentobancario.com.br/api/v1"
+    : "https://staging.pagamentobancario.com.br/api/v1";
 };
 
 serve(async (req) => {
@@ -35,10 +35,11 @@ serve(async (req) => {
       );
     }
 
+    // TecnoSpeed credentials - usando headers conforme documentação
     const TOKEN = Deno.env.get("TECNOSPEED_TOKEN");
-    const LOGIN_AUTH = Deno.env.get("TECNOSPEED_LOGIN_AUTH") || Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
+    const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
-    if (!TOKEN || !LOGIN_AUTH) {
+    if (!TOKEN || !CNPJ_SH) {
       console.error("Missing credentials");
       return new Response(
         JSON.stringify({ success: false, error: "Credenciais TecnoSpeed não configuradas" }),
@@ -47,7 +48,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { payerId, bankCode, agency, accountNumber, accountType = "checking" } = body;
+    const { payerId, bankCode, agency, agencyDigit, accountNumber, accountDigit, accountType = "checking" } = body;
 
     if (!payerId || !bankCode || !agency || !accountNumber) {
       return new Response(
@@ -57,7 +58,8 @@ serve(async (req) => {
     }
 
     const baseUrl = getBaseUrl();
-    const requestUrl = `${baseUrl}/accounts`;
+    // Endpoint conforme documentação: POST /account com token do pagador na URL
+    const requestUrl = `${baseUrl}/payer/${payerId}/account`;
     
     console.log("Creating account with TecnoSpeed API:", { 
       payerId, 
@@ -67,20 +69,32 @@ serve(async (req) => {
       requestUrl
     });
 
-    const accountPayload = {
-      customerId: payerId,
-      bankCode,
-      agency: agency.replace(/\D/g, ""),
-      accountNumber: accountNumber.replace(/\D/g, ""),
-      accountType,
-    };
+    // Payload conforme documentação oficial TecnoSpeed - array de contas
+    const accountPayload = [
+      {
+        bankCode: bankCode,
+        agency: agency.replace(/\D/g, ""),
+        agencyDigit: agencyDigit || "",
+        accountNumber: accountNumber.replace(/\D/g, ""),
+        accountDac: accountDigit || "",
+        convenioAgency: "",
+        convenioNumber: "",
+        remessaSequential: 0,
+        accountPayment: false,
+        webservice: false,
+        recipientNotification: false,
+        statementActived: true, // Obrigatório para Open Finance
+      }
+    ];
+
+    console.log("Account payload:", JSON.stringify(accountPayload, null, 2));
 
     const response = await fetch(requestUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${TOKEN}`,
-        "LoginAuth": LOGIN_AUTH,
+        "cnpj-sh": CNPJ_SH,
+        "token-sh": TOKEN,
       },
       body: JSON.stringify(accountPayload),
     });
@@ -105,7 +119,7 @@ serve(async (req) => {
       }
       if (response.status === 404) {
         return new Response(
-          JSON.stringify({ success: false, error: "Endpoint não encontrado. Verifique a configuração da API." }),
+          JSON.stringify({ success: false, error: "Pagador não encontrado ou endpoint inválido." }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -121,15 +135,22 @@ serve(async (req) => {
       );
     }
 
-    const accountId = responseData.id || responseData.accountId;
-    const consentLink = responseData.consentLink || responseData.connectorUrl || responseData.link;
+    // Conforme documentação, resposta retorna array de accounts com accountHash e openfinanceLink
+    const accounts = responseData.accounts || responseData;
+    const firstAccount = Array.isArray(accounts) ? accounts[0] : accounts;
+    
+    const accountHash = firstAccount?.accountHash || firstAccount?.id;
+    const consentLink = firstAccount?.openfinanceLink || firstAccount?.consentLink;
+
+    console.log("Account created:", { accountHash, consentLink });
 
     // Save to bank_accounts if bankAccountId provided
     if (body.bankAccountId) {
       const { error: updateError } = await supabaseClient
         .from("bank_accounts")
         .update({ 
-          plugbank_account_id: accountId,
+          plugbank_account_id: accountHash,
+          account_hash: accountHash,
           consent_link: consentLink,
           bank_code: bankCode,
           open_finance_status: "awaiting_consent"
@@ -144,9 +165,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        accountId,
+        accountId: accountHash,
+        accountHash,
         consentLink,
-        message: "Conta cadastrada. Clique no link para autorizar no banco."
+        message: consentLink 
+          ? "Conta cadastrada. Clique no link para autorizar no banco."
+          : "Conta cadastrada com sucesso."
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
