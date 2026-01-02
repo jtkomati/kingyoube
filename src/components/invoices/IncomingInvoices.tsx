@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, DollarSign, Download, Eye, Trash2, RefreshCw, Settings, AlertCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { FileText, Upload, DollarSign, Download, Eye, Trash2, RefreshCw, Settings, AlertCircle, CheckCircle, XCircle, Loader2, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
+import { TomadasConsultaModal } from "./TomadasConsultaModal";
+import { TomadasConsultasList } from "./TomadasConsultasList";
 
 interface IncomingInvoice {
   id: string;
@@ -46,8 +48,9 @@ export const IncomingInvoices = () => {
   const { currentOrganization } = useAuth();
   const isMobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+const [isDragging, setIsDragging] = useState(false);
   const [invoices, setInvoices] = useState<IncomingInvoice[]>([]);
+  const [showTomadasModal, setShowTomadasModal] = useState(false);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingCNAB, setIsGeneratingCNAB] = useState(false);
@@ -459,7 +462,16 @@ export const IncomingInvoices = () => {
                 />
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowTomadasModal(true)}
+                className="gap-2"
+              >
+                <Building2 className="h-4 w-4" />
+                Consultar NFS-e Tomadas
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -874,6 +886,35 @@ export const IncomingInvoices = () => {
         cancelText="Cancelar"
         variant="destructive"
       />
+
+      {currentOrganization?.id && (
+        <TomadasConsultaModal
+          open={showTomadasModal}
+          onOpenChange={setShowTomadasModal}
+          companyId={currentOrganization.id}
+          onSuccess={fetchInvoices}
+        />
+      )}
+
+      {currentOrganization?.id && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Consultas de Notas Tomadas
+            </CardTitle>
+            <CardDescription>
+              Acompanhe o status das consultas de NFS-e de serviços recebidos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TomadasConsultasList
+              companyId={currentOrganization.id}
+              onRefresh={fetchInvoices}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

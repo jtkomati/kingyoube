@@ -1642,6 +1642,77 @@ export type Database = {
           },
         ]
       }
+      certificados_digitais: {
+        Row: {
+          ativo: boolean | null
+          certificado_id: string | null
+          cnpj: string | null
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          file_url: string | null
+          id: string
+          nome: string | null
+          updated_at: string | null
+          vencimento: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          certificado_id?: string | null
+          cnpj?: string | null
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          file_url?: string | null
+          id?: string
+          nome?: string | null
+          updated_at?: string | null
+          vencimento?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          certificado_id?: string | null
+          cnpj?: string | null
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          file_url?: string | null
+          id?: string
+          nome?: string | null
+          updated_at?: string | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_certificado_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "fk_certificado_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_certificado_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "fk_certificado_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cfo_alerts: {
         Row: {
           cfo_partner_id: string
@@ -2056,6 +2127,8 @@ export type Database = {
           plugnotas_last_test: string | null
           plugnotas_status: string | null
           plugnotas_token: string | null
+          tecnospeed_tomadas_ativo: boolean | null
+          tecnospeed_tomadas_last_sync: string | null
           updated_at: string
           webhook_url: string | null
         }
@@ -2071,6 +2144,8 @@ export type Database = {
           plugnotas_last_test?: string | null
           plugnotas_status?: string | null
           plugnotas_token?: string | null
+          tecnospeed_tomadas_ativo?: boolean | null
+          tecnospeed_tomadas_last_sync?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
@@ -2086,6 +2161,8 @@ export type Database = {
           plugnotas_last_test?: string | null
           plugnotas_status?: string | null
           plugnotas_token?: string | null
+          tecnospeed_tomadas_ativo?: boolean | null
+          tecnospeed_tomadas_last_sync?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
@@ -3320,6 +3397,86 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tomadas_consultas: {
+        Row: {
+          codigo_cidade: string
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          mensagem_erro: string | null
+          nome_cidade: string | null
+          notas_importadas: number | null
+          periodo_final: string
+          periodo_inicial: string
+          protocolo: string
+          situacao: string | null
+          total_notas: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          codigo_cidade: string
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          mensagem_erro?: string | null
+          nome_cidade?: string | null
+          notas_importadas?: number | null
+          periodo_final: string
+          periodo_inicial: string
+          protocolo: string
+          situacao?: string | null
+          total_notas?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          codigo_cidade?: string
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          mensagem_erro?: string | null
+          nome_cidade?: string | null
+          notas_importadas?: number | null
+          periodo_final?: string
+          periodo_inicial?: string
+          protocolo?: string
+          situacao?: string | null
+          total_notas?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tomadas_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "fk_tomadas_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tomadas_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "fk_tomadas_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

@@ -86,3 +86,15 @@ verify_jwt = true
 
 [functions.sync-nfe-destinadas]
 verify_jwt = true
+
+[functions.sync-notas-tomadas]
+verify_jwt = true
+
+[functions.check-tomadas-status]
+verify_jwt = true
+
+[functions.fetch-tomadas-notas]
+verify_jwt = true
+
+[functions.consultar-cidades-tomadas]
+verify_jwt = true
