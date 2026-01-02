@@ -58,10 +58,10 @@ serve(async (req) => {
     }
 
     const baseUrl = getBaseUrl();
-    // Endpoint conforme documentação: POST /account com token do pagador na URL
-    const requestUrl = `${baseUrl}/payer/${payerId}/account`;
+    // Endpoint correto: PUT /payer para atualizar o payer com as contas
+    const requestUrl = `${baseUrl}/payer`;
     
-    console.log("Creating account with TecnoSpeed API:", { 
+    console.log("Adding account to payer via PUT /payer:", { 
       payerId, 
       bankCode, 
       agency, 
@@ -69,34 +69,37 @@ serve(async (req) => {
       requestUrl
     });
 
-    // Payload conforme documentação oficial TecnoSpeed - array de contas
-    const accountPayload = [
-      {
-        bankCode: bankCode,
-        agency: agency.replace(/\D/g, ""),
-        agencyDigit: agencyDigit || "",
-        accountNumber: accountNumber.replace(/\D/g, ""),
-        accountDac: accountDigit || "",
-        convenioAgency: "",
-        convenioNumber: "",
-        remessaSequential: 0,
-        accountPayment: false,
-        webservice: false,
-        recipientNotification: false,
-        statementActived: true, // Obrigatório para Open Finance
-      }
-    ];
+    // Payload: atualizar payer existente com nova conta no array accounts
+    const payerUpdatePayload = {
+      token: payerId, // O payerId é o token do payer retornado na criação
+      accounts: [
+        {
+          bankCode: bankCode,
+          agency: agency.replace(/\D/g, ""),
+          agencyDigit: agencyDigit || "",
+          accountNumber: accountNumber.replace(/\D/g, ""),
+          accountDac: accountDigit || "",
+          convenioAgency: "",
+          convenioNumber: "",
+          remessaSequential: 0,
+          accountPayment: false,
+          webservice: false,
+          recipientNotification: false,
+          statementActived: true, // Obrigatório para Open Finance
+        }
+      ]
+    };
 
-    console.log("Account payload:", JSON.stringify(accountPayload, null, 2));
+    console.log("Payer update payload:", JSON.stringify(payerUpdatePayload, null, 2));
 
     const response = await fetch(requestUrl, {
-      method: "POST",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "cnpjsh": CNPJ_SH,
         "tokensh": TOKEN,
       },
-      body: JSON.stringify(accountPayload),
+      body: JSON.stringify(payerUpdatePayload),
     });
 
     const responseText = await response.text();
