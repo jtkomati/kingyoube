@@ -50,16 +50,14 @@ serve(async (req) => {
     // Step 2: Create Connect Token
     const { itemId, webhookUrl } = await req.json().catch(() => ({}));
     
-    const connectTokenPayload: Record<string, unknown> = {};
+    const connectTokenPayload: Record<string, unknown> = {
+      // Always set webhook URL to receive item updates
+      webhookUrl: webhookUrl || `https://rvyoumuclbrjiaeurriy.supabase.co/functions/v1/pluggy-webhook`
+    };
     
     // If updating an existing item, include the itemId
     if (itemId) {
       connectTokenPayload.itemId = itemId;
-    }
-
-    // Set webhook URL if provided
-    if (webhookUrl) {
-      connectTokenPayload.webhookUrl = webhookUrl;
     }
 
     console.log('Creating connect token with payload:', connectTokenPayload);

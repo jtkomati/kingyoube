@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { PluggyConnect } from 'react-pluggy-connect';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Landmark, Loader2, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Building2, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
 
 interface PluggyConnectButtonProps {
   companyId?: string;
@@ -19,118 +18,251 @@ export function PluggyConnectButton({
   onError 
 }: PluggyConnectButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [connectToken, setConnectToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [popupWindow, setPopupWindow] = useState<Window | null>(null);
 
-  const handleConnect = async () => {
-    setIsLoading(true);
-    try {
-      // Get connect token from edge function
-      const { data, error } = await supabase.functions.invoke('pluggy-create-connect-token', {
-        body: {
-          webhookUrl: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pluggy-webhook`,
-        },
-      });
-
-      if (error) throw error;
-
-      if (!data?.accessToken) {
-        throw new Error('Failed to get connect token');
+  // Check for existing Pluggy connections
+  useEffect(() => {
+    const checkExistingConnection = async () => {
+      if (!companyId) return;
+      
+      const { data } = await supabase
+        .from('bank_accounts')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('open_finance_status', 'connected')
+        .not('tecnospeed_item_id', 'is', null)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        setIsConnected(true);
       }
+    };
+    
+    checkExistingConnection();
+  }, [companyId]);
 
-      console.log('Connect token obtained, opening Pluggy widget');
-      setConnectToken(data.accessToken);
-    } catch (error) {
-      console.error('Error getting connect token:', error);
-      toast.error('Erro ao iniciar conexão com Open Finance');
-      onError?.(error as Error);
-    } finally {
-      setIsLoading(false);
+  // Listen for messages from the Pluggy popup
+  const handleMessage = useCallback((event: MessageEvent) => {
+    // Validate origin - accept messages from Pluggy domains
+    const validOrigins = [
+      'https://connect.pluggy.ai',
+      'https://cdn.pluggy.ai',
+      'https://api.pluggy.ai'
+    ];
+    
+    if (!validOrigins.some(origin => event.origin.startsWith(origin.replace('https://', 'https://')))) {
+      // Also check if it's from our own origin (for testing)
+      if (event.origin !== window.location.origin) {
+        return;
+      }
     }
-  };
 
-  const handlePluggySuccess = async (data: { item: { id: string } }) => {
-    console.log('Pluggy connection success:', data);
-    const itemId = data.item.id;
+    console.log('Received message from Pluggy:', event.data);
 
+    // Handle different message types from Pluggy widget
+    if (event.data?.type === 'pluggy-connect:success' || event.data?.event === 'onSuccess') {
+      const itemId = event.data?.item?.id || event.data?.itemId;
+      if (itemId) {
+        handlePluggySuccess(itemId);
+      }
+    } else if (event.data?.type === 'pluggy-connect:error' || event.data?.event === 'onError') {
+      const error = new Error(event.data?.error?.message || 'Erro na conexão');
+      handlePluggyError(error);
+    } else if (event.data?.type === 'pluggy-connect:close' || event.data?.event === 'onClose') {
+      handlePluggyClose();
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [handleMessage]);
+
+  // Poll to check if popup was closed manually
+  useEffect(() => {
+    if (!popupWindow) return;
+
+    const checkPopupClosed = setInterval(() => {
+      if (popupWindow.closed) {
+        setIsLoading(false);
+        setPopupWindow(null);
+        clearInterval(checkPopupClosed);
+      }
+    }, 500);
+
+    return () => clearInterval(checkPopupClosed);
+  }, [popupWindow]);
+
+  const handlePluggySuccess = async (itemId: string) => {
+    console.log('Pluggy connection successful, itemId:', itemId);
+    
     try {
-      // Save item to database
+      // Save the itemId to the database
       if (companyId) {
         const { error } = await supabase
           .from('bank_accounts')
-          .insert({
+          .upsert({
             company_id: companyId,
-            pluggy_item_id: itemId,
             bank_name: 'Open Finance',
-            open_finance_status: 'pending',
+            tecnospeed_item_id: itemId,
+            open_finance_status: 'connected',
+            auto_sync_enabled: true,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'tecnospeed_item_id'
           });
 
         if (error) {
-          console.error('Error saving item:', error);
+          console.error('Error saving Pluggy connection:', error);
+          throw error;
         }
       }
 
       setIsConnected(true);
-      setConnectToken(null);
-      toast.success('Conta bancária conectada com sucesso!');
+      setIsLoading(false);
+      
+      if (popupWindow && !popupWindow.closed) {
+        popupWindow.close();
+      }
+      setPopupWindow(null);
+      
+      toast.success('Conexão realizada com sucesso!', {
+        description: 'Seus dados bancários aparecerão em instantes.'
+      });
+      
       onSuccess?.(itemId);
     } catch (error) {
-      console.error('Error saving connection:', error);
+      console.error('Error in handlePluggySuccess:', error);
       toast.error('Erro ao salvar conexão');
     }
   };
 
-  const handlePluggyError = (error: { message: string; code?: string }) => {
-    console.error('Pluggy error:', error);
-    setConnectToken(null);
-    toast.error(`Erro na conexão: ${error.message}`);
-    onError?.(new Error(error.message));
+  const handlePluggyError = (error: Error) => {
+    console.error('Pluggy connection error:', error);
+    setIsLoading(false);
+    
+    if (popupWindow && !popupWindow.closed) {
+      popupWindow.close();
+    }
+    setPopupWindow(null);
+    
+    toast.error('Erro na conexão', {
+      description: error.message
+    });
+    
+    onError?.(error);
   };
 
   const handlePluggyClose = () => {
-    console.log('Pluggy widget closed');
-    setConnectToken(null);
+    setIsLoading(false);
+    setPopupWindow(null);
+  };
+
+  const handleConnect = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Get the webhook URL for this project
+      const webhookUrl = `https://rvyoumuclbrjiaeurriy.supabase.co/functions/v1/pluggy-webhook`;
+      
+      // Fetch connect token from edge function
+      const { data, error } = await supabase.functions.invoke('pluggy-create-connect-token', {
+        body: { webhookUrl }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Erro ao obter token de conexão');
+      }
+
+      if (!data?.accessToken) {
+        throw new Error('Token de conexão não recebido');
+      }
+
+      const connectToken = data.accessToken;
+      console.log('Connect token obtained, opening popup...');
+
+      // Build the Pluggy Connect URL with parameters
+      const params = new URLSearchParams({
+        connectToken,
+        includeSandbox: 'true', // Enable sandbox for testing
+        language: 'pt'
+      });
+
+      // Add CNPJ if available for pre-filling
+      if (cnpj) {
+        params.append('cpf', cnpj.replace(/\D/g, '')); // Pluggy uses 'cpf' param for both CPF and CNPJ
+      }
+
+      const popupUrl = `https://connect.pluggy.ai/?${params.toString()}`;
+      
+      // Calculate popup position (center of screen)
+      const width = 500;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+
+      // Open popup window
+      const popup = window.open(
+        popupUrl,
+        'PluggyConnect',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+      );
+
+      if (!popup) {
+        throw new Error('Popup bloqueado pelo navegador. Por favor, permita popups para este site.');
+      }
+
+      setPopupWindow(popup);
+      
+      // Focus the popup
+      popup.focus();
+
+    } catch (error) {
+      console.error('Error initiating Pluggy connection:', error);
+      setIsLoading(false);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error('Erro ao iniciar conexão', {
+        description: errorMessage
+      });
+      
+      onError?.(error instanceof Error ? error : new Error(errorMessage));
+    }
   };
 
   if (isConnected) {
     return (
-      <Button variant="outline" disabled className="gap-2">
-        <CheckCircle className="h-4 w-4 text-green-500" />
-        Conta Conectada
+      <Button 
+        variant="outline" 
+        className="w-full gap-2 border-green-500 text-green-600 hover:bg-green-50"
+        disabled
+      >
+        <CheckCircle2 className="h-4 w-4" />
+        Conectado via Open Finance
       </Button>
     );
   }
 
   return (
-    <>
-      <Button
-        onClick={handleConnect}
-        disabled={isLoading}
-        className="gap-2"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Conectando...
-          </>
-        ) : (
-          <>
-            <Landmark className="h-4 w-4" />
-            Conectar via Open Finance
-          </>
-        )}
-      </Button>
-
-      {connectToken && (
-        <PluggyConnect
-          connectToken={connectToken}
-          includeSandbox={true}
-          onSuccess={handlePluggySuccess}
-          onError={handlePluggyError}
-          onClose={handlePluggyClose}
-          connectorTypes={[1, 2, 3, 4]} // Banks, Credit cards, Investments, etc.
-        />
+    <Button
+      onClick={handleConnect}
+      disabled={isLoading}
+      className="w-full gap-2"
+      variant="default"
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Conectando...
+        </>
+      ) : (
+        <>
+          <Building2 className="h-4 w-4" />
+          Conectar via Open Finance
+          <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
+        </>
       )}
-    </>
+    </Button>
   );
 }
