@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Building2, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-
-const BROADCAST_CHANNEL_NAME = 'pluggy_oauth';
 
 interface PluggyConnectButtonProps {
   companyId?: string;
@@ -23,7 +21,8 @@ export function PluggyConnectButton({
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [popupWindow, setPopupWindow] = useState<Window | null>(null);
+  const popupRef = useRef<Window | null>(null);
+  const pollIntervalRef = useRef<number | null>(null);
 
   // Check for existing Pluggy connections
   useEffect(() => {
@@ -32,9 +31,9 @@ export function PluggyConnectButton({
       
       const { data } = await supabase
         .from('bank_accounts')
-        .select('id')
+        .select('id, pluggy_item_id')
         .eq('company_id', companyId)
-        .eq('open_finance_status', 'connected')
+        .or('open_finance_status.eq.connected,pluggy_item_id.not.is.null')
         .limit(1);
       
       if (data && data.length > 0) {
@@ -46,35 +45,47 @@ export function PluggyConnectButton({
   }, [companyId]);
 
   const handlePluggySuccess = useCallback(async (itemId: string) => {
-    console.log('Pluggy connection successful, itemId:', itemId);
+    console.log('[PluggyButton] Success received, itemId:', itemId);
     
+    // Clear localStorage marker
     try {
-      // Save the connection to the database
-      if (companyId && user?.id) {
-        const { error: connError } = await (supabase
-          .from('pluggy_connections' as any)
-          .insert({
-            company_id: companyId,
-            created_by: user.id,
-            pluggy_item_id: itemId,
-            status: 'connected'
-          }) as any);
+      localStorage.removeItem('pluggy_last_success');
+    } catch (e) {}
 
-        if (connError) {
-          console.error('Error saving Pluggy connection:', connError);
-          if (!connError.message?.includes('duplicate')) {
-            console.warn('Non-duplicate error, but continuing...');
-          }
+    // Clear polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+
+    try {
+      // Save/update the connection in bank_accounts
+      if (companyId && user?.id) {
+        const { error: upsertError } = await supabase
+          .from('bank_accounts')
+          .upsert({
+            company_id: companyId,
+            pluggy_item_id: itemId,
+            open_finance_status: 'connected',
+            bank_name: 'Open Finance',
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'pluggy_item_id'
+          });
+
+        if (upsertError) {
+          console.warn('[PluggyButton] Error saving connection:', upsertError);
         }
       }
 
       setIsConnected(true);
       setIsLoading(false);
       
-      if (popupWindow && !popupWindow.closed) {
-        popupWindow.close();
+      // Close popup if still open
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close();
       }
-      setPopupWindow(null);
+      popupRef.current = null;
       
       toast.success('Conexão realizada com sucesso!', {
         description: 'Seus dados bancários aparecerão em instantes.'
@@ -82,47 +93,63 @@ export function PluggyConnectButton({
       
       onSuccess?.(itemId);
     } catch (error) {
-      console.error('Error in handlePluggySuccess:', error);
+      console.error('[PluggyButton] Error in handlePluggySuccess:', error);
       toast.error('Erro ao salvar conexão');
     }
-  }, [companyId, user?.id, popupWindow, onSuccess]);
+  }, [companyId, user?.id, onSuccess]);
 
-  const handlePluggyError = useCallback((error: Error) => {
-    console.error('Pluggy connection error:', error);
+  const handlePluggyError = useCallback((error: string) => {
+    console.error('[PluggyButton] Error received:', error);
     setIsLoading(false);
     
-    if (popupWindow && !popupWindow.closed) {
-      popupWindow.close();
+    // Clear localStorage marker
+    try {
+      localStorage.removeItem('pluggy_last_error');
+    } catch (e) {}
+
+    // Clear polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
-    setPopupWindow(null);
+    
+    // Close popup if still open
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
+    }
+    popupRef.current = null;
     
     toast.error('Erro na conexão', {
-      description: error.message
+      description: error || 'Não foi possível conectar sua conta bancária.'
     });
     
-    onError?.(error);
-  }, [popupWindow, onError]);
+    onError?.(new Error(error));
+  }, [onError]);
 
   const handlePluggyClose = useCallback(() => {
+    console.log('[PluggyButton] Popup closed');
     setIsLoading(false);
-    setPopupWindow(null);
+    
+    // Clear polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    
+    popupRef.current = null;
   }, []);
 
-  // Handle messages from our popup page via postMessage
+  // Handle messages from popup via postMessage
   const handleMessage = useCallback((event: MessageEvent) => {
     // Only accept messages from our own origin
-    if (event.origin !== window.location.origin) {
-      return;
-    }
-
-    console.log('Received message from popup:', event.data);
+    if (event.origin !== window.location.origin) return;
 
     const { type, itemId, error } = event.data || {};
 
     if (type === 'pluggy:success' && itemId) {
       handlePluggySuccess(itemId);
     } else if (type === 'pluggy:error') {
-      handlePluggyError(new Error(error || 'Connection failed'));
+      handlePluggyError(error || 'Connection failed');
     } else if (type === 'pluggy:close') {
       handlePluggyClose();
     }
@@ -133,26 +160,26 @@ export function PluggyConnectButton({
     return () => window.removeEventListener('message', handleMessage);
   }, [handleMessage]);
 
-  // Listen for BroadcastChannel messages (resilient callback)
+  // Listen for BroadcastChannel messages
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
     
     try {
-      channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      channel = new BroadcastChannel('pluggy_connect');
       channel.onmessage = (event) => {
-        console.log('Received via BroadcastChannel:', event.data);
+        console.log('[PluggyButton] Received via BroadcastChannel:', event.data);
         const { type, itemId, error } = event.data || {};
         
         if (type === 'pluggy:success' && itemId) {
           handlePluggySuccess(itemId);
         } else if (type === 'pluggy:error') {
-          handlePluggyError(new Error(error || 'Connection failed'));
+          handlePluggyError(error || 'Connection failed');
         } else if (type === 'pluggy:close') {
           handlePluggyClose();
         }
       };
     } catch (e) {
-      console.log('BroadcastChannel not supported');
+      console.log('[PluggyButton] BroadcastChannel not supported');
     }
 
     return () => {
@@ -160,100 +187,112 @@ export function PluggyConnectButton({
     };
   }, [handlePluggySuccess, handlePluggyError, handlePluggyClose]);
 
-  // Check localStorage for success (fallback mechanism)
+  // Poll for localStorage fallback and check popup status
   useEffect(() => {
-    const checkLocalStorage = () => {
-      try {
-        const stored = localStorage.getItem('pluggy_last_success');
-        if (stored) {
-          const data = JSON.parse(stored);
-          // Only process if recent (within last 30 seconds)
-          if (data.timestamp && Date.now() - data.timestamp < 30000) {
-            if (data.type === 'pluggy:success' && data.itemId && isLoading) {
-              console.log('Found success in localStorage:', data);
-              localStorage.removeItem('pluggy_last_success');
-              handlePluggySuccess(data.itemId);
+    if (!isLoading) return;
+
+    const checkStatus = () => {
+      // Check if popup was closed
+      if (popupRef.current && popupRef.current.closed) {
+        console.log('[PluggyButton] Popup was closed');
+        
+        // Check localStorage for success before giving up
+        try {
+          const successData = localStorage.getItem('pluggy_last_success');
+          if (successData) {
+            const { itemId, timestamp } = JSON.parse(successData);
+            // Accept if within last 5 minutes
+            if (Date.now() - timestamp < 5 * 60 * 1000 && itemId) {
+              handlePluggySuccess(itemId);
+              return;
             }
           }
-        }
-      } catch (e) {
-        console.log('Error checking localStorage:', e);
+          
+          const errorData = localStorage.getItem('pluggy_last_error');
+          if (errorData) {
+            const { error, timestamp } = JSON.parse(errorData);
+            if (Date.now() - timestamp < 5 * 60 * 1000) {
+              handlePluggyError(error);
+              return;
+            }
+          }
+        } catch (e) {}
+        
+        // No success/error marker found, just close
+        handlePluggyClose();
+        return;
       }
+
+      // Also check localStorage while popup is open (in case messages didn't arrive)
+      try {
+        const successData = localStorage.getItem('pluggy_last_success');
+        if (successData) {
+          const { itemId, timestamp } = JSON.parse(successData);
+          // Accept if recent (within last 2 minutes)
+          if (Date.now() - timestamp < 2 * 60 * 1000 && itemId) {
+            handlePluggySuccess(itemId);
+            return;
+          }
+        }
+      } catch (e) {}
     };
 
-    // Check immediately and on focus
-    checkLocalStorage();
-    window.addEventListener('focus', checkLocalStorage);
-    
-    return () => window.removeEventListener('focus', checkLocalStorage);
-  }, [isLoading, handlePluggySuccess]);
+    pollIntervalRef.current = window.setInterval(checkStatus, 1000);
 
-  // Poll to check if popup was closed manually
-  useEffect(() => {
-    if (!popupWindow) return;
-
-    const checkPopupClosed = setInterval(() => {
-      if (popupWindow.closed) {
-        setIsLoading(false);
-        setPopupWindow(null);
-        clearInterval(checkPopupClosed);
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
       }
-    }, 500);
+    };
+  }, [isLoading, handlePluggySuccess, handlePluggyError, handlePluggyClose]);
 
-    return () => clearInterval(checkPopupClosed);
-  }, [popupWindow]);
-
-  const handleConnect = async () => {
+  const handleConnect = () => {
     setIsLoading(true);
     
+    // Clear any old markers
     try {
-      // Build URL for our popup page
-      const params = new URLSearchParams();
-      if (companyId) params.set('companyId', companyId);
-      if (cnpj) params.set('cnpj', cnpj);
-      // Enable sandbox for development/testing
-      params.set('sandbox', 'true');
+      localStorage.removeItem('pluggy_last_success');
+      localStorage.removeItem('pluggy_last_error');
+    } catch (e) {}
 
-      const popupUrl = `/pluggy/connect?${params.toString()}`;
-      
-      // Calculate popup position (center of screen)
-      const width = 500;
-      const height = 700;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
+    // Build URL for popup
+    const params = new URLSearchParams();
+    if (companyId) params.set('companyId', companyId);
+    if (cnpj) params.set('cnpj', cnpj);
+    params.set('sandbox', 'true'); // Enable sandbox for testing
 
-      // Open our popup page - use noopener for security but we have fallbacks
-      const popup = window.open(
-        popupUrl,
-        'PluggyConnect',
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
-      );
+    const popupUrl = `/pluggy/connect?${params.toString()}`;
+    
+    // Calculate popup position (centered)
+    const width = 500;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
 
-      if (!popup) {
-        throw new Error('Popup bloqueado pelo navegador. Por favor, permita popups para este site.');
-      }
+    // Open popup
+    const popup = window.open(
+      popupUrl,
+      'PluggyConnect',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
 
-      setPopupWindow(popup);
-      popup.focus();
-
-    } catch (error) {
-      console.error('Error initiating Pluggy connection:', error);
-      setIsLoading(false);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      toast.error('Erro ao iniciar conexão', {
-        description: errorMessage
+    if (!popup) {
+      toast.error('Popup bloqueado', {
+        description: 'Por favor, permita popups para este site e tente novamente.'
       });
-      
-      onError?.(error instanceof Error ? error : new Error(errorMessage));
+      setIsLoading(false);
+      return;
     }
+
+    popupRef.current = popup;
+    popup.focus();
   };
 
   if (isConnected) {
     return (
       <Button 
         variant="outline" 
-        className="w-full gap-2 border-green-500 text-green-600 hover:bg-green-50"
+        className="w-full gap-2 border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/10"
         disabled
       >
         <CheckCircle2 className="h-4 w-4" />
