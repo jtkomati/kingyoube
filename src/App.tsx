@@ -35,6 +35,7 @@ const AccountingSettings = lazy(() => import("./pages/AccountingSettings"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const Observability = lazy(() => import("./pages/Observability"));
 const AICommandCenter = lazy(() => import("./pages/AICommandCenter"));
+const PluggyConnectPopup = lazy(() => import("./pages/PluggyConnectPopup"));
 
 // Global query client with optimized defaults
 const queryClient = new QueryClient({
@@ -113,6 +114,7 @@ const App = () => {
             <Route path="/privacy-policy" element={<LazyRoute><PrivacyPolicy /></LazyRoute>} />
             <Route path="/terms" element={<LazyRoute><Terms /></LazyRoute>} />
             <Route path="/accept-invite" element={<LazyRoute><AcceptInvite /></LazyRoute>} />
+            <Route path="/pluggy/connect" element={<LazyRoute><PluggyConnectPopup /></LazyRoute>} />
             <Route
               path="/onboarding"
               element={<LazyProtectedRoute><Onboarding /></LazyProtectedRoute>}
