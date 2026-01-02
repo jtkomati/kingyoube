@@ -51,11 +51,17 @@ serve(async (req) => {
       });
     }
 
-    // Base URLs to test
-    const baseUrls = [
+    // Environment detection
+    const isProduction = Deno.env.get('TECNOSPEED_ENVIRONMENT') === 'production';
+    
+    // Base URLs to test - TecnoSpeed official endpoints
+    const baseUrls = isProduction ? [
+      'https://api.openfinance.tecnospeed.com.br',
       'https://openfinance.tecnospeed.com.br',
-      'https://api.tecnospeed.com.br/openfinance',
-      'https://homologacao.openfinance.tecnospeed.com.br'
+    ] : [
+      'https://api.sandbox.openfinance.tecnospeed.com.br',
+      'https://sandbox.openfinance.tecnospeed.com.br',
+      'https://api.openfinance.tecnospeed.com.br', // fallback to production for testing
     ];
 
     // Auth methods to test
@@ -65,49 +71,35 @@ serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'LoginAuth': loginAuth,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       },
       {
-        name: 'Basic Auth (loginAuth:token)',
+        name: 'Basic Auth (cnpj:token)',
         headers: {
           'Authorization': `Basic ${btoa(`${loginAuth}:${token}`)}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       },
       {
-        name: 'Basic Auth (token:loginAuth)',
-        headers: {
-          'Authorization': `Basic ${btoa(`${token}:${loginAuth}`)}`,
-          'Content-Type': 'application/json'
-        }
-      },
-      {
-        name: 'Token + LoginAuth Custom Headers',
+        name: 'Token Header Only',
         headers: {
           'Token': token,
-          'LoginAuth': loginAuth,
-          'Content-Type': 'application/json'
-        }
-      },
-      {
-        name: 'X-API-Key Header',
-        headers: {
-          'X-API-Key': token,
-          'LoginAuth': loginAuth,
-          'Content-Type': 'application/json'
+          'CNPJ': loginAuth,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       }
     ];
 
     // Endpoints to test
     const endpoints = [
-      '/api/v1/status',
-      '/api/v1/health',
+      '/v1/status',
+      '/v1/health',
       '/status',
-      '/health',
-      '/api/status',
-      '/'
+      '/health'
     ];
 
     // Test each combination (limited to avoid too many requests)
@@ -120,18 +112,30 @@ serve(async (req) => {
           try {
             console.log(`Testing: ${auth.name} -> ${url}`);
             
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            
             const response = await fetch(url, {
               method: 'GET',
-              headers: auth.headers
+              headers: auth.headers,
+              signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
 
             const latencyMs = Date.now() - testStart;
             let responseBody: unknown;
             
+            // Clone response before reading body to avoid "Body already consumed" error
+            const responseClone = response.clone();
             try {
               responseBody = await response.json();
             } catch {
-              responseBody = await response.text();
+              try {
+                responseBody = await responseClone.text();
+              } catch {
+                responseBody = 'Unable to read response body';
+              }
             }
 
             const result: TestResult = {
