@@ -107,8 +107,8 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "cnpj-sh": CNPJ_SH,
-        "token-sh": TOKEN,
+        "cnpjsh": CNPJ_SH,
+        "tokensh": TOKEN,
       },
       body: JSON.stringify(payerPayload),
     });
