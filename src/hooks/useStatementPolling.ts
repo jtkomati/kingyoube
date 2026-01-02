@@ -51,6 +51,13 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
     if (!uniqueIdRef.current) return;
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        stopPolling();
+        onError?.("Você precisa estar logado para acessar o extrato");
+        return;
+      }
+
       const { data: response, error } = await supabase.functions.invoke("plugbank-get-statement", {
         body: {
           uniqueId: uniqueIdRef.current,
@@ -99,20 +106,25 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
   }, [isPolling, checkStatus, intervalMs]);
 
   const requestStatement = async (
-    accountId: string,
+    accountHash: string,
     startDate: string,
     endDate: string,
     bankAccountId?: string,
     companyId?: string
   ): Promise<{ success: boolean; error?: string; uniqueId?: string }> => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return { success: false, error: "Você precisa estar logado para acessar o extrato" };
+      }
+
       setAttempts(0);
       setStatus("REQUESTING");
       setData(null);
 
       const { data: response, error } = await supabase.functions.invoke("plugbank-request-statement", {
         body: {
-          accountId,
+          accountHash,
           startDate,
           endDate,
           bankAccountId,
