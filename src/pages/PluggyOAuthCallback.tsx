@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 
+const BROADCAST_CHANNEL_NAME = 'pluggy_oauth';
+const STORAGE_KEY = 'pluggy_oauth_callback';
+
 const PluggyOAuthCallback = () => {
   const [canClose, setCanClose] = useState(false);
 
@@ -9,18 +12,54 @@ const PluggyOAuthCallback = () => {
     console.log('Search:', window.location.search);
     console.log('Hash:', window.location.hash);
 
-    // Try to notify opener/parent
-    const message = {
+    const callbackData = {
       type: 'pluggy:oauth_callback',
       search: window.location.search,
       hash: window.location.hash,
+      timestamp: Date.now(),
     };
 
-    if (window.opener) {
-      window.opener.postMessage(message, '*');
+    // 1. Try BroadcastChannel (most reliable for same-origin tabs)
+    try {
+      const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      channel.postMessage(callbackData);
+      console.log('Sent via BroadcastChannel');
+      channel.close();
+    } catch (e) {
+      console.log('BroadcastChannel not supported:', e);
     }
+
+    // 2. Also store in localStorage as fallback
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(callbackData));
+      // Trigger storage event manually for same-tab detection
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: STORAGE_KEY,
+        newValue: JSON.stringify(callbackData),
+      }));
+      console.log('Stored in localStorage');
+    } catch (e) {
+      console.log('localStorage not available:', e);
+    }
+
+    // 3. Try postMessage to opener (if available and same origin)
+    if (window.opener) {
+      try {
+        window.opener.postMessage(callbackData, window.location.origin);
+        console.log('Sent via postMessage to opener');
+      } catch (e) {
+        console.log('postMessage to opener failed:', e);
+      }
+    }
+
+    // 4. Try postMessage to parent (if in iframe)
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage(message, '*');
+      try {
+        window.parent.postMessage(callbackData, window.location.origin);
+        console.log('Sent via postMessage to parent');
+      } catch (e) {
+        console.log('postMessage to parent failed:', e);
+      }
     }
 
     // Try to close after a short delay

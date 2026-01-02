@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.create-pluggy-token]
 verify_jwt = true
+
+[functions.pluggy-proxy]
+verify_jwt = true

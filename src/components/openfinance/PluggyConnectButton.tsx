@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { Building2, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
+const BROADCAST_CHANNEL_NAME = 'pluggy_oauth';
+
 interface PluggyConnectButtonProps {
   companyId?: string;
   cnpj?: string;
@@ -43,53 +45,12 @@ export function PluggyConnectButton({
     checkExistingConnection();
   }, [companyId]);
 
-  // Handle messages from our popup page
-  const handleMessage = useCallback((event: MessageEvent) => {
-    // Only accept messages from our own origin
-    if (event.origin !== window.location.origin) {
-      return;
-    }
-
-    console.log('Received message from popup:', event.data);
-
-    const { type, itemId, error } = event.data || {};
-
-    if (type === 'pluggy:success' && itemId) {
-      handlePluggySuccess(itemId);
-    } else if (type === 'pluggy:error') {
-      handlePluggyError(new Error(error || 'Connection failed'));
-    } else if (type === 'pluggy:close') {
-      handlePluggyClose();
-    }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [handleMessage]);
-
-  // Poll to check if popup was closed manually
-  useEffect(() => {
-    if (!popupWindow) return;
-
-    const checkPopupClosed = setInterval(() => {
-      if (popupWindow.closed) {
-        setIsLoading(false);
-        setPopupWindow(null);
-        clearInterval(checkPopupClosed);
-      }
-    }, 500);
-
-    return () => clearInterval(checkPopupClosed);
-  }, [popupWindow]);
-
-  const handlePluggySuccess = async (itemId: string) => {
+  const handlePluggySuccess = useCallback(async (itemId: string) => {
     console.log('Pluggy connection successful, itemId:', itemId);
     
     try {
       // Save the connection to the database
       if (companyId && user?.id) {
-        // Use type assertion since pluggy_connections was just created
         const { error: connError } = await (supabase
           .from('pluggy_connections' as any)
           .insert({
@@ -101,7 +62,6 @@ export function PluggyConnectButton({
 
         if (connError) {
           console.error('Error saving Pluggy connection:', connError);
-          // If it's a duplicate, that's fine - connection already exists
           if (!connError.message?.includes('duplicate')) {
             console.warn('Non-duplicate error, but continuing...');
           }
@@ -125,9 +85,9 @@ export function PluggyConnectButton({
       console.error('Error in handlePluggySuccess:', error);
       toast.error('Erro ao salvar conexão');
     }
-  };
+  }, [companyId, user?.id, popupWindow, onSuccess]);
 
-  const handlePluggyError = (error: Error) => {
+  const handlePluggyError = useCallback((error: Error) => {
     console.error('Pluggy connection error:', error);
     setIsLoading(false);
     
@@ -141,12 +101,107 @@ export function PluggyConnectButton({
     });
     
     onError?.(error);
-  };
+  }, [popupWindow, onError]);
 
-  const handlePluggyClose = () => {
+  const handlePluggyClose = useCallback(() => {
     setIsLoading(false);
     setPopupWindow(null);
-  };
+  }, []);
+
+  // Handle messages from our popup page via postMessage
+  const handleMessage = useCallback((event: MessageEvent) => {
+    // Only accept messages from our own origin
+    if (event.origin !== window.location.origin) {
+      return;
+    }
+
+    console.log('Received message from popup:', event.data);
+
+    const { type, itemId, error } = event.data || {};
+
+    if (type === 'pluggy:success' && itemId) {
+      handlePluggySuccess(itemId);
+    } else if (type === 'pluggy:error') {
+      handlePluggyError(new Error(error || 'Connection failed'));
+    } else if (type === 'pluggy:close') {
+      handlePluggyClose();
+    }
+  }, [handlePluggySuccess, handlePluggyError, handlePluggyClose]);
+
+  useEffect(() => {
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [handleMessage]);
+
+  // Listen for BroadcastChannel messages (resilient callback)
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    
+    try {
+      channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      channel.onmessage = (event) => {
+        console.log('Received via BroadcastChannel:', event.data);
+        const { type, itemId, error } = event.data || {};
+        
+        if (type === 'pluggy:success' && itemId) {
+          handlePluggySuccess(itemId);
+        } else if (type === 'pluggy:error') {
+          handlePluggyError(new Error(error || 'Connection failed'));
+        } else if (type === 'pluggy:close') {
+          handlePluggyClose();
+        }
+      };
+    } catch (e) {
+      console.log('BroadcastChannel not supported');
+    }
+
+    return () => {
+      channel?.close();
+    };
+  }, [handlePluggySuccess, handlePluggyError, handlePluggyClose]);
+
+  // Check localStorage for success (fallback mechanism)
+  useEffect(() => {
+    const checkLocalStorage = () => {
+      try {
+        const stored = localStorage.getItem('pluggy_last_success');
+        if (stored) {
+          const data = JSON.parse(stored);
+          // Only process if recent (within last 30 seconds)
+          if (data.timestamp && Date.now() - data.timestamp < 30000) {
+            if (data.type === 'pluggy:success' && data.itemId && isLoading) {
+              console.log('Found success in localStorage:', data);
+              localStorage.removeItem('pluggy_last_success');
+              handlePluggySuccess(data.itemId);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Error checking localStorage:', e);
+      }
+    };
+
+    // Check immediately and on focus
+    checkLocalStorage();
+    window.addEventListener('focus', checkLocalStorage);
+    
+    return () => window.removeEventListener('focus', checkLocalStorage);
+  }, [isLoading, handlePluggySuccess]);
+
+  // Poll to check if popup was closed manually
+  useEffect(() => {
+    if (!popupWindow) return;
+
+    const checkPopupClosed = setInterval(() => {
+      if (popupWindow.closed) {
+        setIsLoading(false);
+        setPopupWindow(null);
+        clearInterval(checkPopupClosed);
+      }
+    }, 500);
+
+    return () => clearInterval(checkPopupClosed);
+  }, [popupWindow]);
 
   const handleConnect = async () => {
     setIsLoading(true);
@@ -167,7 +222,7 @@ export function PluggyConnectButton({
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
 
-      // Open our popup page (not connect.pluggy.ai directly)
+      // Open our popup page - use noopener for security but we have fallbacks
       const popup = window.open(
         popupUrl,
         'PluggyConnect',
