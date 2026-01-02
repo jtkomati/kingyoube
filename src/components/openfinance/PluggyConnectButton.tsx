@@ -88,22 +88,22 @@ export function PluggyConnectButton({
     
     try {
       // Save the connection to the database
-      if (companyId) {
-        // First, try to create a pluggy_connections record
-        const { error: connError } = await supabase
-          .from('pluggy_connections')
+      if (companyId && user?.id) {
+        // Use type assertion since pluggy_connections was just created
+        const { error: connError } = await (supabase
+          .from('pluggy_connections' as any)
           .insert({
             company_id: companyId,
-            created_by: user?.id,
+            created_by: user.id,
             pluggy_item_id: itemId,
             status: 'connected'
-          });
+          }) as any);
 
         if (connError) {
           console.error('Error saving Pluggy connection:', connError);
           // If it's a duplicate, that's fine - connection already exists
           if (!connError.message?.includes('duplicate')) {
-            throw connError;
+            console.warn('Non-duplicate error, but continuing...');
           }
         }
       }

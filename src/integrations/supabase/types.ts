@@ -1251,6 +1251,8 @@ export type Database = {
           open_finance_status: string | null
           permissions_granted: string[] | null
           plugbank_account_id: string | null
+          pluggy_account_id: string | null
+          pluggy_item_id: string | null
           refresh_token: string | null
           tecnospeed_item_id: string | null
           token_expires_at: string | null
@@ -1281,6 +1283,8 @@ export type Database = {
           open_finance_status?: string | null
           permissions_granted?: string[] | null
           plugbank_account_id?: string | null
+          pluggy_account_id?: string | null
+          pluggy_item_id?: string | null
           refresh_token?: string | null
           tecnospeed_item_id?: string | null
           token_expires_at?: string | null
@@ -1311,6 +1315,8 @@ export type Database = {
           open_finance_status?: string | null
           permissions_granted?: string[] | null
           plugbank_account_id?: string | null
+          pluggy_account_id?: string | null
+          pluggy_item_id?: string | null
           refresh_token?: string | null
           tecnospeed_item_id?: string | null
           token_expires_at?: string | null
@@ -2948,6 +2954,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pluggy_connections: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          pluggy_item_id: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          pluggy_item_id: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          pluggy_item_id?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
