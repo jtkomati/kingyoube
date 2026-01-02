@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     // SANDBOX AUTOMÁTICO: Se não tem token configurado, usar sandbox
-    const SANDBOX_TOKEN = '2da392a6-79d2-4304-a8b7-576b3c623c8c'
+    const SANDBOX_TOKEN = '2da392a6-79d2-4304-a8b7-959572c7e44d'
     const useSandbox = !fiscalConfig?.plugnotas_token
     const plugnotasToken = fiscalConfig?.plugnotas_token || SANDBOX_TOKEN
     const plugnotasEnvironment = useSandbox ? 'SANDBOX' : (fiscalConfig?.plugnotas_environment || 'SANDBOX')
