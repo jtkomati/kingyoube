@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
+import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 
 interface IncomingInvoice {
   id: string;
@@ -447,9 +448,16 @@ export const IncomingInvoices = () => {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-base">Status PlugNotas</CardTitle>
               {getPlugNotasStatusBadge()}
+              {currentOrganization?.id && (
+                <EnvironmentSwitcher
+                  currentEnvironment={plugNotasConfig?.plugnotas_environment || 'SANDBOX'}
+                  companyId={currentOrganization.id}
+                  onEnvironmentChange={fetchPlugNotasConfig}
+                />
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
