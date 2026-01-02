@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, Loader2, Clock, CreditCard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink, Loader2, Clock, CreditCard, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PlugBankStatusCard } from "./PlugBankStatusCard";
@@ -30,11 +31,36 @@ interface CompanyData {
   payerId?: string;
 }
 
+interface BankAccount {
+  id: string;
+  bank_name: string;
+  bank_code: string;
+  agency: string;
+  account_number: string;
+  account_type: string;
+  open_finance_status: string;
+  consent_link: string | null;
+  plugbank_account_id: string | null;
+}
+
 interface BankAccountFormProps {
   companyData?: CompanyData | null;
   onPayerRegistered?: (payerId: string) => void;
   onAccountConnected?: (accountId: string, consentLink?: string) => void;
 }
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case "connected":
+      return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 gap-1"><CheckCircle2 className="h-3 w-3" />Conectado</Badge>;
+    case "awaiting_consent":
+      return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1"><Clock className="h-3 w-3" />Aguardando</Badge>;
+    case "revoked":
+      return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30 gap-1"><AlertCircle className="h-3 w-3" />Revogado</Badge>;
+    default:
+      return <Badge variant="outline" className="bg-muted text-muted-foreground gap-1"><Clock className="h-3 w-3" />Pendente</Badge>;
+  }
+};
 
 export const BankAccountForm = ({
   companyData,
@@ -42,7 +68,7 @@ export const BankAccountForm = ({
   onAccountConnected,
 }: BankAccountFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [consentLink, setConsentLink] = useState<string | null>(null);
+  const [existingAccounts, setExistingAccounts] = useState<BankAccount[]>([]);
   const [formData, setFormData] = useState({
     bankCode: "",
     agency: "",
@@ -52,75 +78,110 @@ export const BankAccountForm = ({
 
   const isRegistered = companyData?.payerStatus === "registered" && companyData?.payerId;
 
+  // Load existing accounts
+  useEffect(() => {
+    if (companyData?.id) {
+      loadExistingAccounts();
+    }
+  }, [companyData?.id]);
+
+  const loadExistingAccounts = async () => {
+    if (!companyData?.id) return;
+    
+    const { data, error } = await supabase
+      .from("bank_accounts")
+      .select("*")
+      .eq("company_id", companyData.id)
+      .order("created_at", { ascending: false });
+    
+    if (!error && data) {
+      setExistingAccounts(data as BankAccount[]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyData?.payerId) {
+    if (!companyData?.payerId || !companyData?.id) {
       toast.error("Primeiro registre sua empresa no PlugBank");
       return;
     }
 
     setIsLoading(true);
     try {
+      // 1. Check for duplicate account
+      const { data: existingAccount } = await supabase
+        .from("bank_accounts")
+        .select("id")
+        .eq("company_id", companyData.id)
+        .eq("bank_code", formData.bankCode)
+        .eq("agency", formData.agency.replace(/\D/g, ""))
+        .eq("account_number", formData.accountNumber.replace(/\D/g, ""))
+        .maybeSingle();
+
+      if (existingAccount) {
+        toast.error("Esta conta bancária já está cadastrada");
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Create record in bank_accounts BEFORE calling PlugBank API
+      const bankName = BANKS.find(b => b.code === formData.bankCode)?.name || "Banco";
+      const { data: bankAccount, error: insertError } = await supabase
+        .from("bank_accounts")
+        .insert({
+          company_id: companyData.id,
+          bank_name: bankName,
+          bank_code: formData.bankCode,
+          agency: formData.agency.replace(/\D/g, ""),
+          account_number: formData.accountNumber.replace(/\D/g, ""),
+          account_type: formData.accountType === "corrente" ? "checking" : "savings",
+          open_finance_status: "pending",
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("Error creating bank account:", insertError);
+        throw new Error("Erro ao salvar conta bancária");
+      }
+
+      // 3. Call PlugBank API with bankAccountId
       const { data, error } = await supabase.functions.invoke("plugbank-create-account", {
         body: {
           payerId: companyData.payerId,
           bankCode: formData.bankCode,
           agency: formData.agency,
           accountNumber: formData.accountNumber,
-          accountType: formData.accountType,
+          accountType: formData.accountType === "corrente" ? "checking" : "savings",
+          bankAccountId: bankAccount.id,
         },
       });
 
-      if (error) throw error;
-
-      if (data?.consentLink) {
-        setConsentLink(data.consentLink);
-        toast.success("Conta criada! Clique no link para autorizar o acesso.");
-        onAccountConnected?.(data.accountId, data.consentLink);
+      if (error) {
+        // Rollback: delete the created record
+        await supabase.from("bank_accounts").delete().eq("id", bankAccount.id);
+        throw error;
       }
+
+      toast.success("Conta criada! Clique no link para autorizar o acesso.");
+      onAccountConnected?.(data.accountId, data.consentLink);
+      
+      // Reload accounts list
+      await loadExistingAccounts();
+      
+      // Reset form
+      setFormData({
+        bankCode: "",
+        agency: "",
+        accountNumber: "",
+        accountType: "corrente",
+      });
     } catch (error: any) {
       toast.error(error.message || "Erro ao conectar conta bancária");
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (consentLink) {
-    return (
-      <div className="space-y-4">
-        <PlugBankStatusCard
-          companyId={companyData?.id}
-          companyName={companyData?.companyName}
-          cnpj={companyData?.cnpj}
-          payerStatus={companyData?.payerStatus}
-          payerId={companyData?.payerId}
-          onRegistered={onPayerRegistered}
-        />
-        
-        <Card className="border-amber-500/30 bg-amber-500/5">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="p-3 rounded-full bg-amber-500/10">
-                <Clock className="h-8 w-8 text-amber-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Aguardando Autorização</h3>
-                <p className="text-muted-foreground mt-1">
-                  Clique no botão abaixo para autorizar o acesso à sua conta bancária via Open Finance
-                </p>
-              </div>
-              <Button asChild className="gap-2">
-                <a href={consentLink} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Autorizar Acesso no Banco
-                </a>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -133,11 +194,55 @@ export const BankAccountForm = ({
         onRegistered={onPayerRegistered}
       />
 
+      {/* Existing Accounts List */}
+      {existingAccounts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Contas Cadastradas</CardTitle>
+              <Button variant="ghost" size="sm" onClick={loadExistingAccounts}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {existingAccounts.map((account) => (
+              <div 
+                key={account.id} 
+                className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+              >
+                <div className="flex items-center gap-3">
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">{account.bank_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ag: {account.agency} | Conta: {account.account_number}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {getStatusBadge(account.open_finance_status)}
+                  {account.open_finance_status === "awaiting_consent" && account.consent_link && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={account.consent_link} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Autorizar
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* New Account Form */}
       <Card className={!isRegistered ? "opacity-60 pointer-events-none" : ""}>
         <CardHeader>
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            <CardTitle>Conectar Conta Bancária</CardTitle>
+            <CardTitle>Conectar Nova Conta Bancária</CardTitle>
           </div>
           <CardDescription>
             {isRegistered 

@@ -119,3 +119,6 @@ verify_jwt = true
 
 [functions.plugbank-get-statement]
 verify_jwt = true
+
+[functions.plugbank-consent-callback]
+verify_jwt = false

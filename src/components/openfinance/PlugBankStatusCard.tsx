@@ -44,7 +44,7 @@ export const PlugBankStatusCard = ({
       const { data, error } = await supabase.functions.invoke("plugbank-create-payer", {
         body: {
           cpfCnpj: cnpj.replace(/\D/g, ""),
-          nome: companyName,
+          name: companyName,
           companyId,
         },
       });
