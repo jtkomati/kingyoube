@@ -69,7 +69,9 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
       }
 
       // Sucesso
-      if (data.sandbox_mode) {
+      if (data.already_issued) {
+        toast.info(`Esta nota já foi emitida (Nº ${data.invoice_number || 'N/A'})`);
+      } else if (data.sandbox_mode) {
         toast.success("NFS-e emitida em modo SANDBOX (teste)!");
       } else {
         toast.success("NFS-e enviada para processamento!");

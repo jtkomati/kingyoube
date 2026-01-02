@@ -3440,6 +3440,7 @@ export type Database = {
           gross_amount: number
           id: string
           installment: number | null
+          invoice_integration_id: string | null
           invoice_key: string | null
           invoice_number: string | null
           invoice_pdf_url: string | null
@@ -3472,6 +3473,7 @@ export type Database = {
           gross_amount: number
           id?: string
           installment?: number | null
+          invoice_integration_id?: string | null
           invoice_key?: string | null
           invoice_number?: string | null
           invoice_pdf_url?: string | null
@@ -3504,6 +3506,7 @@ export type Database = {
           gross_amount?: number
           id?: string
           installment?: number | null
+          invoice_integration_id?: string | null
           invoice_key?: string | null
           invoice_number?: string | null
           invoice_pdf_url?: string | null

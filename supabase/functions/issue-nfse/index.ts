@@ -480,7 +480,7 @@ Deno.serve(async (req) => {
     console.log(JSON.stringify(plugnotasPayload, null, 2))
 
     // Função para tentar emitir NFS-e
-    const tryEmitNfse = async (): Promise<{ ok: boolean; data?: any; error?: string }> => {
+    const tryEmitNfse = async (): Promise<{ ok: boolean; data?: any; error?: string; alreadyIssued?: boolean }> => {
       console.log(`Enviando para: ${baseUrl}/nfse`)
       
       const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
@@ -506,6 +506,16 @@ Deno.serve(async (req) => {
         } catch {
           errorData = { message: responseText.substring(0, 200) }
         }
+        
+        // Handle HTTP 409 - NFSe already exists
+        if (plugnotasResponse.status === 409 || 
+            responseText.includes('Já existe uma NFSe') || 
+            responseText.includes('already exists') ||
+            responseText.includes('idIntegracao')) {
+          console.log('⚠️ NFS-e já foi emitida anteriormente para esta transação')
+          return { ok: true, alreadyIssued: true, data: errorData }
+        }
+        
         return { ok: false, error: translatePlugNotasError(errorData), data: errorData }
       }
     }
@@ -532,7 +542,46 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (emitResult.ok) {
+    // Check if already issued (HTTP 409)
+    if (emitResult.ok && emitResult.alreadyIssued) {
+      console.log('⚠️ NFS-e já emitida anteriormente, atualizando status...')
+      
+      // Extract existing invoice data from response if available
+      const existingData = emitResult.data
+      plugnotasId = existingData?.id?.integracao || existingData?.idIntegracao || transaction_id
+      invoiceNumber = existingData?.numeroNfse || existingData?.numero || `PN-EXIST-${Date.now()}`
+      invoiceKey = existingData?.codigoVerificacao || existingData?.id?.integracao || invoiceKey
+      integrationUsed = 'PLUGNOTAS'
+      
+      // Update transaction with existing data
+      await supabase
+        .from('transactions')
+        .update({
+          invoice_number: invoiceNumber,
+          invoice_key: invoiceKey,
+          invoice_status: 'issued',
+          invoice_integration_id: plugnotasId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', transaction_id)
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          already_issued: true,
+          invoice_number: invoiceNumber,
+          invoice_key: invoiceKey,
+          integration: integrationUsed,
+          plugnotas_id: plugnotasId,
+          sandbox_mode: sandboxMode,
+          status: 'issued',
+          message: `Esta nota já foi emitida anteriormente (Nº ${invoiceNumber}).`,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    if (emitResult.ok && !emitResult.alreadyIssued) {
       const result = Array.isArray(emitResult.data) ? emitResult.data[0] : emitResult.data
       
       plugnotasId = result.id?.integracao || result.id || transaction_id
@@ -540,7 +589,7 @@ Deno.serve(async (req) => {
       invoiceKey = result.protocolo?.id || result.id?.integracao || invoiceKey
       integrationUsed = 'PLUGNOTAS'
       console.log('✅ NFS-e enviada com sucesso:', { plugnotasId, invoiceNumber, invoiceKey })
-    } else {
+    } else if (!emitResult.ok) {
       plugnotasError = emitResult.error || 'Erro desconhecido'
       console.error('❌ Erro PlugNotas final:', plugnotasError)
     }
