@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, Upload, Building2, AlertCircle, Stethoscope } from "lucide-react";
+import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, Upload, Building2, AlertCircle, Stethoscope, Replace, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
@@ -18,6 +18,7 @@ import { IssueInvoiceDialog } from "./IssueInvoiceDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { NewInvoiceDialog } from "./NewInvoiceDialog";
 import { BatchInvoiceDialog } from "./BatchInvoiceDialog";
+import { ReplaceInvoiceDialog } from "./ReplaceInvoiceDialog";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,9 +31,11 @@ export const OutgoingInvoices = () => {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
+  const [isReplaceDialogOpen, setIsReplaceDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+  const [checkingCancelIds, setCheckingCancelIds] = useState<Set<string>>(new Set());
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const { hasPermission, currentOrganization } = useAuth();
   const canIssue = hasPermission("FISCAL");
@@ -441,6 +444,21 @@ export const OutgoingInvoices = () => {
                         </Button>
                       )}
                       
+                      {/* Substituir NF */}
+                      {invoice.invoice_status === "issued" && canIssue && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          title="Substituir NF"
+                          onClick={() => {
+                            setSelectedTransaction(invoice);
+                            setIsReplaceDialogOpen(true);
+                          }}
+                        >
+                          <Replace className="h-4 w-4 text-warning" />
+                        </Button>
+                      )}
+                      
                       {/* Cancelar NF */}
                       {invoice.invoice_status === "issued" && canIssue && (
                         <Button 
@@ -450,6 +468,44 @@ export const OutgoingInvoices = () => {
                           onClick={() => handleCancelInvoice(invoice)}
                         >
                           <XCircle className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                      
+                      {/* Consultar status de cancelamento */}
+                      {invoice.invoice_status === "cancelled" && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          title="Consultar Status do Cancelamento"
+                          onClick={async () => {
+                            setCheckingCancelIds(prev => new Set(prev).add(invoice.id));
+                            try {
+                              const { data, error } = await supabase.functions.invoke("check-cancel-status", {
+                                body: { transaction_id: invoice.id },
+                              });
+                              if (error) throw error;
+                              if (data.status === "approved") {
+                                toast.success("Cancelamento aprovado", { description: `Protocolo: ${data.protocol || 'N/A'}` });
+                              } else if (data.status === "rejected") {
+                                toast.error("Cancelamento rejeitado", { description: data.rejection_reason });
+                              } else if (data.status === "pending") {
+                                toast.info("Cancelamento em processamento");
+                              } else {
+                                toast.info(data.message || "Status consultado");
+                              }
+                            } catch (err: any) {
+                              toast.error("Erro ao consultar: " + err.message);
+                            } finally {
+                              setCheckingCancelIds(prev => {
+                                const next = new Set(prev);
+                                next.delete(invoice.id);
+                                return next;
+                              });
+                            }
+                          }}
+                          disabled={checkingCancelIds.has(invoice.id)}
+                        >
+                          <Clock className={`h-4 w-4 ${checkingCancelIds.has(invoice.id) ? 'animate-spin' : ''}`} />
                         </Button>
                       )}
                     </div>
@@ -498,6 +554,15 @@ export const OutgoingInvoices = () => {
           companyId={currentOrganization.id}
         />
       )}
+
+      <ReplaceInvoiceDialog
+        open={isReplaceDialogOpen}
+        onClose={() => {
+          setIsReplaceDialogOpen(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
+      />
     </div>
   );
 };
