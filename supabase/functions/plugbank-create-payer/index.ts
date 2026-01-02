@@ -32,10 +32,17 @@ serve(async (req) => {
     const TOKEN_SH = Deno.env.get("TECNOSPEED_TOKEN");
     const CNPJ_SH = Deno.env.get("TECNOSPEED_CNPJ_SOFTWAREHOUSE");
 
+    console.log("PlugBank credentials check:", {
+      hasToken: !!TOKEN_SH,
+      tokenLength: TOKEN_SH?.length,
+      hasCnpj: !!CNPJ_SH,
+      cnpjLength: CNPJ_SH?.length,
+    });
+
     if (!TOKEN_SH || !CNPJ_SH) {
-      console.error("Missing credentials");
+      console.error("Missing credentials - TOKEN_SH or CNPJ_SH not set");
       return new Response(
-        JSON.stringify({ success: false, error: "Credenciais PlugBank não configuradas" }),
+        JSON.stringify({ success: false, error: "Credenciais PlugBank não configuradas. Verifique TECNOSPEED_TOKEN e TECNOSPEED_CNPJ_SOFTWAREHOUSE." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -50,7 +57,16 @@ serve(async (req) => {
       );
     }
 
-    console.log("Creating payer with PlugBank API:", { cpfCnpj, name });
+    const requestUrl = `${PLUGBANK_BASE_URL}/payers`;
+    console.log("Creating payer with PlugBank API:", { 
+      cpfCnpj, 
+      name,
+      requestUrl,
+      headers: {
+        "cnpj-sh": CNPJ_SH ? `${CNPJ_SH.substring(0, 4)}...` : "NOT SET",
+        "token-sh": TOKEN_SH ? "SET (hidden)" : "NOT SET",
+      }
+    });
 
     const payerPayload = {
       cpfCnpj: cpfCnpj.replace(/\D/g, ""),
