@@ -161,10 +161,17 @@ Deno.serve(async (req) => {
       .eq('company_id', transaction.company_id)
       .maybeSingle()
 
+    // SANDBOX AUTOMÁTICO: Se não tem token configurado, usar sandbox
+    const SANDBOX_TOKEN = '2da392a6-79d2-4304-a8b7-576b3c623c8c'
+    const useSandbox = !fiscalConfig?.plugnotas_token
+    const plugnotasToken = fiscalConfig?.plugnotas_token || SANDBOX_TOKEN
+    const plugnotasEnvironment = useSandbox ? 'SANDBOX' : (fiscalConfig?.plugnotas_environment || 'SANDBOX')
+
     console.log('Fiscal Config:', {
-      environment: fiscalConfig?.plugnotas_environment,
+      environment: plugnotasEnvironment,
       status: fiscalConfig?.plugnotas_status,
-      hasToken: !!fiscalConfig?.plugnotas_token
+      hasToken: !!fiscalConfig?.plugnotas_token,
+      usingSandbox: useSandbox
     })
 
     let invoiceNumber = `NF-${Date.now()}`
@@ -172,12 +179,12 @@ Deno.serve(async (req) => {
     let integrationUsed = 'MOCK'
     let plugnotasId: string | null = null
     let plugnotasError: string | null = null
+    let sandboxMode = useSandbox
     
-    // 5. Tentar PlugNotas primeiro se configurado
-    if (fiscalConfig?.plugnotas_token) {
-      const baseUrl = fiscalConfig.plugnotas_environment === 'PRODUCTION'
-        ? 'https://api.plugnotas.com.br'
-        : 'https://api.sandbox.plugnotas.com.br'
+    // 5. Tentar PlugNotas (sempre, pois usamos sandbox automático)
+    const baseUrl = plugnotasEnvironment === 'PRODUCTION'
+      ? 'https://api.plugnotas.com.br'
+      : 'https://api.sandbox.plugnotas.com.br'
 
       // Preparar endereço do tomador
       let tomadorEndereco: any = undefined
@@ -254,7 +261,7 @@ Deno.serve(async (req) => {
         const plugnotasResponse = await fetch(`${baseUrl}/nfse`, {
           method: 'POST',
           headers: {
-            'X-API-KEY': fiscalConfig.plugnotas_token,
+            'X-API-KEY': plugnotasToken,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(plugnotasPayload)
@@ -288,9 +295,6 @@ Deno.serve(async (req) => {
         plugnotasError = error instanceof Error ? error.message : 'Erro de conexão com PlugNotas'
         console.error('❌ Erro ao chamar PlugNotas:', error)
       }
-    } else {
-      console.log('PlugNotas não configurado')
-    }
     
     // 6. Fallback para Focus NFe se PlugNotas não funcionou
     if (integrationUsed === 'MOCK' && focusNfeToken) {
@@ -401,10 +405,11 @@ Deno.serve(async (req) => {
         invoice_key: invoiceKey,
         integration: integrationUsed,
         plugnotas_id: plugnotasId,
+        sandbox_mode: sandboxMode,
         status: integrationUsed === 'MOCK' ? 'pending' : 'processing',
-        message: integrationUsed === 'MOCK' 
-          ? 'Nota fiscal gerada em modo demonstração. Configure o PlugNotas para emissão real.'
-          : 'Nota fiscal enviada para processamento. Consulte o status em alguns segundos.',
+        message: sandboxMode 
+          ? 'Nota fiscal emitida em modo SANDBOX (teste).'
+          : 'Nota fiscal enviada para processamento.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

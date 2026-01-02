@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ServiceCodeSelect } from "./ServiceCodeSelect";
+import { type ServiceCode } from "@/lib/service-codes-osasco";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface IssueInvoiceDialogProps {
   open: boolean;
@@ -18,27 +20,48 @@ interface IssueInvoiceDialogProps {
 
 export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceDialogProps) => {
   const [isIssuing, setIsIssuing] = useState(false);
-  const [serviceCode, setServiceCode] = useState("01.01");
+  const [selectedService, setSelectedService] = useState<ServiceCode | null>(null);
   const [serviceDescription, setServiceDescription] = useState("");
   const queryClient = useQueryClient();
+
+  // Reset form when transaction changes
+  useEffect(() => {
+    if (transaction) {
+      setServiceDescription(transaction.description || "");
+      setSelectedService(null);
+    }
+  }, [transaction]);
+
+  const handleServiceSelect = (service: ServiceCode) => {
+    setSelectedService(service);
+  };
 
   const handleIssue = async () => {
     if (!transaction) return;
 
+    if (!selectedService) {
+      toast.error("Selecione o código de serviço");
+      return;
+    }
+
     setIsIssuing(true);
     try {
-      // Chamar edge function para emitir NFS-e
       const { data, error } = await supabase.functions.invoke("issue-nfse", {
         body: {
           transaction_id: transaction.id,
-          service_code: serviceCode,
+          service_code: selectedService.code,
           service_description: serviceDescription || transaction.description,
         },
       });
 
       if (error) throw error;
 
-      toast.success("Nota fiscal emitida com sucesso!");
+      if (data.sandbox_mode) {
+        toast.success("NFS-e emitida em modo SANDBOX (teste)!");
+      } else {
+        toast.success("NFS-e enviada para processamento!");
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["outgoing-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["pending-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
@@ -52,6 +75,10 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
 
   if (!transaction) return null;
 
+  const issRate = selectedService?.aliquota || transaction.iss_rate || 5;
+  const issAmount = Number(transaction.gross_amount) * (issRate / 100);
+  const netAmount = Number(transaction.gross_amount) - issAmount;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -60,6 +87,13 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
         </DialogHeader>
 
         <div className="space-y-4">
+          <Alert variant="default" className="bg-warning/10 border-warning/30">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning">
+              Modo Sandbox ativo - A nota será emitida em ambiente de teste
+            </AlertDescription>
+          </Alert>
+
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <h3 className="font-semibold">Dados da Transação</h3>
             <Separator />
@@ -70,34 +104,28 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
               </div>
               <div>
                 <Label className="text-muted-foreground">Valor Bruto</Label>
-                <p className="font-medium">{Number(transaction.gross_amount).toFixed(0)}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Valor Líquido</Label>
-                <p className="font-medium">{Number(transaction.net_amount).toFixed(0)}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Regime Tributário</Label>
-                <p className="font-medium">{transaction.tax_regime || "SIMPLES"}</p>
+                <p className="font-medium">
+                  R$ {Number(transaction.gross_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="serviceCode">Código de Serviço (LC 116/2003)</Label>
-              <Input
-                id="serviceCode"
-                value={serviceCode}
-                onChange={(e) => setServiceCode(e.target.value)}
-                placeholder="Ex: 01.01"
+            <div className="space-y-2">
+              <Label>Código de Serviço (LC 116/2003) *</Label>
+              <ServiceCodeSelect
+                value={selectedService?.code}
+                onSelect={handleServiceSelect}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Consulte a lista de serviços da LC 116/2003
-              </p>
+              {selectedService && (
+                <p className="text-xs text-muted-foreground">
+                  CNAE: {selectedService.cnae} | ISS: {selectedService.aliquota}%
+                </p>
+              )}
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="serviceDescription">Discriminação do Serviço</Label>
               <Textarea
                 id="serviceDescription"
@@ -106,7 +134,7 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
                 placeholder="Descreva o serviço prestado em detalhes"
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground">
                 Descrição detalhada que aparecerá na nota fiscal
               </p>
             </div>
@@ -116,21 +144,29 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
             <h4 className="font-semibold mb-2">Impostos Calculados</h4>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span>ISS ({transaction.iss_rate || 5}%):</span>
-                <span>{(Number(transaction.gross_amount) * ((transaction.iss_rate || 5) / 100)).toFixed(0)}</span>
+                <span>ISS ({issRate}%):</span>
+                <span>R$ {issAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between">
-                <span>COFINS ({transaction.cofins_rate || 3}%):</span>
-                <span>{(Number(transaction.gross_amount) * ((transaction.cofins_rate || 3) / 100)).toFixed(0)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>PIS ({transaction.pis_rate || 0.65}%):</span>
-                <span>{(Number(transaction.gross_amount) * ((transaction.pis_rate || 0.65) / 100)).toFixed(0)}</span>
-              </div>
+              {transaction.cofins_rate && (
+                <div className="flex justify-between">
+                  <span>COFINS ({transaction.cofins_rate}%):</span>
+                  <span>
+                    R$ {(Number(transaction.gross_amount) * (transaction.cofins_rate / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+              {transaction.pis_rate && (
+                <div className="flex justify-between">
+                  <span>PIS ({transaction.pis_rate}%):</span>
+                  <span>
+                    R$ {(Number(transaction.gross_amount) * (transaction.pis_rate / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               <Separator className="my-2" />
               <div className="flex justify-between font-semibold">
-                <span>Total de Impostos:</span>
-                <span>{(Number(transaction.gross_amount) - Number(transaction.net_amount)).toFixed(0)}</span>
+                <span>Valor Líquido Estimado:</span>
+                <span>R$ {netAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
@@ -139,7 +175,7 @@ export const IssueInvoiceDialog = ({ open, onClose, transaction }: IssueInvoiceD
             <Button variant="outline" onClick={onClose} disabled={isIssuing}>
               Cancelar
             </Button>
-            <Button onClick={handleIssue} disabled={isIssuing}>
+            <Button onClick={handleIssue} disabled={isIssuing || !selectedService}>
               {isIssuing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isIssuing ? "Emitindo..." : "Emitir NFS-e"}
             </Button>

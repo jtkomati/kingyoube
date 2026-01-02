@@ -10,19 +10,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Download, XCircle, Plus, RefreshCw, FileCode } from "lucide-react";
+import { FileText, Download, XCircle, Plus, RefreshCw, FileCode, FlaskConical } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { IssueInvoiceDialog } from "./IssueInvoiceDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
+import { NewInvoiceDialog } from "./NewInvoiceDialog";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 export const OutgoingInvoices = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
@@ -156,6 +159,23 @@ export const OutgoingInvoices = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with action button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">NFS-e Emitidas</h2>
+          <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+            <FlaskConical className="h-3 w-3 mr-1" />
+            SANDBOX
+          </Badge>
+        </div>
+        {canIssue && (
+          <Button onClick={() => setIsNewDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Emitir Nova NFS-e
+          </Button>
+        )}
+      </div>
+
       {/* Cards de resumo */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -355,6 +375,11 @@ export const OutgoingInvoices = () => {
           setSelectedTransaction(null);
         }}
         transaction={selectedTransaction}
+      />
+
+      <NewInvoiceDialog
+        open={isNewDialogOpen}
+        onClose={() => setIsNewDialogOpen(false)}
       />
     </div>
   );
