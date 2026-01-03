@@ -24,7 +24,7 @@ const Reports = () => {
   const [cashFlowData, setCashFlowData] = useState<any[]>([]);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataSource, setDataSource] = useState<'bank_statements' | 'transactions' | 'none'>('none');
+const [dataSource, setDataSource] = useState<'accounting' | 'bank_statements' | 'transactions' | 'none'>('none');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,7 +44,28 @@ const Reports = () => {
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 11);
       
-      // Primeiro, buscar contas bancárias da organização
+      // FONTE PRINCIPAL: Buscar lançamentos contábeis
+      const { data: accountingData } = await supabase
+        .from('accounting_entry_items')
+        .select(`
+          debit_amount,
+          credit_amount,
+          accounting_entries!inner (
+            entry_date,
+            status,
+            company_id
+          ),
+          accounting_chart_of_accounts (
+            account_type,
+            nature
+          )
+        `)
+        .eq('accounting_entries.company_id', currentOrganization.id)
+        .eq('accounting_entries.status', 'posted')
+        .gte('accounting_entries.entry_date', startDate.toISOString().split('T')[0])
+        .lte('accounting_entries.entry_date', endDate.toISOString().split('T')[0]);
+
+      // Fallback: buscar contas bancárias da organização
       const { data: bankAccounts } = await supabase
         .from('bank_accounts')
         .select('id')
@@ -52,7 +73,7 @@ const Reports = () => {
 
       const accountIds = bankAccounts?.map(a => a.id) || [];
       
-      // Buscar dados do extrato bancário (fonte primária)
+      // Buscar dados do extrato bancário (fonte secundária)
       let bankStatements: any[] = [];
       if (accountIds.length > 0) {
         const { data: statements } = await supabase
@@ -86,8 +107,31 @@ const Reports = () => {
         };
       }
       
-      // Se temos dados do extrato bancário, usar como fonte primária
-      if (bankStatements.length > 0) {
+      // PRIORIDADE 1: Lançamentos contábeis
+      if (accountingData && accountingData.length > 0) {
+        setDataSource('accounting');
+        
+        for (const item of accountingData) {
+          const entry = item.accounting_entries as any;
+          const account = item.accounting_chart_of_accounts as any;
+          const monthKey = entry.entry_date.substring(0, 7);
+          
+          if (monthlyData[monthKey] && account) {
+            if (account.account_type === 'RECEITA') {
+              // Receitas são creditadas
+              monthlyData[monthKey].receitaBruta += Number(item.credit_amount || 0);
+            } else if (account.account_type === 'DESPESA') {
+              // Despesas são debitadas
+              monthlyData[monthKey].despesasOperacionais += Number(item.debit_amount || 0);
+            } else if (account.account_type === 'DEDUCAO_RECEITA') {
+              // Deduções sobre receita (impostos)
+              monthlyData[monthKey].deducoes += Number(item.debit_amount || 0);
+            }
+          }
+        }
+      } 
+      // PRIORIDADE 2: Extrato bancário
+      else if (bankStatements.length > 0) {
         setDataSource('bank_statements');
         
         for (const stmt of bankStatements) {
@@ -95,7 +139,6 @@ const Reports = () => {
           
           if (monthlyData[monthKey]) {
             const amount = Number(stmt.amount || 0);
-            // Créditos são entradas (amount positivo OU type === 'credit')
             if (amount > 0 || stmt.type === 'credit') {
               monthlyData[monthKey].receitaBruta += Math.abs(amount);
             } else {
@@ -103,8 +146,9 @@ const Reports = () => {
             }
           }
         }
-      } else {
-        // Fallback: buscar da tabela transactions
+      } 
+      // PRIORIDADE 3: Transações
+      else {
         const { data: transactions, error } = await (supabase as any)
           .from('transactions')
           .select('*')
@@ -132,9 +176,14 @@ const Reports = () => {
       }
       
       // Calcular valores derivados
+      const isAccountingSource = accountingData && accountingData.length > 0;
+      
       for (const monthKey of months) {
         const data = monthlyData[monthKey];
-        data.deducoes = data.receitaBruta * 0.10; // 10% impostos aproximado
+        // Se fonte é contabilidade, deduções já foram calculadas; senão, estimar 10%
+        if (!isAccountingSource) {
+          data.deducoes = data.receitaBruta * 0.10;
+        }
         data.receitaLiquida = data.receitaBruta - data.deducoes;
         data.resultado = data.receitaLiquida - data.despesasOperacionais;
         
@@ -397,6 +446,12 @@ const Reports = () => {
             {/* Data source indicator */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {dataSource === 'accounting' && (
+                  <Badge variant="default" className="bg-primary/20 text-primary border-primary/30">
+                    <FileText className="h-3 w-3 mr-1" />
+                    Dados da Contabilidade
+                  </Badge>
+                )}
                 {dataSource === 'bank_statements' && (
                   <Badge variant="default" className="bg-success/20 text-success border-success/30">
                     <Landmark className="h-3 w-3 mr-1" />
