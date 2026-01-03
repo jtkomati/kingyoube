@@ -230,22 +230,81 @@ serve(async (req) => {
       );
     }
 
-    const status = responseData.status || "PROCESSING";
-    const isCompleted = status === "CONCLUDED" || status === "COMPLETED" || status === "SUCCESS";
+    // FIXED: Correctly read status from nested responseData.statement.status
+    const rawStatus = responseData.statement?.status ?? responseData.status ?? "PROCESSING";
+    const isCompleted = rawStatus === "SUCCESS" || rawStatus === "CONCLUDED" || rawStatus === "COMPLETED";
 
-    // Update sync protocol status (uses userClient)
+    console.log("Statement parsing:", { 
+      uniqueId, 
+      rawStatus, 
+      isCompleted,
+      hasStatement: !!responseData.statement,
+      hasTransaction: !!responseData.transaction,
+      hasTransactionDuplicated: !!responseData.transactionDuplicated
+    });
+
+    // Extract transactions correctly from provider response
+    // Provider returns: transaction.credit[], transaction.debit[], transactionDuplicated.credit[], transactionDuplicated.debit[]
+    // Use transactionDuplicated if available (contains all transactions including duplicates check)
+    const txSource = responseData.transactionDuplicated?.credit?.length || responseData.transactionDuplicated?.debit?.length
+      ? responseData.transactionDuplicated
+      : responseData.transaction;
+    
+    const rawCredits = txSource?.credit || [];
+    const rawDebits = txSource?.debit || [];
+
+    // Normalize transactions to the format expected by frontend
+    // deno-lint-ignore no-explicit-any
+    const normalizedCredits = rawCredits.map((t: any) => ({
+      id: t.transactionId || t.id,
+      date: t.date,
+      description: t.description || t.memo || t.category || t.code || "Crédito",
+      amount: Math.abs(parseFloat(t.amount) || 0),
+      document: t.paymentName || t.fitid || t.transactionId || null,
+    }));
+
+    // deno-lint-ignore no-explicit-any
+    const normalizedDebits = rawDebits.map((t: any) => ({
+      id: t.transactionId || t.id,
+      date: t.date,
+      description: t.description || t.memo || t.category || t.code || "Débito",
+      amount: Math.abs(parseFloat(t.amount) || 0),
+      document: t.paymentName || t.fitid || t.transactionId || null,
+    }));
+
+    const totalCredits = normalizedCredits.reduce((sum: number, t: {amount: number}) => sum + t.amount, 0);
+    const totalDebits = normalizedDebits.reduce((sum: number, t: {amount: number}) => sum + t.amount, 0);
+
+    console.log("Normalized transactions:", { 
+      creditsCount: normalizedCredits.length, 
+      debitsCount: normalizedDebits.length,
+      totalCredits,
+      totalDebits
+    });
+
+    // Update sync protocol status with service client (bypass RLS)
     if (uniqueId) {
-      const updateData: Record<string, unknown> = { status };
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+
+      const updateData: Record<string, unknown> = { status: rawStatus };
       if (isCompleted) {
         updateData.completed_at = new Date().toISOString();
-        updateData.records_imported = 
-          (responseData.credits?.length || 0) + (responseData.debits?.length || 0);
+        updateData.records_imported = normalizedCredits.length + normalizedDebits.length;
       }
 
-      await userClient
+      const { error: syncError } = await serviceClient
         .from("sync_protocols")
         .update(updateData)
         .eq("plugbank_unique_id", uniqueId);
+
+      if (syncError) {
+        console.error("Failed to update sync_protocols:", syncError);
+      } else {
+        console.log("sync_protocols updated:", { uniqueId, status: rawStatus, isCompleted });
+      }
     }
 
     // If completed, process and save transactions, and update account status
@@ -257,38 +316,50 @@ serve(async (req) => {
         console.error("Failed to update bank account status:", updateResult.error);
       }
 
-      const credits = responseData.credits || [];
-      const debits = responseData.debits || [];
+      // Save transactions to bank_statements using service client
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+
       const allTransactions = [
-        ...credits.map((t: Record<string, unknown>) => ({ ...t, type: "credit" })),
-        ...debits.map((t: Record<string, unknown>) => ({ ...t, type: "debit" })),
+        ...normalizedCredits.map((t: Record<string, unknown>) => ({ ...t, type: "credit" as const })),
+        ...normalizedDebits.map((t: Record<string, unknown>) => ({ ...t, type: "debit" as const })),
       ];
 
+      console.log("Saving transactions to bank_statements:", { count: allTransactions.length });
+
       for (const transaction of allTransactions) {
-        await userClient
+        const { error: insertError } = await serviceClient
           .from("bank_statements")
           .upsert({
             bank_account_id: bankAccountId,
-            external_id: transaction.id || transaction.transactionId || `${transaction.date}-${transaction.amount}`,
+            external_id: transaction.id || `${transaction.date}-${transaction.amount}-${transaction.description}`,
             statement_date: transaction.date,
-            description: transaction.description || transaction.memo,
-            amount: transaction.type === "credit" ? Math.abs(transaction.amount) : -Math.abs(transaction.amount),
+            description: transaction.description,
+            amount: transaction.type === "credit" ? Math.abs(Number(transaction.amount)) : -Math.abs(Number(transaction.amount)),
             type: transaction.type,
             imported_by: user.id,
             imported_at: new Date().toISOString(),
           }, { onConflict: "external_id" });
+
+        if (insertError) {
+          console.error("Failed to insert transaction:", insertError, transaction);
+        }
       }
+
+      console.log("Transactions saved successfully");
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status,
+        status: rawStatus,
         isCompleted,
-        credits: responseData.credits || [],
-        debits: responseData.debits || [],
-        totalCredits: responseData.credits?.reduce((sum: number, t: {amount: number}) => sum + (t.amount || 0), 0) || 0,
-        totalDebits: responseData.debits?.reduce((sum: number, t: {amount: number}) => sum + (t.amount || 0), 0) || 0,
+        credits: normalizedCredits,
+        debits: normalizedDebits,
+        totalCredits,
+        totalDebits,
         message: isCompleted ? "Extrato processado com sucesso" : "Aguardando processamento..."
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -48,17 +48,21 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
   const timeoutRef = useRef<number | null>(null);
   const uniqueIdRef = useRef<string | null>(null);
   const bankAccountIdRef = useRef<string | null>(null);
+  // FIXED: Use ref to track attempts to avoid stale closure issues
+  const attemptsRef = useRef(0);
+  const isPollingRef = useRef(false);
 
   const stopPolling = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    isPollingRef.current = false;
     setIsPolling(false);
   }, []);
 
   const checkStatus = useCallback(async () => {
-    if (!uniqueIdRef.current) return;
+    if (!uniqueIdRef.current || !isPollingRef.current) return;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -97,7 +101,9 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
         setData(statementData);
         onComplete?.(statementData);
       } else {
-        const currentAttempts = attempts + 1;
+        // FIXED: Use ref for attempts to avoid stale closure
+        attemptsRef.current += 1;
+        const currentAttempts = attemptsRef.current;
         setAttempts(currentAttempts);
         
         if (currentAttempts >= maxAttempts) {
@@ -117,7 +123,7 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
       const errorMsg = error instanceof Error ? error.message : "Erro ao buscar extrato";
       onError?.(errorMsg);
     }
-  }, [attempts, maxAttempts, initialIntervalMs, onComplete, onError, onTimeout, stopPolling]);
+  }, [maxAttempts, initialIntervalMs, onComplete, onError, onTimeout, stopPolling]);
 
   useEffect(() => {
     return () => {
@@ -140,6 +146,9 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
         return { success: false, error: "Você precisa estar logado para acessar o extrato" };
       }
 
+      // FIXED: Stop any existing polling and reset refs before starting new one
+      stopPolling();
+      attemptsRef.current = 0;
       setAttempts(0);
       setStatus("REQUESTING");
       setData(null);
@@ -175,6 +184,7 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
       bankAccountIdRef.current = bankAccountId || null;
       setStatus(response.status);
       setLastUniqueId(response.uniqueId);
+      isPollingRef.current = true;
       setIsPolling(true);
       
       // Start first check after initial interval
@@ -189,10 +199,14 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
 
   // Resume polling for an existing protocol
   const resumePolling = (uniqueId: string, bankAccountId?: string) => {
+    // FIXED: Stop any existing polling and reset refs
+    stopPolling();
     uniqueIdRef.current = uniqueId;
     bankAccountIdRef.current = bankAccountId || null;
+    attemptsRef.current = 0;
     setAttempts(0);
     setStatus("PROCESSING");
+    isPollingRef.current = true;
     setIsPolling(true);
     
     // Start checking immediately
