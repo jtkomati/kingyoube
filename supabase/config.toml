@@ -149,3 +149,21 @@ verify_jwt = true
 
 [functions.payment-webhook]
 verify_jwt = false
+
+[functions.payment-create-darf]
+verify_jwt = true
+
+[functions.payment-create-gps]
+verify_jwt = true
+
+[functions.payment-create-gare]
+verify_jwt = true
+
+[functions.payment-create-fgts]
+verify_jwt = true
+
+[functions.payment-create-ipva]
+verify_jwt = true
+
+[functions.payment-create-dpvat]
+verify_jwt = true
