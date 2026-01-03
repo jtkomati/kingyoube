@@ -50,19 +50,66 @@ async function getPayerCnpj(supabaseClient: any, companyId?: string, bankAccount
   return null;
 }
 
+// Helper to update bank account status using service role (bypasses RLS)
+async function updateBankAccountStatus(
+  bankAccountId: string, 
+  status: string,
+  userId: string,
+  companyId?: string
+): Promise<{ success: boolean; error?: string }> {
+  const serviceClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
+  try {
+    const { error: updateError } = await serviceClient
+      .from("bank_accounts")
+      .update({ 
+        open_finance_status: status,
+        last_sync_at: new Date().toISOString()
+      })
+      .eq("id", bankAccountId);
+
+    if (updateError) {
+      console.error("Service role update failed:", updateError);
+      
+      // Log to application_logs for debugging
+      await serviceClient.from("application_logs").insert({
+        level: "error",
+        source: "edge-function",
+        function_name: "plugbank-request-statement",
+        message: `Failed to update bank_account status: ${updateError.message}`,
+        user_id: userId,
+        organization_id: companyId,
+        context: { bankAccountId, status, errorCode: updateError.code }
+      });
+      
+      return { success: false, error: updateError.message };
+    }
+
+    console.log(`Bank account ${bankAccountId} status updated to ${status} via service role`);
+    return { success: true };
+  } catch (err) {
+    console.error("Unexpected error in updateBankAccountStatus:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
+    // User client for authentication and access validation
+    const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
     );
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) {
       console.error("Auth error:", authError);
       return new Response(
@@ -93,8 +140,25 @@ serve(async (req) => {
       );
     }
 
+    // Validate user access to the bank account via RLS (userClient)
+    if (bankAccountId) {
+      const { data: accessCheck, error: accessError } = await userClient
+        .from("bank_accounts")
+        .select("id, company_id")
+        .eq("id", bankAccountId)
+        .single();
+
+      if (accessError || !accessCheck) {
+        console.error("User does not have access to bank account:", bankAccountId, accessError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Você não tem acesso a esta conta bancária" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Get payer CNPJ from company_settings
-    const payerCnpj = await getPayerCnpj(supabaseClient, companyId, bankAccountId);
+    const payerCnpj = await getPayerCnpj(userClient, companyId, bankAccountId);
     
     if (!payerCnpj) {
       console.error("Missing payer CNPJ - companyId:", companyId, "bankAccountId:", bankAccountId);
@@ -184,6 +248,10 @@ serve(async (req) => {
         );
       }
       if (response.status === 422) {
+        // Needs consent - update status to awaiting_consent using service role
+        if (bankAccountId) {
+          await updateBankAccountStatus(bankAccountId, "awaiting_consent", user.id, companyId);
+        }
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -202,9 +270,9 @@ serve(async (req) => {
     const uniqueId = responseData.uniqueId || responseData.id || responseData.protocolId;
     const status = responseData.status || "PROCESSING";
 
-    // Create sync protocol record and update account status to connected
+    // Create sync protocol record (uses userClient - will follow RLS)
     if (bankAccountId) {
-      const { error: insertError } = await supabaseClient
+      const { error: insertError } = await userClient
         .from("sync_protocols")
         .insert({
           bank_account_id: bankAccountId,
@@ -221,18 +289,10 @@ serve(async (req) => {
       }
 
       // Auto-reconcile: if request succeeded, consent is valid → mark as connected
-      const { error: updateError } = await supabaseClient
-        .from("bank_accounts")
-        .update({ 
-          open_finance_status: "connected",
-          last_sync_at: new Date().toISOString()
-        })
-        .eq("id", bankAccountId);
-
-      if (updateError) {
-        console.error("Error updating bank_account status:", updateError);
-      } else {
-        console.log("Bank account marked as connected:", bankAccountId);
+      // Using service role to bypass RLS restrictions
+      const updateResult = await updateBankAccountStatus(bankAccountId, "connected", user.id, companyId);
+      if (!updateResult.success) {
+        console.error("Failed to update bank account status:", updateResult.error);
       }
     }
 

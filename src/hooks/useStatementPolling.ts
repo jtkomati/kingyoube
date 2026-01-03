@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 interface UseStatementPollingOptions {
   onComplete?: (data: StatementData) => void;
   onError?: (error: string) => void;
+  onTimeout?: (uniqueId: string) => void;
   maxAttempts?: number;
-  intervalMs?: number;
+  initialIntervalMs?: number;
 }
 
 interface Transaction {
@@ -23,26 +24,35 @@ interface StatementData {
   totalDebits: number;
 }
 
+// Backoff strategy: starts at 5s, increases to 10s, then 15s after certain attempts
+function getPollingInterval(attempt: number, initialInterval: number): number {
+  if (attempt < 6) return initialInterval;      // First 30s: every 5s
+  if (attempt < 12) return initialInterval * 2; // Next 60s: every 10s
+  return initialInterval * 3;                   // After: every 15s
+}
+
 export function useStatementPolling(options: UseStatementPollingOptions = {}) {
   const { 
     onComplete, 
-    onError, 
-    maxAttempts = 12, // 1 minute with 5s intervals
-    intervalMs = 5000 
+    onError,
+    onTimeout,
+    maxAttempts = 40, // ~5 minutes with backoff (more time for bank processing)
+    initialIntervalMs = 5000 
   } = options;
 
   const [isPolling, setIsPolling] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [data, setData] = useState<StatementData | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const [lastUniqueId, setLastUniqueId] = useState<string | null>(null);
+  const timeoutRef = useRef<number | null>(null);
   const uniqueIdRef = useRef<string | null>(null);
   const bankAccountIdRef = useRef<string | null>(null);
 
   const stopPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
     setIsPolling(false);
   }, []);
@@ -86,31 +96,36 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
         };
         setData(statementData);
         onComplete?.(statementData);
-      } else if (attempts >= maxAttempts) {
-        stopPolling();
-        const errorMsg = "Tempo limite excedido. O banco está demorando para responder.";
-        onError?.(errorMsg);
       } else {
-        setAttempts((prev) => prev + 1);
+        const currentAttempts = attempts + 1;
+        setAttempts(currentAttempts);
+        
+        if (currentAttempts >= maxAttempts) {
+          stopPolling();
+          // Don't treat as error - bank is still processing
+          const uniqueId = uniqueIdRef.current;
+          setLastUniqueId(uniqueId);
+          onTimeout?.(uniqueId || "");
+        } else {
+          // Schedule next check with backoff
+          const nextInterval = getPollingInterval(currentAttempts, initialIntervalMs);
+          timeoutRef.current = window.setTimeout(checkStatus, nextInterval);
+        }
       }
     } catch (error) {
       stopPolling();
       const errorMsg = error instanceof Error ? error.message : "Erro ao buscar extrato";
       onError?.(errorMsg);
     }
-  }, [attempts, maxAttempts, onComplete, onError, stopPolling]);
+  }, [attempts, maxAttempts, initialIntervalMs, onComplete, onError, onTimeout, stopPolling]);
 
   useEffect(() => {
-    if (isPolling && !intervalRef.current) {
-      intervalRef.current = window.setInterval(checkStatus, intervalMs);
-    }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-  }, [isPolling, checkStatus, intervalMs]);
+  }, []);
 
   const requestStatement = async (
     accountHash: string,
@@ -128,6 +143,7 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
       setAttempts(0);
       setStatus("REQUESTING");
       setData(null);
+      setLastUniqueId(null);
 
       const { data: response, error } = await supabase.functions.invoke("plugbank-request-statement", {
         body: {
@@ -158,7 +174,11 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
       uniqueIdRef.current = response.uniqueId;
       bankAccountIdRef.current = bankAccountId || null;
       setStatus(response.status);
+      setLastUniqueId(response.uniqueId);
       setIsPolling(true);
+      
+      // Start first check after initial interval
+      timeoutRef.current = window.setTimeout(checkStatus, initialIntervalMs);
 
       return { success: true, uniqueId: response.uniqueId };
     } catch (error) {
@@ -167,14 +187,46 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
     }
   };
 
+  // Resume polling for an existing protocol
+  const resumePolling = (uniqueId: string, bankAccountId?: string) => {
+    uniqueIdRef.current = uniqueId;
+    bankAccountIdRef.current = bankAccountId || null;
+    setAttempts(0);
+    setStatus("PROCESSING");
+    setIsPolling(true);
+    
+    // Start checking immediately
+    checkStatus();
+  };
+
+  // Calculate estimated time remaining
+  const getEstimatedTimeRemaining = (): string => {
+    const remainingAttempts = maxAttempts - attempts;
+    if (remainingAttempts <= 0) return "0s";
+    
+    // Rough estimate based on current backoff stage
+    let totalSeconds = 0;
+    for (let i = attempts; i < maxAttempts; i++) {
+      totalSeconds += getPollingInterval(i, initialIntervalMs) / 1000;
+    }
+    
+    if (totalSeconds > 60) {
+      return `~${Math.ceil(totalSeconds / 60)}min`;
+    }
+    return `~${Math.ceil(totalSeconds)}s`;
+  };
+
   return {
     requestStatement,
+    resumePolling,
     stopPolling,
     isPolling,
     attempts,
     maxAttempts,
     status,
     data,
+    lastUniqueId,
     progress: Math.round((attempts / maxAttempts) * 100),
+    estimatedTimeRemaining: getEstimatedTimeRemaining(),
   };
 }

@@ -66,15 +66,18 @@ export function StatementDashboard({
   const [endDate, setEndDate] = useState(format(today, "yyyy-MM-dd"));
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totals, setTotals] = useState({ credits: 0, debits: 0 });
+  const [pendingProtocol, setPendingProtocol] = useState<string | null>(null);
 
   const selectedAccount = bankAccounts.find(a => a.id === selectedAccountId);
 
   const { 
     requestStatement, 
+    resumePolling,
     isPolling, 
     status, 
     progress,
-    data 
+    estimatedTimeRemaining,
+    lastUniqueId
   } = useStatementPolling({
     onComplete: (statementData) => {
       const allTransactions = [
@@ -87,6 +90,7 @@ export function StatementDashboard({
         credits: statementData.totalCredits,
         debits: statementData.totalDebits,
       });
+      setPendingProtocol(null);
       
       // Refresh accounts to get updated status (now marked as "connected")
       onRefreshAccounts?.();
@@ -97,6 +101,13 @@ export function StatementDashboard({
     },
     onError: (error) => {
       toast.error("Erro ao buscar extrato", { description: error });
+    },
+    onTimeout: (uniqueId) => {
+      setPendingProtocol(uniqueId);
+      toast.info("O banco ainda está processando", {
+        description: "Você pode continuar verificando ou tentar novamente mais tarde.",
+        duration: 10000,
+      });
     },
   });
 
@@ -266,7 +277,7 @@ export function StatementDashboard({
               <div className="flex-1">
                 <p className="font-medium">Buscando dados no banco...</p>
                 <p className="text-sm text-muted-foreground">
-                  Aguarde enquanto o banco processa sua solicitação
+                  Aguarde enquanto o banco processa sua solicitação (tempo restante: {estimatedTimeRemaining})
                 </p>
                 <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
                   <div 
@@ -276,6 +287,48 @@ export function StatementDashboard({
                 </div>
               </div>
               <Badge variant="outline">{status}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending protocol card - shows after timeout */}
+      {!isPolling && pendingProtocol && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-amber-500/10">
+                  <AlertCircle className="h-6 w-6 text-amber-500" />
+                </div>
+                <div>
+                  <p className="font-medium">O banco ainda está processando</p>
+                  <p className="text-sm text-muted-foreground">
+                    Protocolo: {pendingProtocol.substring(0, 12)}...
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setPendingProtocol(null);
+                  }}
+                >
+                  Dispensar
+                </Button>
+                <Button 
+                  size="sm"
+                  onClick={() => {
+                    resumePolling(pendingProtocol, selectedAccountId || undefined);
+                    setPendingProtocol(null);
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Continuar verificando
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
