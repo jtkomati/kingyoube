@@ -1353,6 +1353,153 @@ export type Database = {
           },
         ]
       }
+      bank_payments: {
+        Row: {
+          account_hash: string
+          amount: number
+          barcode: string | null
+          beneficiary_account: string | null
+          beneficiary_agency: string | null
+          beneficiary_bank_code: string | null
+          beneficiary_cpf_cnpj: string | null
+          beneficiary_name: string | null
+          company_id: string | null
+          created_at: string | null
+          description: string | null
+          discount_amount: number | null
+          due_date: string | null
+          effective_date: string | null
+          fee_amount: number | null
+          fine_amount: number | null
+          id: string
+          interest_amount: number | null
+          metadata: Json | null
+          nominal_amount: number | null
+          occurrences: Json | null
+          payment_date: string | null
+          payment_form: string
+          payment_type: string
+          pix_key: string | null
+          pix_txid: string | null
+          pix_type: string | null
+          reconciliation_linked: Json | null
+          remittance_linked: Json | null
+          status: string | null
+          tags: string[] | null
+          transaction_id: string | null
+          unique_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_hash: string
+          amount: number
+          barcode?: string | null
+          beneficiary_account?: string | null
+          beneficiary_agency?: string | null
+          beneficiary_bank_code?: string | null
+          beneficiary_cpf_cnpj?: string | null
+          beneficiary_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          effective_date?: string | null
+          fee_amount?: number | null
+          fine_amount?: number | null
+          id?: string
+          interest_amount?: number | null
+          metadata?: Json | null
+          nominal_amount?: number | null
+          occurrences?: Json | null
+          payment_date?: string | null
+          payment_form: string
+          payment_type: string
+          pix_key?: string | null
+          pix_txid?: string | null
+          pix_type?: string | null
+          reconciliation_linked?: Json | null
+          remittance_linked?: Json | null
+          status?: string | null
+          tags?: string[] | null
+          transaction_id?: string | null
+          unique_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_hash?: string
+          amount?: number
+          barcode?: string | null
+          beneficiary_account?: string | null
+          beneficiary_agency?: string | null
+          beneficiary_bank_code?: string | null
+          beneficiary_cpf_cnpj?: string | null
+          beneficiary_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          effective_date?: string | null
+          fee_amount?: number | null
+          fine_amount?: number | null
+          id?: string
+          interest_amount?: number | null
+          metadata?: Json | null
+          nominal_amount?: number | null
+          occurrences?: Json | null
+          payment_date?: string | null
+          payment_form?: string
+          payment_type?: string
+          pix_key?: string | null
+          pix_txid?: string | null
+          pix_type?: string | null
+          reconciliation_linked?: Json | null
+          remittance_linked?: Json | null
+          status?: string | null
+          tags?: string[] | null
+          transaction_id?: string | null
+          unique_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "bank_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "bank_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_statements: {
         Row: {
           amount: number
@@ -2997,6 +3144,225 @@ export type Database = {
           },
         ]
       }
+      payment_certificates: {
+        Row: {
+          account_hash: string
+          active: boolean | null
+          common_name: string | null
+          company_id: string | null
+          created_at: string | null
+          expiration_date: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_hash: string
+          active?: boolean | null
+          common_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          expiration_date?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_hash?: string
+          active?: boolean | null
+          common_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          expiration_date?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_certificates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "payment_certificates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_certificates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "payment_certificates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_remessas: {
+        Row: {
+          account_hash: string
+          company_id: string | null
+          created_at: string | null
+          file_content: string | null
+          id: string
+          processed_at: string | null
+          protocol: string | null
+          remessa_type: string | null
+          status: string | null
+          unique_ids: string[] | null
+        }
+        Insert: {
+          account_hash: string
+          company_id?: string | null
+          created_at?: string | null
+          file_content?: string | null
+          id?: string
+          processed_at?: string | null
+          protocol?: string | null
+          remessa_type?: string | null
+          status?: string | null
+          unique_ids?: string[] | null
+        }
+        Update: {
+          account_hash?: string
+          company_id?: string | null
+          created_at?: string | null
+          file_content?: string | null
+          id?: string
+          processed_at?: string | null
+          protocol?: string | null
+          remessa_type?: string | null
+          status?: string | null
+          unique_ids?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_remessas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "payment_remessas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_remessas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "payment_remessas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_retornos: {
+        Row: {
+          account_hash: string
+          company_id: string | null
+          created_at: string | null
+          file_content: string | null
+          id: string
+          processed_payments: Json | null
+          status: string | null
+          unique_id: string | null
+        }
+        Insert: {
+          account_hash: string
+          company_id?: string | null
+          created_at?: string | null
+          file_content?: string | null
+          id?: string
+          processed_payments?: Json | null
+          status?: string | null
+          unique_id?: string | null
+        }
+        Update: {
+          account_hash?: string
+          company_id?: string | null
+          created_at?: string | null
+          file_content?: string | null
+          id?: string
+          processed_payments?: Json | null
+          status?: string | null
+          unique_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_retornos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "payment_retornos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_retornos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "payment_retornos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_webhook_logs: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          processed: boolean | null
+          unique_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          unique_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          unique_id?: string | null
+        }
+        Relationships: []
+      }
       pluggy_connections: {
         Row: {
           company_id: string
@@ -3529,6 +3895,141 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_payments: {
+        Row: {
+          active_debit: string | null
+          bank_payment_id: string | null
+          calculation_year: string | null
+          company_id: string | null
+          contributor_document: string
+          contributor_name: string | null
+          created_at: string | null
+          crvl_withdrawal_option: number | null
+          fgts_identifier: string | null
+          honorary_amount: number | null
+          id: string
+          increase_amount: number | null
+          installment: string | null
+          metadata: Json | null
+          monetary_adjustment: number | null
+          municipal_code: string | null
+          other_amount: number | null
+          payment_option: number | null
+          reference_number: string | null
+          reference_period: string | null
+          reporting_period: string | null
+          revenue_code: string | null
+          seal_social_connectivity: number | null
+          seal_social_connectivity_digit: number | null
+          state: string | null
+          state_registration: string | null
+          tax_amount: number | null
+          tax_type: string
+          vehicle_plates: string | null
+          vehicle_renavam: string | null
+        }
+        Insert: {
+          active_debit?: string | null
+          bank_payment_id?: string | null
+          calculation_year?: string | null
+          company_id?: string | null
+          contributor_document: string
+          contributor_name?: string | null
+          created_at?: string | null
+          crvl_withdrawal_option?: number | null
+          fgts_identifier?: string | null
+          honorary_amount?: number | null
+          id?: string
+          increase_amount?: number | null
+          installment?: string | null
+          metadata?: Json | null
+          monetary_adjustment?: number | null
+          municipal_code?: string | null
+          other_amount?: number | null
+          payment_option?: number | null
+          reference_number?: string | null
+          reference_period?: string | null
+          reporting_period?: string | null
+          revenue_code?: string | null
+          seal_social_connectivity?: number | null
+          seal_social_connectivity_digit?: number | null
+          state?: string | null
+          state_registration?: string | null
+          tax_amount?: number | null
+          tax_type: string
+          vehicle_plates?: string | null
+          vehicle_renavam?: string | null
+        }
+        Update: {
+          active_debit?: string | null
+          bank_payment_id?: string | null
+          calculation_year?: string | null
+          company_id?: string | null
+          contributor_document?: string
+          contributor_name?: string | null
+          created_at?: string | null
+          crvl_withdrawal_option?: number | null
+          fgts_identifier?: string | null
+          honorary_amount?: number | null
+          id?: string
+          increase_amount?: number | null
+          installment?: string | null
+          metadata?: Json | null
+          monetary_adjustment?: number | null
+          municipal_code?: string | null
+          other_amount?: number | null
+          payment_option?: number | null
+          reference_number?: string | null
+          reference_period?: string | null
+          reporting_period?: string | null
+          revenue_code?: string | null
+          seal_social_connectivity?: number | null
+          seal_social_connectivity_digit?: number | null
+          state?: string | null
+          state_registration?: string | null
+          tax_amount?: number | null
+          tax_type?: string
+          vehicle_plates?: string | null
+          vehicle_renavam?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_payments_bank_payment_id_fkey"
+            columns: ["bank_payment_id"]
+            isOneToOne: false
+            referencedRelation: "bank_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "tax_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "tax_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

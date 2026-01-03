@@ -134,3 +134,18 @@ verify_jwt = true
 
 [functions.pluggy-proxy]
 verify_jwt = true
+
+[functions.payment-create-billet]
+verify_jwt = true
+
+[functions.payment-create-transfer]
+verify_jwt = true
+
+[functions.payment-generate-remessa]
+verify_jwt = true
+
+[functions.payment-query]
+verify_jwt = true
+
+[functions.payment-webhook]
+verify_jwt = false
