@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity, Brain } from 'lucide-react';
+import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity, Brain, Cog } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -42,6 +42,7 @@ const navigation: NavItem[] = [
   { key: 'taxReform', href: '/reforma-tributaria', icon: Calculator },
   { key: 'observability', href: '/observability', icon: Activity, requiredRole: 'SUPERADMIN' },
   { key: 'aiCommandCenter', href: '/ai-command-center', icon: Brain, requiredRole: 'SUPERADMIN' },
+  { key: 'businessRules', href: '/admin/rules', icon: Cog, requiredRole: 'ADMIN' },
 ];
 
 export function AppSidebar() {
