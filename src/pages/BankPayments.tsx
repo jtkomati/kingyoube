@@ -14,7 +14,8 @@ import {
   Search,
   Filter,
   Download,
-  RefreshCw
+  RefreshCw,
+  FileSearch
 } from "lucide-react";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { RemessaManager } from "@/components/payments/RemessaManager";
+import { DDATab } from "@/components/payments/DDATab";
 
 const BankPayments = () => {
   const { currentOrganization } = useOrganization();
@@ -140,6 +142,10 @@ const BankPayments = () => {
             <TabsTrigger value="payments" className="gap-2 data-[state=active]:bg-background">
               <CreditCard className="h-4 w-4" />
               Pagamentos
+            </TabsTrigger>
+            <TabsTrigger value="dda" className="gap-2 data-[state=active]:bg-background">
+              <FileSearch className="h-4 w-4" />
+              DDA
             </TabsTrigger>
             <TabsTrigger value="remessa" className="gap-2 data-[state=active]:bg-background">
               <Send className="h-4 w-4" />
@@ -263,6 +269,14 @@ const BankPayments = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="dda">
+            <DDATab 
+              companyId={currentOrganization?.id}
+              bankAccounts={bankAccounts || []}
+              onRefresh={refetch}
+            />
           </TabsContent>
 
           <TabsContent value="remessa">
