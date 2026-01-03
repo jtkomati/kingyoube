@@ -3422,7 +3422,10 @@ export type Database = {
       }
       sync_protocols: {
         Row: {
+          balance_difference: number | null
+          balance_validated: boolean | null
           bank_account_id: string | null
+          closing_balance: number | null
           company_id: string | null
           completed_at: string | null
           created_at: string | null
@@ -3430,6 +3433,7 @@ export type Database = {
           end_date: string | null
           error_message: string | null
           id: string
+          opening_balance: number | null
           plugbank_unique_id: string | null
           protocol_number: string | null
           records_imported: number | null
@@ -3438,7 +3442,10 @@ export type Database = {
           status: string | null
         }
         Insert: {
+          balance_difference?: number | null
+          balance_validated?: boolean | null
           bank_account_id?: string | null
+          closing_balance?: number | null
           company_id?: string | null
           completed_at?: string | null
           created_at?: string | null
@@ -3446,6 +3453,7 @@ export type Database = {
           end_date?: string | null
           error_message?: string | null
           id?: string
+          opening_balance?: number | null
           plugbank_unique_id?: string | null
           protocol_number?: string | null
           records_imported?: number | null
@@ -3454,7 +3462,10 @@ export type Database = {
           status?: string | null
         }
         Update: {
+          balance_difference?: number | null
+          balance_validated?: boolean | null
           bank_account_id?: string | null
+          closing_balance?: number | null
           company_id?: string | null
           completed_at?: string | null
           created_at?: string | null
@@ -3462,6 +3473,7 @@ export type Database = {
           end_date?: string | null
           error_message?: string | null
           id?: string
+          opening_balance?: number | null
           plugbank_unique_id?: string | null
           protocol_number?: string | null
           records_imported?: number | null
