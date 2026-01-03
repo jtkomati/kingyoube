@@ -1245,6 +1245,7 @@ export type Database = {
           consent_link: string | null
           created_at: string
           currency: string | null
+          dda_activated: boolean | null
           id: string
           last_sync_at: string | null
           open_finance_consent_id: string | null
@@ -1277,6 +1278,7 @@ export type Database = {
           consent_link?: string | null
           created_at?: string
           currency?: string | null
+          dda_activated?: boolean | null
           id?: string
           last_sync_at?: string | null
           open_finance_consent_id?: string | null
@@ -1309,6 +1311,7 @@ export type Database = {
           consent_link?: string | null
           created_at?: string
           currency?: string | null
+          dda_activated?: boolean | null
           id?: string
           last_sync_at?: string | null
           open_finance_consent_id?: string | null
@@ -2710,6 +2713,203 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dda_boletos: {
+        Row: {
+          account_hash: string
+          barcode: string | null
+          beneficiary_bank_code: string | null
+          beneficiary_bank_name: string | null
+          beneficiary_cpf_cnpj: string | null
+          beneficiary_name: string | null
+          company_id: string | null
+          created_at: string | null
+          dda_file_id: string | null
+          description: string | null
+          digitable_line: string | null
+          discount_amount: number | null
+          document_number: string | null
+          due_date: string | null
+          final_amount: number | null
+          fine_amount: number | null
+          id: string
+          interest_amount: number | null
+          issue_date: string | null
+          nominal_amount: number | null
+          our_number: string | null
+          paid_at: string | null
+          payment_id: string | null
+          processed_at: string | null
+          raw_data: Json | null
+          status: string | null
+          unique_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_hash: string
+          barcode?: string | null
+          beneficiary_bank_code?: string | null
+          beneficiary_bank_name?: string | null
+          beneficiary_cpf_cnpj?: string | null
+          beneficiary_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          dda_file_id?: string | null
+          description?: string | null
+          digitable_line?: string | null
+          discount_amount?: number | null
+          document_number?: string | null
+          due_date?: string | null
+          final_amount?: number | null
+          fine_amount?: number | null
+          id?: string
+          interest_amount?: number | null
+          issue_date?: string | null
+          nominal_amount?: number | null
+          our_number?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          processed_at?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          unique_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_hash?: string
+          barcode?: string | null
+          beneficiary_bank_code?: string | null
+          beneficiary_bank_name?: string | null
+          beneficiary_cpf_cnpj?: string | null
+          beneficiary_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          dda_file_id?: string | null
+          description?: string | null
+          digitable_line?: string | null
+          discount_amount?: number | null
+          document_number?: string | null
+          due_date?: string | null
+          final_amount?: number | null
+          fine_amount?: number | null
+          id?: string
+          interest_amount?: number | null
+          issue_date?: string | null
+          nominal_amount?: number | null
+          our_number?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          processed_at?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          unique_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dda_boletos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "dda_boletos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dda_boletos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "dda_boletos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dda_boletos_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "bank_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dda_sync_logs: {
+        Row: {
+          account_hash: string
+          boletos_found: number | null
+          boletos_new: number | null
+          company_id: string | null
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          started_at: string | null
+          status: string | null
+          sync_type: string | null
+        }
+        Insert: {
+          account_hash: string
+          boletos_found?: number | null
+          boletos_new?: number | null
+          company_id?: string | null
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          sync_type?: string | null
+        }
+        Update: {
+          account_hash?: string
+          boletos_found?: number | null
+          boletos_new?: number | null
+          company_id?: string | null
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          sync_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dda_sync_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "dda_sync_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dda_sync_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "dda_sync_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

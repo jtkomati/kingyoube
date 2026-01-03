@@ -188,3 +188,15 @@ verify_jwt = true
 
 [functions.payment-delete]
 verify_jwt = true
+
+[functions.payment-dda-activate]
+verify_jwt = true
+
+[functions.payment-dda-sync]
+verify_jwt = true
+
+[functions.payment-dda-query]
+verify_jwt = true
+
+[functions.payment-dda-process]
+verify_jwt = true
