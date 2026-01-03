@@ -12,12 +12,31 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useLanguage, type Language } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 const Reports = () => {
   const { currentOrganization } = useAuth();
   const navigate = useNavigate();
+  const { language } = useLanguage();
   const currentDate = new Date();
   const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  
+  // Translation helper
+  const tr = (key: string) => t(language, 'reports', key);
+
+  // Locale mapping for date formatting
+  const getLocale = (): string => {
+    const locales: Record<Language, string> = {
+      pt: 'pt-BR',
+      en: 'en-US',
+      es: 'es-ES',
+      de: 'de-DE',
+      fr: 'fr-FR',
+      ja: 'ja-JP',
+    };
+    return locales[language];
+  };
   
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
   const [startMonth, setStartMonth] = useState<string>('2025-11');
@@ -192,7 +211,7 @@ const [payables, setPayables] = useState<any[]>([]);
       for (const monthKey of months) {
         const cfData = cashFlowMonthlyData[monthKey];
         const [year, month] = monthKey.split('-');
-        const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString(getLocale(), { month: 'short', year: '2-digit' });
         
         cashFlow.push({
           mes: monthLabel.replace('.', ''),
@@ -251,7 +270,7 @@ const [payables, setPayables] = useState<any[]>([]);
   };
   
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat(getLocale(), {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
@@ -273,18 +292,18 @@ const [payables, setPayables] = useState<any[]>([]);
 
   // Helper para status de pagamento
   const getPaymentStatus = (dueDate: string, paymentDate: string | null) => {
-    if (paymentDate) return { label: 'Pago', variant: 'success' as const, icon: CheckCircle };
+    if (paymentDate) return { label: tr('paid'), variant: 'success' as const, icon: CheckCircle };
     const today = new Date();
     const due = new Date(dueDate);
-    if (due < today) return { label: 'Vencido', variant: 'destructive' as const, icon: XCircle };
-    return { label: 'A Vencer', variant: 'warning' as const, icon: Clock };
+    if (due < today) return { label: tr('overdue'), variant: 'destructive' as const, icon: XCircle };
+    return { label: tr('upcoming'), variant: 'warning' as const, icon: Clock };
   };
 
   // Helper para nome do cliente/fornecedor
   const getEntityName = (entity: any) => {
-    if (!entity) return 'Não informado';
+    if (!entity) return tr('notInformed');
     if (entity.person_type === 'PJ' && entity.company_name) return entity.company_name;
-    return [entity.first_name, entity.last_name].filter(Boolean).join(' ') || 'Não informado';
+    return [entity.first_name, entity.last_name].filter(Boolean).join(' ') || tr('notInformed');
   };
 
   // Cálculos de resumo para Contas a Receber
@@ -308,30 +327,30 @@ const [payables, setPayables] = useState<any[]>([]);
       <div className="space-y-6">
         <div>
           <h1 className="text-4xl font-bold text-gradient-primary">
-            Relatórios Gerenciais
+            {tr('title')}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Análises e indicadores financeiros
+            {tr('subtitle')}
           </p>
         </div>
 
         {loading ? (
-          <div className="text-center py-8">Carregando dados financeiros...</div>
+          <div className="text-center py-8">{tr('loading')}</div>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <Calendar className="h-5 w-5 text-muted-foreground" />
               
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">A partir de:</span>
+                <span className="text-sm text-muted-foreground">{tr('fromDate')}</span>
                 <Select value={startMonth} onValueChange={setStartMonth}>
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Data inicial" />
+                    <SelectValue placeholder={tr('fromDate')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableMonths.map((monthKey) => {
                       const [year, month] = monthKey.split('-');
-                      const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                      const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString(getLocale(), { month: 'long', year: 'numeric' });
                       return (
                         <SelectItem key={monthKey} value={monthKey}>
                           {label.charAt(0).toUpperCase() + label.slice(1)}
@@ -343,15 +362,15 @@ const [payables, setPayables] = useState<any[]>([]);
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Mês selecionado:</span>
+                <span className="text-sm text-muted-foreground">{tr('selectedMonth')}</span>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Selecione o mês" />
+                    <SelectValue placeholder={tr('selectedMonth')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableMonths.filter(m => m >= startMonth).map((monthKey) => {
                       const [year, month] = monthKey.split('-');
-                      const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                      const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString(getLocale(), { month: 'long', year: 'numeric' });
                       return (
                         <SelectItem key={monthKey} value={monthKey}>
                           {label.charAt(0).toUpperCase() + label.slice(1)}
@@ -367,12 +386,12 @@ const [payables, setPayables] = useState<any[]>([]);
 
         <Tabs defaultValue="dre" className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="dre">DRE</TabsTrigger>
-            <TabsTrigger value="cashflow">Fluxo de Caixa</TabsTrigger>
-            <TabsTrigger value="receivables">Contas a Receber</TabsTrigger>
-            <TabsTrigger value="payables">Contas a Pagar</TabsTrigger>
-            <TabsTrigger value="taxes">Impostos</TabsTrigger>
-            <TabsTrigger value="delinquency">Inadimplência</TabsTrigger>
+            <TabsTrigger value="dre">{tr('tabDre')}</TabsTrigger>
+            <TabsTrigger value="cashflow">{tr('tabCashFlow')}</TabsTrigger>
+            <TabsTrigger value="receivables">{tr('tabReceivables')}</TabsTrigger>
+            <TabsTrigger value="payables">{tr('tabPayables')}</TabsTrigger>
+            <TabsTrigger value="taxes">{tr('tabTaxes')}</TabsTrigger>
+            <TabsTrigger value="delinquency">{tr('tabDelinquency')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dre" className="space-y-4">
@@ -380,14 +399,14 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Receita Bruta
+                    {tr('grossRevenue')}
                   </CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-success">{formatCurrency(currentData.receitaBruta)}</div>
                   <p className="text-xs text-muted-foreground">
-                    Vendas totais
+                    {tr('totalSales')}
                   </p>
                 </CardContent>
               </Card>
@@ -395,14 +414,14 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Deduções
+                    {tr('deductions')}
                   </CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-warning">{formatCurrency(currentData.deducoes)}</div>
                   <p className="text-xs text-muted-foreground">
-                    Impostos sobre receita
+                    {tr('taxesOnRevenue')}
                   </p>
                 </CardContent>
               </Card>
@@ -410,14 +429,14 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Receita Líquida
+                    {tr('netRevenue')}
                   </CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(currentData.receitaLiquida)}</div>
                   <p className="text-xs text-muted-foreground">
-                    Após deduções
+                    {tr('afterDeductions')}
                   </p>
                 </CardContent>
               </Card>
@@ -425,7 +444,7 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Resultado
+                    {tr('result')}
                   </CardTitle>
                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -434,7 +453,7 @@ const [payables, setPayables] = useState<any[]>([]);
                     {formatCurrency(currentData.resultado)}
                   </div>
                   <p className={`text-xs ${parseFloat(variation) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    {parseFloat(variation) >= 0 ? '+' : ''}{variation}% vs mês anterior
+                    {parseFloat(variation) >= 0 ? '+' : ''}{variation}% {tr('vsPreviousMonth')}
                   </p>
                 </CardContent>
               </Card>
@@ -443,28 +462,28 @@ const [payables, setPayables] = useState<any[]>([]);
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Demonstração de Resultado do Exercício (DRE)</CardTitle>
+                  <CardTitle>{tr('dreTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between font-semibold border-b pb-2">
-                      <span>Receita Bruta</span>
+                      <span>{tr('grossRevenue')}</span>
                       <span className="text-success">{formatCurrency(currentData.receitaBruta)}</span>
                     </div>
                     <div className="flex justify-between pl-4">
-                      <span>(-) Deduções (Impostos)</span>
+                      <span>{tr('deductionsTaxes')}</span>
                       <span className="text-destructive">{formatCurrency(currentData.deducoes)}</span>
                     </div>
                     <div className="flex justify-between font-semibold border-b pb-2">
-                      <span>(=) Receita Líquida</span>
+                      <span>{tr('equalNetRevenue')}</span>
                       <span>{formatCurrency(currentData.receitaLiquida)}</span>
                     </div>
                     <div className="flex justify-between pl-4">
-                      <span>(-) Custos e Despesas</span>
+                      <span>{tr('costsExpenses')}</span>
                       <span className="text-destructive">{formatCurrency(currentData.despesasOperacionais)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                      <span>(=) Resultado Operacional</span>
+                      <span>{tr('operationalResult')}</span>
                       <span className={currentData.resultado >= 0 ? 'text-success' : 'text-destructive'}>
                         {formatCurrency(currentData.resultado)}
                       </span>
@@ -475,7 +494,7 @@ const [payables, setPayables] = useState<any[]>([]);
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Evolução do Resultado</CardTitle>
+                  <CardTitle>{tr('resultEvolution')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -483,7 +502,7 @@ const [payables, setPayables] = useState<any[]>([]);
                       .filter(([key]) => key >= startMonth)
                       .map(([key, data]: [string, any]) => {
                         const [year, month] = key.split('-');
-                        const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                        const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString(getLocale(), { month: 'short', year: '2-digit' });
                         return {
                           mes: monthLabel.replace('.', ''),
                           receita: data.receitaLiquida,
@@ -496,9 +515,9 @@ const [payables, setPayables] = useState<any[]>([]);
                       <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
                       <Legend />
-                      <Bar dataKey="receita" fill="hsl(var(--success))" name="Receita Líquida" />
-                      <Bar dataKey="despesas" fill="hsl(var(--destructive))" name="Despesas" />
-                      <Bar dataKey="resultado" fill="hsl(var(--primary))" name="Resultado" />
+                      <Bar dataKey="receita" fill="hsl(var(--success))" name={tr('netRevenue')} />
+                      <Bar dataKey="despesas" fill="hsl(var(--destructive))" name={tr('expenses')} />
+                      <Bar dataKey="resultado" fill="hsl(var(--primary))" name={tr('result')} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -513,30 +532,30 @@ const [payables, setPayables] = useState<any[]>([]);
                 {cashFlowDataSource === 'bank_statements' && (
                   <Badge variant="default" className="bg-success/20 text-success border-success/30">
                     <Landmark className="h-3 w-3 mr-1" />
-                    Dados do Open Finance
+                    {tr('openFinanceData')}
                   </Badge>
                 )}
                 {cashFlowDataSource === 'transactions' && (
                   <Badge variant="secondary">
                     <FileText className="h-3 w-3 mr-1" />
-                    Dados de Lançamentos
+                    {tr('entriesData')}
                   </Badge>
                 )}
                 {cashFlowDataSource === 'none' && (
                   <Badge variant="outline" className="text-muted-foreground">
-                    Sem dados financeiros
+                    {tr('noFinancialData')}
                   </Badge>
                 )}
               </div>
               {cashFlowDataSource === 'bank_statements' ? (
                 <Button variant="outline" size="sm" onClick={() => navigate('/bank-integrations')}>
                   <LinkIcon className="h-4 w-4 mr-2" />
-                  Ver extrato completo
+                  {tr('viewFullStatement')}
                 </Button>
               ) : (
                 <Button variant="default" size="sm" onClick={() => navigate('/bank-integrations')}>
                   <Landmark className="h-4 w-4 mr-2" />
-                  Conectar conta bancária
+                  {tr('connectBankAccount')}
                 </Button>
               )}
             </div>
@@ -545,7 +564,7 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Total Entradas
+                    {tr('totalInflows')}
                   </CardTitle>
                   <TrendingUp className="h-4 w-4 text-success" />
                 </CardHeader>
@@ -554,7 +573,7 @@ const [payables, setPayables] = useState<any[]>([]);
                     {formatCurrency(filteredCashFlowData.reduce((sum, d) => sum + d.entradas, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Últimos 12 meses
+                    {tr('last12Months')}
                   </p>
                 </CardContent>
               </Card>
@@ -562,7 +581,7 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Total Saídas
+                    {tr('totalOutflows')}
                   </CardTitle>
                   <TrendingUp className="h-4 w-4 text-destructive" />
                 </CardHeader>
@@ -571,7 +590,7 @@ const [payables, setPayables] = useState<any[]>([]);
                     {formatCurrency(filteredCashFlowData.reduce((sum, d) => sum + d.saidas, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Últimos 12 meses
+                    {tr('last12Months')}
                   </p>
                 </CardContent>
               </Card>
@@ -579,7 +598,7 @@ const [payables, setPayables] = useState<any[]>([]);
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Saldo Acumulado
+                    {tr('accumulatedBalance')}
                   </CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -588,7 +607,7 @@ const [payables, setPayables] = useState<any[]>([]);
                     {formatCurrency(filteredCashFlowData.reduce((sum, d) => sum + d.saldo, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Resultado do período
+                    {tr('periodResult')}
                   </p>
                 </CardContent>
               </Card>
@@ -596,7 +615,7 @@ const [payables, setPayables] = useState<any[]>([]);
 
             <Card>
               <CardHeader>
-                <CardTitle>Fluxo de Caixa Realizado</CardTitle>
+                <CardTitle>{tr('realizedCashFlow')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
@@ -611,21 +630,21 @@ const [payables, setPayables] = useState<any[]>([]);
                       dataKey="entradas" 
                       stroke="hsl(var(--success))" 
                       strokeWidth={2}
-                      name="Entradas"
+                      name={tr('inflows')}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="saidas" 
                       stroke="hsl(var(--destructive))" 
                       strokeWidth={2}
-                      name="Saídas"
+                      name={tr('outflows')}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="saldo" 
                       stroke="hsl(var(--primary))" 
                       strokeWidth={3}
-                      name="Saldo"
+                      name={tr('balance')}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -634,7 +653,7 @@ const [payables, setPayables] = useState<any[]>([]);
 
             <Card>
               <CardHeader>
-                <CardTitle>Detalhamento Mensal</CardTitle>
+                <CardTitle>{tr('monthlyDetails')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -643,15 +662,15 @@ const [payables, setPayables] = useState<any[]>([]);
                       <h3 className="font-semibold mb-2">{data.mes}</h3>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Entradas</p>
+                          <p className="text-muted-foreground">{tr('inflows')}</p>
                           <p className="font-bold text-success">{formatCurrency(data.entradas)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Saídas</p>
+                          <p className="text-muted-foreground">{tr('outflows')}</p>
                           <p className="font-bold text-destructive">{formatCurrency(data.saidas)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Saldo</p>
+                          <p className="text-muted-foreground">{tr('balance')}</p>
                           <p className="font-bold text-primary">{formatCurrency(data.saldo)}</p>
                         </div>
                       </div>
@@ -667,65 +686,65 @@ const [payables, setPayables] = useState<any[]>([]);
             <div className="grid gap-4 md:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total a Receber</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('totalReceivable')}</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(receivablesSummary.total)}</div>
-                  <p className="text-xs text-muted-foreground">{receivables.length} lançamentos</p>
+                  <p className="text-xs text-muted-foreground">{receivables.length} {tr('entries')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Recebido</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('received')}</CardTitle>
                   <CheckCircle className="h-4 w-4 text-success" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-success">{formatCurrency(receivablesSummary.received)}</div>
-                  <p className="text-xs text-muted-foreground">{receivables.filter(r => r.payment_date).length} pagos</p>
+                  <p className="text-xs text-muted-foreground">{receivables.filter(r => r.payment_date).length} {tr('paidItems')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Vencido</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('overdue')}</CardTitle>
                   <XCircle className="h-4 w-4 text-destructive" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-destructive">{formatCurrency(receivablesSummary.overdue)}</div>
-                  <p className="text-xs text-muted-foreground">{receivables.filter(r => !r.payment_date && new Date(r.due_date) < new Date()).length} pendentes</p>
+                  <p className="text-xs text-muted-foreground">{receivables.filter(r => !r.payment_date && new Date(r.due_date) < new Date()).length} {tr('pending')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">A Vencer</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('upcoming')}</CardTitle>
                   <Clock className="h-4 w-4 text-warning" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-warning">{formatCurrency(receivablesSummary.upcoming)}</div>
-                  <p className="text-xs text-muted-foreground">{receivables.filter(r => !r.payment_date && new Date(r.due_date) >= new Date()).length} futuros</p>
+                  <p className="text-xs text-muted-foreground">{receivables.filter(r => !r.payment_date && new Date(r.due_date) >= new Date()).length} {tr('future')}</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Detalhamento</CardTitle>
+                <CardTitle>{tr('details')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {receivables.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Nenhuma conta a receber cadastrada</p>
+                  <p className="text-center text-muted-foreground py-8">{tr('noReceivables')}</p>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Vencimento</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{tr('customer')}</TableHead>
+                        <TableHead>{tr('description')}</TableHead>
+                        <TableHead>{tr('dueDate')}</TableHead>
+                        <TableHead className="text-right">{tr('amount')}</TableHead>
+                        <TableHead>{tr('status')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -736,7 +755,7 @@ const [payables, setPayables] = useState<any[]>([]);
                           <TableRow key={r.id}>
                             <TableCell className="font-medium">{getEntityName(r.customers)}</TableCell>
                             <TableCell>{r.description || '-'}</TableCell>
-                            <TableCell>{new Date(r.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{new Date(r.due_date).toLocaleDateString(getLocale())}</TableCell>
                             <TableCell className="text-right font-medium">{formatCurrency(r.gross_amount)}</TableCell>
                             <TableCell>
                               <Badge variant={status.variant === 'success' ? 'default' : status.variant === 'destructive' ? 'destructive' : 'secondary'} className={status.variant === 'success' ? 'bg-success/20 text-success' : status.variant === 'warning' ? 'bg-warning/20 text-warning' : ''}>
@@ -759,65 +778,65 @@ const [payables, setPayables] = useState<any[]>([]);
             <div className="grid gap-4 md:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total a Pagar</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('totalPayable')}</CardTitle>
                   <Truck className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(payablesSummary.total)}</div>
-                  <p className="text-xs text-muted-foreground">{payables.length} lançamentos</p>
+                  <p className="text-xs text-muted-foreground">{payables.length} {tr('entries')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pago</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('paid')}</CardTitle>
                   <CheckCircle className="h-4 w-4 text-success" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-success">{formatCurrency(payablesSummary.paid)}</div>
-                  <p className="text-xs text-muted-foreground">{payables.filter(p => p.payment_date).length} pagos</p>
+                  <p className="text-xs text-muted-foreground">{payables.filter(p => p.payment_date).length} {tr('paidItems')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Vencido</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('overdue')}</CardTitle>
                   <XCircle className="h-4 w-4 text-destructive" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-destructive">{formatCurrency(payablesSummary.overdue)}</div>
-                  <p className="text-xs text-muted-foreground">{payables.filter(p => !p.payment_date && new Date(p.due_date) < new Date()).length} pendentes</p>
+                  <p className="text-xs text-muted-foreground">{payables.filter(p => !p.payment_date && new Date(p.due_date) < new Date()).length} {tr('pending')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">A Vencer</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('upcoming')}</CardTitle>
                   <Clock className="h-4 w-4 text-warning" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-warning">{formatCurrency(payablesSummary.upcoming)}</div>
-                  <p className="text-xs text-muted-foreground">{payables.filter(p => !p.payment_date && new Date(p.due_date) >= new Date()).length} futuros</p>
+                  <p className="text-xs text-muted-foreground">{payables.filter(p => !p.payment_date && new Date(p.due_date) >= new Date()).length} {tr('future')}</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Detalhamento</CardTitle>
+                <CardTitle>{tr('details')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {payables.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Nenhuma conta a pagar cadastrada</p>
+                  <p className="text-center text-muted-foreground py-8">{tr('noPayables')}</p>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Vencimento</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{tr('supplier')}</TableHead>
+                        <TableHead>{tr('description')}</TableHead>
+                        <TableHead>{tr('dueDate')}</TableHead>
+                        <TableHead className="text-right">{tr('amount')}</TableHead>
+                        <TableHead>{tr('status')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -828,7 +847,7 @@ const [payables, setPayables] = useState<any[]>([]);
                           <TableRow key={p.id}>
                             <TableCell className="font-medium">{getEntityName(p.suppliers)}</TableCell>
                             <TableCell>{p.description || '-'}</TableCell>
-                            <TableCell>{new Date(p.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{new Date(p.due_date).toLocaleDateString(getLocale())}</TableCell>
                             <TableCell className="text-right font-medium">{formatCurrency(p.gross_amount)}</TableCell>
                             <TableCell>
                               <Badge variant={status.variant === 'success' ? 'default' : status.variant === 'destructive' ? 'destructive' : 'secondary'} className={status.variant === 'success' ? 'bg-success/20 text-success' : status.variant === 'warning' ? 'bg-warning/20 text-warning' : ''}>
@@ -849,11 +868,11 @@ const [payables, setPayables] = useState<any[]>([]);
           <TabsContent value="taxes">
             <Card>
               <CardHeader>
-                <CardTitle>Análise de Impostos</CardTitle>
+                <CardTitle>{tr('taxAnalysis')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Total de impostos pagos por tipo e comparativos
+                  {tr('taxDescription')}
                 </p>
               </CardContent>
             </Card>
@@ -862,11 +881,11 @@ const [payables, setPayables] = useState<any[]>([]);
           <TabsContent value="delinquency">
             <Card>
               <CardHeader>
-                <CardTitle>Inadimplência</CardTitle>
+                <CardTitle>{tr('delinquency')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Receitas vencidas não pagas e aging
+                  {tr('delinquencyDescription')}
                 </p>
               </CardContent>
             </Card>
