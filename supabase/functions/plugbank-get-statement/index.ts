@@ -282,6 +282,41 @@ serve(async (req) => {
       totalDebits
     });
 
+    // Extract balance data from provider response (Open Finance standard fields)
+    const openingBalance = parseFloat(responseData.statement?.openingBalance) || 
+                           parseFloat(responseData.statement?.initialBalance) || 
+                           parseFloat(responseData.openingBalance) || null;
+    const closingBalance = parseFloat(responseData.statement?.closingBalance) || 
+                           parseFloat(responseData.statement?.finalBalance) || 
+                           parseFloat(responseData.closingBalance) || null;
+
+    console.log("Balance data from provider:", { openingBalance, closingBalance });
+
+    // Calculate expected closing balance
+    let calculatedBalance: number | null = null;
+    let balanceDifference: number | null = null;
+    let balanceValidated = false;
+
+    if (openingBalance !== null) {
+      calculatedBalance = openingBalance + totalCredits - totalDebits;
+      
+      if (closingBalance !== null) {
+        balanceDifference = closingBalance - calculatedBalance;
+        // Tolerance of 1 cent for floating point rounding
+        balanceValidated = Math.abs(balanceDifference) < 0.01;
+      }
+
+      console.log("Balance validation:", { 
+        openingBalance, 
+        totalCredits, 
+        totalDebits, 
+        calculatedBalance, 
+        closingBalance, 
+        balanceDifference, 
+        balanceValidated 
+      });
+    }
+
     // Update sync protocol status with service client (bypass RLS)
     if (uniqueId) {
       const serviceClient = createClient(
@@ -295,6 +330,18 @@ serve(async (req) => {
         updateData.records_imported = normalizedCredits.length + normalizedDebits.length;
       }
 
+      // Add balance validation data
+      if (openingBalance !== null) {
+        updateData.opening_balance = openingBalance;
+      }
+      if (closingBalance !== null) {
+        updateData.closing_balance = closingBalance;
+      }
+      updateData.balance_validated = balanceValidated;
+      if (balanceDifference !== null) {
+        updateData.balance_difference = balanceDifference;
+      }
+
       const { error: syncError } = await serviceClient
         .from("sync_protocols")
         .update(updateData)
@@ -303,7 +350,21 @@ serve(async (req) => {
       if (syncError) {
         console.error("Failed to update sync_protocols:", syncError);
       } else {
-        console.log("sync_protocols updated:", { uniqueId, status: rawStatus, isCompleted });
+        console.log("sync_protocols updated:", { uniqueId, status: rawStatus, isCompleted, balanceValidated });
+      }
+
+      // Update bank account balance if closingBalance is available
+      if (isCompleted && bankAccountId && closingBalance !== null) {
+        const { error: balanceError } = await serviceClient
+          .from("bank_accounts")
+          .update({ balance: closingBalance })
+          .eq("id", bankAccountId);
+
+        if (balanceError) {
+          console.error("Failed to update bank account balance:", balanceError);
+        } else {
+          console.log("Bank account balance updated to:", closingBalance);
+        }
       }
     }
 
@@ -376,6 +437,11 @@ serve(async (req) => {
         debits: normalizedDebits,
         totalCredits,
         totalDebits,
+        openingBalance,
+        closingBalance,
+        calculatedBalance,
+        balanceValidated,
+        balanceDifference,
         message: isCompleted ? "Extrato processado com sucesso" : "Aguardando processamento..."
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

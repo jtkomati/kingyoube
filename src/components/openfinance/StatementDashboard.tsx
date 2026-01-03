@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { BalanceValidationCard } from "./BalanceValidationCard";
 
 interface Transaction {
   id?: string;
@@ -99,6 +100,30 @@ export function StatementDashboard({
     enabled: !!selectedAccountId,
   });
 
+  // Fetch latest sync protocol with balance validation data
+  const { data: lastSyncProtocol, refetch: refetchSyncProtocol } = useQuery({
+    queryKey: ['last-sync-protocol', selectedAccountId],
+    queryFn: async () => {
+      if (!selectedAccountId) return null;
+      const { data, error } = await supabase
+        .from('sync_protocols')
+        .select('opening_balance, closing_balance, balance_validated, balance_difference, completed_at')
+        .eq('bank_account_id', selectedAccountId)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.log('No sync protocol found:', error.message);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!selectedAccountId,
+  });
+
   // Merge saved and new transactions, deduplicate by id
   const transactions = useMemo(() => {
     const txMap = new Map<string, Transaction>();
@@ -140,13 +165,33 @@ export function StatementDashboard({
       setNewTransactions(allTransactions);
       setPendingProtocol(null);
       
-      // Refresh saved transactions from database and accounts
+      // Refresh saved transactions, sync protocols, and accounts
       refetchSaved();
+      refetchSyncProtocol();
       onRefreshAccounts?.();
       
-      toast.success("Extrato atualizado!", {
-        description: `${allTransactions.length} transações encontradas`,
-      });
+      // Show balance validation status in toast
+      if (statementData.balanceValidated !== undefined) {
+        if (statementData.balanceValidated) {
+          toast.success("Extrato atualizado!", {
+            description: `${allTransactions.length} transações. Saldo validado com o banco ✓`,
+          });
+        } else if (statementData.balanceDifference !== null) {
+          const diff = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
+            .format(Math.abs(statementData.balanceDifference));
+          toast.warning("Extrato atualizado com divergência", {
+            description: `${allTransactions.length} transações. Diferença de ${diff} no saldo.`,
+          });
+        } else {
+          toast.success("Extrato atualizado!", {
+            description: `${allTransactions.length} transações encontradas`,
+          });
+        }
+      } else {
+        toast.success("Extrato atualizado!", {
+          description: `${allTransactions.length} transações encontradas`,
+        });
+      }
     },
     onError: (error) => {
       toast.error("Erro ao buscar extrato", { description: error });
@@ -384,7 +429,7 @@ export function StatementDashboard({
       )}
 
       {/* Summary cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-green-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -432,6 +477,15 @@ export function StatementDashboard({
             </div>
           </CardContent>
         </Card>
+
+        {/* Balance Validation Card */}
+        <BalanceValidationCard
+          openingBalance={lastSyncProtocol?.opening_balance ?? null}
+          closingBalance={lastSyncProtocol?.closing_balance ?? null}
+          calculatedBalance={(lastSyncProtocol?.opening_balance ?? 0) + totals.credits - totals.debits}
+          isValidated={lastSyncProtocol?.balance_validated ?? false}
+          difference={lastSyncProtocol?.balance_difference ?? null}
+        />
       </div>
 
       {/* Transactions table */}

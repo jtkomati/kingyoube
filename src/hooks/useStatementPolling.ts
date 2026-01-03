@@ -22,6 +22,11 @@ interface StatementData {
   debits: Transaction[];
   totalCredits: number;
   totalDebits: number;
+  openingBalance: number | null;
+  closingBalance: number | null;
+  calculatedBalance: number | null;
+  balanceValidated: boolean | null;
+  balanceDifference: number | null;
 }
 
 // Backoff strategy: starts at 5s, increases to 10s, then 15s after certain attempts
@@ -97,6 +102,11 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
           debits: response.debits || [],
           totalCredits: response.totalCredits || 0,
           totalDebits: response.totalDebits || 0,
+          openingBalance: response.openingBalance ?? null,
+          closingBalance: response.closingBalance ?? null,
+          calculatedBalance: response.calculatedBalance ?? null,
+          balanceValidated: response.balanceValidated ?? null,
+          balanceDifference: response.balanceDifference ?? null,
         };
         setData(statementData);
         onComplete?.(statementData);
