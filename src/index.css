@@ -41,8 +41,11 @@ All colors MUST be HSL.
     
     /* Custom tokens */
     --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
     --warning: 38 92% 50%;
+    --warning-foreground: 220 56% 8%;
     --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
     
     /* KingYouBe specific */
     --kingyoube-navy: 220 56% 13%;
@@ -50,15 +53,27 @@ All colors MUST be HSL.
     --kingyoube-mint-dark: 165 65% 40%;
     --kingyoube-navy-light: 220 45% 22%;
     
+    /* Glassmorphism tokens */
+    --glass-bg: 220 56% 12% / 0.7;
+    --glass-border: 220 40% 30% / 0.3;
+    --glass-blur: 12px;
+    
+    /* Enhanced gradients */
     --gradient-primary: linear-gradient(135deg, hsl(165 65% 54%), hsl(165 65% 40%));
     --gradient-hero: linear-gradient(180deg, hsl(220 56% 13%), hsl(220 56% 6%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(158 64% 52%));
     --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 72% 51%));
+    --gradient-card: linear-gradient(135deg, hsl(220 56% 14%), hsl(220 56% 10%));
+    --gradient-glow: linear-gradient(135deg, hsl(165 65% 54% / 0.2), hsl(165 65% 40% / 0.1));
     
+    /* Enhanced shadows */
     --shadow-sm: 0 1px 2px 0 hsl(220 56% 5% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(220 56% 5% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(220 56% 5% / 0.2);
+    --shadow-xl: 0 20px 25px -5px hsl(220 56% 5% / 0.25);
     --shadow-glow: 0 0 30px hsl(165 65% 54% / 0.3);
+    --shadow-glow-lg: 0 0 50px hsl(165 65% 54% / 0.4);
+    --shadow-card: 0 4px 20px -4px hsl(220 56% 5% / 0.3);
     
     /* Sidebar colors */
     --sidebar-background: 220 56% 10%;
@@ -101,17 +116,30 @@ All colors MUST be HSL.
     --ring: 217 91% 60%;
     
     --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
+    --warning-foreground: 220 10% 10%;
     --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    
+    /* Glassmorphism tokens - light */
+    --glass-bg: 0 0% 100% / 0.8;
+    --glass-border: 220 10% 80% / 0.4;
+    --glass-blur: 12px;
     
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(158 64% 52%));
     --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 72% 51%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 10% 98%));
+    --gradient-glow: linear-gradient(135deg, hsl(217 91% 60% / 0.15), hsl(199 89% 48% / 0.1));
     
     --shadow-sm: 0 1px 2px 0 hsl(220 10% 10% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(220 10% 10% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(220 10% 10% / 0.2);
+    --shadow-xl: 0 20px 25px -5px hsl(220 10% 10% / 0.2);
     --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.3);
+    --shadow-glow-lg: 0 0 40px hsl(217 91% 60% / 0.35);
+    --shadow-card: 0 4px 20px -4px hsl(220 10% 10% / 0.15);
     
     /* Sidebar colors */
     --sidebar-background: 0 0% 100%;
@@ -157,8 +185,20 @@ All colors MUST be HSL.
     background-image: var(--gradient-danger);
   }
   
+  .gradient-card {
+    background-image: var(--gradient-card);
+  }
+  
   .shadow-glow {
     box-shadow: var(--shadow-glow);
+  }
+  
+  .shadow-glow-lg {
+    box-shadow: var(--shadow-glow-lg);
+  }
+  
+  .shadow-card {
+    box-shadow: var(--shadow-card);
   }
   
   .text-gradient-primary {
@@ -166,5 +206,117 @@ All colors MUST be HSL.
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+  }
+  
+  /* Glassmorphism utilities */
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+  }
+  
+  .glass-border {
+    border: 1px solid hsl(var(--glass-border));
+  }
+  
+  /* Premium card styles */
+  .card-premium {
+    @apply rounded-xl border border-border/50 bg-card/80 backdrop-blur-xl shadow-card;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .card-premium:hover {
+    @apply border-primary/30 shadow-glow;
+    transform: translateY(-2px);
+  }
+  
+  /* Hover scale utility */
+  .hover-lift {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-4px);
+  }
+  
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Shimmer animation for skeletons */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  
+  /* Pulse glow for highlighted elements */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}
+
+/* Keyframe animations */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.5);
+  }
+}
+
+@keyframes float-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    border-color: hsl(var(--primary) / 0.3);
+  }
+  50% {
+    border-color: hsl(var(--primary) / 0.6);
   }
 }
