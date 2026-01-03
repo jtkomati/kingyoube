@@ -12,13 +12,22 @@ serve(async (req) => {
   }
 
   try {
-    // Validate webhook secret
+    // Validate webhook secret - REQUIRED for security
     const webhookSecret = req.headers.get("x-webhook-secret");
     const expectedSecret = Deno.env.get("PAYMENT_WEBHOOK_SECRET");
     
-    // If secret is configured, validate it
-    if (expectedSecret && webhookSecret !== expectedSecret) {
-      console.error("Invalid webhook secret");
+    // Fail if secret is not configured (critical security requirement)
+    if (!expectedSecret) {
+      console.error("CRITICAL: PAYMENT_WEBHOOK_SECRET not configured - rejecting all webhook requests");
+      return new Response(
+        JSON.stringify({ error: "Webhook not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // Validate the webhook secret
+    if (!webhookSecret || webhookSecret !== expectedSecret) {
+      console.error("Invalid or missing webhook secret");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
