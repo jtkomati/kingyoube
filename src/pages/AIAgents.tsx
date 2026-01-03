@@ -249,7 +249,7 @@ export default function AIAgents() {
                 <ClipboardList className="w-4 h-4" />
                 Aprovações
               </TabsTrigger>
-              <TabsTrigger value="chat">Chat IA</TabsTrigger>
+              <TabsTrigger value="chat">Fale com especialista</TabsTrigger>
             </TabsList>
 
             {/* Workflows Tab */}
