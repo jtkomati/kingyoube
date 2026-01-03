@@ -28,6 +28,20 @@ type NavItem = {
   requiredRole?: string;
 };
 
+const ROLE_HIERARCHY: Record<string, number> = {
+  'VIEWER': 1,
+  'EDITOR': 2,
+  'FINANCEIRO': 3,
+  'ADMIN': 4,
+  'SUPERADMIN': 5,
+};
+
+const hasRoleAccess = (userRole: string | null, requiredRole?: string): boolean => {
+  if (!requiredRole) return true;
+  if (!userRole) return false;
+  return (ROLE_HIERARCHY[userRole] ?? 0) >= (ROLE_HIERARCHY[requiredRole] ?? 0);
+};
+
 const navigation: NavItem[] = [
   { key: 'accountantPortal', href: '/accountant-portal', icon: Building2 },
   { key: 'aiAgents', href: '/ai-agents', icon: Bot },
@@ -72,7 +86,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation
-                .filter((item) => !item.requiredRole || userRole === item.requiredRole)
+                .filter((item) => hasRoleAccess(userRole, item.requiredRole))
                 .map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
