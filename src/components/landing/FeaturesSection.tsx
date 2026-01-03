@@ -1,4 +1,5 @@
 import { Bot, RefreshCw, BarChart3, Building2, Bell, Receipt } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const features = [
   {
@@ -35,16 +36,19 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="py-24 relative">
-      <div className="container mx-auto px-4">
+    <section id="features" className="py-24 relative overflow-hidden">
+      {/* Subtle background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent" />
+      
+      <div className="container mx-auto px-4 relative">
         <div className="text-center mb-16">
-          <p className="text-primary font-medium mb-4 uppercase tracking-wider text-sm">
+          <p className="text-primary font-semibold mb-4 uppercase tracking-widest text-sm">
             Funcionalidades
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
             Tudo que você precisa, potencializado por IA
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
+          <p className="text-muted-foreground max-w-xl mx-auto text-lg leading-relaxed">
             Uma suíte completa de ferramentas financeiras que trabalham para você
           </p>
         </div>
@@ -53,19 +57,39 @@ export function FeaturesSection() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="group relative p-6 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5"
+              className={cn(
+                "group relative p-6 rounded-2xl",
+                "bg-card/50 backdrop-blur-sm",
+                "border border-border/50",
+                "transition-all duration-500",
+                "hover:border-primary/40 hover:-translate-y-2",
+                "hover:shadow-xl hover:shadow-primary/10"
+              )}
+              style={{
+                animationDelay: `${index * 100}ms`,
+              }}
             >
-              {/* Glow effect on hover */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* Gradient background on hover */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
+                style={{
+                  boxShadow: 'inset 0 1px 0 0 hsl(var(--primary) / 0.1)'
+                }}
+              />
               
               <div className="relative">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <feature.icon className="w-6 h-6 text-primary" />
+                {/* Icon with gradient background */}
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:shadow-glow transition-all duration-300">
+                  <feature.icon className="w-7 h-7 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
+                
+                <h3 className="text-xl font-semibold text-foreground mb-3 group-hover:text-primary transition-colors">
                   {feature.title}
                 </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                
+                <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
               </div>
