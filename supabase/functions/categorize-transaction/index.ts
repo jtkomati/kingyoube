@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { description } = await req.json();
+    const { description, bankAccountId } = await req.json();
 
     if (!description) {
       return new Response(
@@ -20,6 +21,22 @@ serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client for history lookup
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // First, try to find similar transactions from history
+    const historyResult = await findFromHistory(supabaseAdmin, description, bankAccountId);
+    if (historyResult) {
+      console.log('Found category from history:', historyResult);
+      return new Response(
+        JSON.stringify(historyResult),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If no history match, try AI categorization
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -129,6 +146,85 @@ A confiança deve ser um número entre 0 e 1, onde:
     );
   }
 });
+
+// Find category from historical transactions with similar descriptions
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function findFromHistory(
+  supabaseClient: any,
+  description: string,
+  bankAccountId?: string
+): Promise<{ category: string; confidence: number; source: string } | null> {
+  try {
+    // Extract keywords from description for matching
+    const keywords = description
+      .toUpperCase()
+      .replace(/[0-9]/g, '') // Remove numbers
+      .split(/\s+/)
+      .filter(word => word.length > 3) // Only words longer than 3 chars
+      .slice(0, 5); // Take first 5 keywords
+
+    if (keywords.length === 0) return null;
+
+    // Build query to find similar categorized transactions
+    let query = supabaseClient
+      .from('bank_statements')
+      .select('category, category_confidence, description')
+      .not('category', 'is', null)
+      .eq('reconciliation_status', 'reconciled')
+      .limit(20);
+
+    // If we have a bank account, prioritize same account
+    if (bankAccountId) {
+      query = query.eq('bank_account_id', bankAccountId);
+    }
+
+    const { data: historicalData, error } = await query;
+
+    if (error || !historicalData || historicalData.length === 0) {
+      return null;
+    }
+
+    // Find best match by comparing keywords
+    let bestMatch: { category: string; score: number } | null = null;
+
+    for (const record of historicalData as Array<{ category: string | null; category_confidence: number | null; description: string | null }>) {
+      if (!record.description || !record.category) continue;
+
+      const recordKeywords = record.description
+        .toUpperCase()
+        .replace(/[0-9]/g, '')
+        .split(/\s+/)
+        .filter((word: string) => word.length > 3);
+
+      // Calculate match score
+      let matchCount = 0;
+      for (const keyword of keywords) {
+        if (recordKeywords.some((rk: string) => rk.includes(keyword) || keyword.includes(rk))) {
+          matchCount++;
+        }
+      }
+
+      const score = matchCount / keywords.length;
+
+      if (score >= 0.5 && (!bestMatch || score > bestMatch.score)) {
+        bestMatch = { category: record.category, score };
+      }
+    }
+
+    if (bestMatch && bestMatch.score >= 0.5) {
+      return {
+        category: bestMatch.category,
+        confidence: Math.min(0.95, 0.7 + (bestMatch.score * 0.25)),
+        source: 'history',
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error finding from history:', error);
+    return null;
+  }
+}
 
 function categorizeByRules(description: string): { category: string; confidence: number; source: string } {
   const desc = description.toUpperCase();
