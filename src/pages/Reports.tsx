@@ -20,11 +20,12 @@ const Reports = () => {
   
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
   const [startMonth, setStartMonth] = useState<string>('2025-11');
-  const [dreData, setDreData] = useState<any>({});
-  const [cashFlowData, setCashFlowData] = useState<any[]>([]);
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-const [dataSource, setDataSource] = useState<'accounting' | 'bank_statements' | 'transactions' | 'none'>('none');
+const [dreData, setDreData] = useState<any>({});
+const [cashFlowData, setCashFlowData] = useState<any[]>([]);
+const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+const [loading, setLoading] = useState(true);
+const [dreDataSource, setDreDataSource] = useState<'accounting' | 'none'>('none');
+const [cashFlowDataSource, setCashFlowDataSource] = useState<'bank_statements' | 'transactions' | 'none'>('none');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -107,9 +108,9 @@ const [dataSource, setDataSource] = useState<'accounting' | 'bank_statements' | 
         };
       }
       
-      // PRIORIDADE 1: Lançamentos contábeis
+      // ========== DRE: APENAS DADOS CONTÁBEIS ==========
       if (accountingData && accountingData.length > 0) {
-        setDataSource('accounting');
+        setDreDataSource('accounting');
         
         for (const item of accountingData) {
           const entry = item.accounting_entries as any;
@@ -118,37 +119,39 @@ const [dataSource, setDataSource] = useState<'accounting' | 'bank_statements' | 
           
           if (monthlyData[monthKey] && account) {
             if (account.account_type === 'RECEITA') {
-              // Receitas são creditadas
               monthlyData[monthKey].receitaBruta += Number(item.credit_amount || 0);
             } else if (account.account_type === 'DESPESA') {
-              // Despesas são debitadas
               monthlyData[monthKey].despesasOperacionais += Number(item.debit_amount || 0);
             } else if (account.account_type === 'DEDUCAO_RECEITA') {
-              // Deduções sobre receita (impostos)
               monthlyData[monthKey].deducoes += Number(item.debit_amount || 0);
             }
           }
         }
-      } 
-      // PRIORIDADE 2: Extrato bancário
-      else if (bankStatements.length > 0) {
-        setDataSource('bank_statements');
+      } else {
+        setDreDataSource('none');
+      }
+      
+      // ========== FLUXO DE CAIXA: EXTRATO OU TRANSAÇÕES ==========
+      const cashFlowMonthlyData: any = {};
+      for (const monthKey of months) {
+        cashFlowMonthlyData[monthKey] = { entradas: 0, saidas: 0 };
+      }
+      
+      if (bankStatements.length > 0) {
+        setCashFlowDataSource('bank_statements');
         
         for (const stmt of bankStatements) {
           const monthKey = stmt.statement_date.substring(0, 7);
-          
-          if (monthlyData[monthKey]) {
+          if (cashFlowMonthlyData[monthKey]) {
             const amount = Number(stmt.amount || 0);
             if (amount > 0 || stmt.type === 'credit') {
-              monthlyData[monthKey].receitaBruta += Math.abs(amount);
+              cashFlowMonthlyData[monthKey].entradas += Math.abs(amount);
             } else {
-              monthlyData[monthKey].despesasOperacionais += Math.abs(amount);
+              cashFlowMonthlyData[monthKey].saidas += Math.abs(amount);
             }
           }
         }
-      } 
-      // PRIORIDADE 3: Transações
-      else {
+      } else {
         const { data: transactions, error } = await (supabase as any)
           .from('transactions')
           .select('*')
@@ -158,45 +161,42 @@ const [dataSource, setDataSource] = useState<'accounting' | 'bank_statements' | 
           .order('due_date');
 
         if (!error && transactions && transactions.length > 0) {
-          setDataSource('transactions');
+          setCashFlowDataSource('transactions');
           
           for (const tx of transactions) {
             const monthKey = tx.due_date.substring(0, 7);
-            if (monthlyData[monthKey]) {
+            if (cashFlowMonthlyData[monthKey]) {
               if (tx.type === 'RECEIVABLE') {
-                monthlyData[monthKey].receitaBruta += Number(tx.gross_amount || 0);
+                cashFlowMonthlyData[monthKey].entradas += Number(tx.gross_amount || 0);
               } else {
-                monthlyData[monthKey].despesasOperacionais += Number(tx.gross_amount || 0);
+                cashFlowMonthlyData[monthKey].saidas += Number(tx.gross_amount || 0);
               }
             }
           }
         } else {
-          setDataSource('none');
+          setCashFlowDataSource('none');
         }
       }
       
-      // Calcular valores derivados
-      const isAccountingSource = accountingData && accountingData.length > 0;
-      
+      // Calcular valores derivados da DRE
       for (const monthKey of months) {
         const data = monthlyData[monthKey];
-        // Se fonte é contabilidade, deduções já foram calculadas; senão, estimar 10%
-        if (!isAccountingSource) {
-          data.deducoes = data.receitaBruta * 0.10;
-        }
         data.receitaLiquida = data.receitaBruta - data.deducoes;
         data.resultado = data.receitaLiquida - data.despesasOperacionais;
-        
+      }
+      
+      // Montar dados do Fluxo de Caixa
+      for (const monthKey of months) {
+        const cfData = cashFlowMonthlyData[monthKey];
         const [year, month] = monthKey.split('-');
         const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
         
-        // Saldo do Fluxo de Caixa = Entradas - Saídas (sem deduções de DRE)
         cashFlow.push({
           mes: monthLabel.replace('.', ''),
           monthKey,
-          entradas: data.receitaBruta,
-          saidas: data.despesasOperacionais,
-          saldo: data.receitaBruta - data.despesasOperacionais
+          entradas: cfData.entradas,
+          saidas: cfData.saidas,
+          saldo: cfData.entradas - cfData.saidas
         });
       }
 
@@ -443,34 +443,28 @@ const [dataSource, setDataSource] = useState<'accounting' | 'bank_statements' | 
           </TabsContent>
 
           <TabsContent value="cashflow" className="space-y-4">
-            {/* Data source indicator */}
+            {/* Data source indicator for Cash Flow */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {dataSource === 'accounting' && (
-                  <Badge variant="default" className="bg-primary/20 text-primary border-primary/30">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Dados da Contabilidade
-                  </Badge>
-                )}
-                {dataSource === 'bank_statements' && (
+                {cashFlowDataSource === 'bank_statements' && (
                   <Badge variant="default" className="bg-success/20 text-success border-success/30">
                     <Landmark className="h-3 w-3 mr-1" />
                     Dados do Open Finance
                   </Badge>
                 )}
-                {dataSource === 'transactions' && (
+                {cashFlowDataSource === 'transactions' && (
                   <Badge variant="secondary">
                     <FileText className="h-3 w-3 mr-1" />
                     Dados de Lançamentos
                   </Badge>
                 )}
-                {dataSource === 'none' && (
+                {cashFlowDataSource === 'none' && (
                   <Badge variant="outline" className="text-muted-foreground">
                     Sem dados financeiros
                   </Badge>
                 )}
               </div>
-              {dataSource === 'bank_statements' ? (
+              {cashFlowDataSource === 'bank_statements' ? (
                 <Button variant="outline" size="sm" onClick={() => navigate('/bank-integrations')}>
                   <LinkIcon className="h-4 w-4 mr-2" />
                   Ver extrato completo
