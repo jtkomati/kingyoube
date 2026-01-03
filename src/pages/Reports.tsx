@@ -89,22 +89,16 @@ const Reports = () => {
       if (bankStatements.length > 0) {
         setDataSource('bank_statements');
         
-        console.log('=== DEBUG Fluxo de Caixa ===');
-        console.log('Bank statements encontrados:', bankStatements);
-        
         for (const stmt of bankStatements) {
           const monthKey = stmt.statement_date.substring(0, 7);
-          console.log(`Processando: ${stmt.statement_date} | amount: ${stmt.amount} | type: ${stmt.type} | monthKey: ${monthKey}`);
           
           if (monthlyData[monthKey]) {
             const amount = Number(stmt.amount || 0);
             // Créditos são entradas (amount positivo OU type === 'credit')
             if (amount > 0 || stmt.type === 'credit') {
               monthlyData[monthKey].receitaBruta += Math.abs(amount);
-              console.log(`  -> Entrada: +${Math.abs(amount)} para ${monthKey}`);
             } else {
               monthlyData[monthKey].despesasOperacionais += Math.abs(amount);
-              console.log(`  -> Saída: -${Math.abs(amount)} para ${monthKey}`);
             }
           }
         }
@@ -137,28 +131,24 @@ const Reports = () => {
       }
       
       // Calcular valores derivados
-      console.log('=== Monthly Data após processamento ===');
       for (const monthKey of months) {
         const data = monthlyData[monthKey];
         data.deducoes = data.receitaBruta * 0.10; // 10% impostos aproximado
         data.receitaLiquida = data.receitaBruta - data.deducoes;
         data.resultado = data.receitaLiquida - data.despesasOperacionais;
         
-        console.log(`${monthKey}: Entradas=${data.receitaBruta}, Saídas=${data.despesasOperacionais}, Resultado=${data.resultado}`);
-        
         const [year, month] = monthKey.split('-');
         const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
         
+        // Saldo do Fluxo de Caixa = Entradas - Saídas (sem deduções de DRE)
         cashFlow.push({
           mes: monthLabel.replace('.', ''),
           monthKey,
           entradas: data.receitaBruta,
           saidas: data.despesasOperacionais,
-          saldo: data.resultado
+          saldo: data.receitaBruta - data.despesasOperacionais
         });
       }
-      
-      console.log('=== Cash Flow final ===', cashFlow);
 
       setDreData(monthlyData);
       setCashFlowData(cashFlow);
