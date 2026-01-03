@@ -44,8 +44,10 @@ import {
   Sparkles,
   Brain,
   History,
-  FileText
+  FileText,
+  Pencil
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -87,8 +89,21 @@ export function ReconciliationTab() {
   const [selectedStatement, setSelectedStatement] = useState<BankStatement | null>(null);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditCategoryDialogOpen, setIsEditCategoryDialogOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string>("");
+  const [editingCategory, setEditingCategory] = useState<string>("");
+
+  const commonCategories = [
+    "Receitas",
+    "Aumento de Capital",
+    "Despesas Operacionais",
+    "Fornecedores",
+    "Folha de Pagamento",
+    "Impostos e Taxas",
+    "Transferência Interna",
+    "Serviços de Terceiros",
+  ];
 
   useEffect(() => {
     loadData();
@@ -301,6 +316,8 @@ export function ReconciliationTab() {
         return <History className="h-3 w-3 text-blue-500" />;
       case 'rules':
         return <FileText className="h-3 w-3 text-orange-500" />;
+      case 'manual':
+        return <Pencil className="h-3 w-3 text-green-500" />;
       default:
         return <Sparkles className="h-3 w-3 text-primary" />;
     }
@@ -314,8 +331,41 @@ export function ReconciliationTab() {
         return 'Baseado em histórico';
       case 'rules':
         return 'Categorizado por regras';
+      case 'manual':
+        return 'Editado manualmente';
       default:
         return 'Sugestão automática';
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!selectedStatement || !editingCategory.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('bank_statements')
+        .update({
+          category: editingCategory.trim(),
+          category_confidence: 1.0,
+        })
+        .eq('id', selectedStatement.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setStatements(prev => prev.map(s =>
+        s.id === selectedStatement.id
+          ? { ...s, category: editingCategory.trim(), category_confidence: 1.0, category_source: 'manual' }
+          : s
+      ));
+
+      toast.success("Categoria atualizada!");
+      setIsEditCategoryDialogOpen(false);
+      setSelectedStatement(null);
+      setEditingCategory("");
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error("Erro ao salvar categoria");
     }
   };
 
@@ -460,6 +510,18 @@ export function ReconciliationTab() {
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            setSelectedStatement(statement);
+                            setEditingCategory(statement.category || "");
+                            setIsEditCategoryDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -633,6 +695,65 @@ export function ReconciliationTab() {
             <Button onClick={handleCreateTransaction} disabled={isLinking}>
               {isLinking ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Criar Lançamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={isEditCategoryDialogOpen} onOpenChange={setIsEditCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Categoria</DialogTitle>
+            <DialogDescription>
+              Altere a categoria desta transação.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedStatement && (
+            <div className="py-4 space-y-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="text-sm font-medium">{selectedStatement.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(selectedStatement.statement_date), "dd/MM/yyyy")} • 
+                  {selectedStatement.type === "credit" ? " +" : " -"}
+                  {formatCurrency(selectedStatement.amount)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Categoria</label>
+                <Input
+                  value={editingCategory}
+                  onChange={(e) => setEditingCategory(e.target.value)}
+                  placeholder="Ex: Aumento de Capital"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Sugestões rápidas</label>
+                <div className="flex flex-wrap gap-2">
+                  {commonCategories.map((cat) => (
+                    <Badge
+                      key={cat}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-accent"
+                      onClick={() => setEditingCategory(cat)}
+                    >
+                      {cat}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCategoryDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveCategory} disabled={!editingCategory.trim()}>
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
