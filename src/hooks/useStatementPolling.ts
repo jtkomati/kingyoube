@@ -65,7 +65,14 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Try to extract the real error message from the response
+        let errorMsg = error.message;
+        if (error.message?.includes("non-2xx") && response?.error) {
+          errorMsg = response.error;
+        }
+        throw new Error(errorMsg);
+      }
 
       setStatus(response.status);
 
@@ -132,7 +139,14 @@ export function useStatementPolling(options: UseStatementPollingOptions = {}) {
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Try to extract the real error message from the response
+        let errorMsg = error.message;
+        if (error.message?.includes("non-2xx") && response?.error) {
+          errorMsg = response.error;
+        }
+        throw new Error(errorMsg);
+      }
 
       if (!response.success) {
         if (response.needsConsent) {
