@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import { useStatementPolling } from "@/hooks/useStatementPolling";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface Transaction {
   id?: string;
@@ -64,9 +66,59 @@ export function StatementDashboard({
 
   const [startDate, setStartDate] = useState(format(thirtyDaysAgo, "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(today, "yyyy-MM-dd"));
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [totals, setTotals] = useState({ credits: 0, debits: 0 });
+  const [newTransactions, setNewTransactions] = useState<Transaction[]>([]);
   const [pendingProtocol, setPendingProtocol] = useState<string | null>(null);
+
+  // Fetch saved transactions from database
+  const { data: savedTransactions = [], isLoading: isLoadingSaved, refetch: refetchSaved } = useQuery({
+    queryKey: ['bank-statements', selectedAccountId, startDate, endDate],
+    queryFn: async () => {
+      if (!selectedAccountId) return [];
+      const { data, error } = await supabase
+        .from('bank_statements')
+        .select('*')
+        .eq('bank_account_id', selectedAccountId)
+        .gte('statement_date', startDate)
+        .lte('statement_date', endDate)
+        .order('statement_date', { ascending: false })
+        .limit(500);
+      
+      if (error) {
+        console.error('Error fetching saved transactions:', error);
+        return [];
+      }
+      
+      return (data || []).map(t => ({
+        id: t.id,
+        date: t.statement_date,
+        description: t.description || '',
+        amount: t.amount,
+        document: t.external_id || undefined,
+      }));
+    },
+    enabled: !!selectedAccountId,
+  });
+
+  // Merge saved and new transactions, deduplicate by id
+  const transactions = useMemo(() => {
+    const txMap = new Map<string, Transaction>();
+    savedTransactions.forEach(t => {
+      if (t.id) txMap.set(t.id, t);
+    });
+    newTransactions.forEach(t => {
+      if (t.id) txMap.set(t.id, t);
+    });
+    return Array.from(txMap.values()).sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [savedTransactions, newTransactions]);
+
+  // Calculate totals from merged transactions
+  const totals = useMemo(() => {
+    const credits = transactions.filter(t => t.amount >= 0).reduce((sum, t) => sum + t.amount, 0);
+    const debits = transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    return { credits, debits };
+  }, [transactions]);
 
   const selectedAccount = bankAccounts.find(a => a.id === selectedAccountId);
 
@@ -85,14 +137,11 @@ export function StatementDashboard({
         ...statementData.debits.map((t) => ({ ...t, type: "debit" as const })),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
-      setTransactions(allTransactions);
-      setTotals({
-        credits: statementData.totalCredits,
-        debits: statementData.totalDebits,
-      });
+      setNewTransactions(allTransactions);
       setPendingProtocol(null);
       
-      // Refresh accounts to get updated status (now marked as "connected")
+      // Refresh saved transactions from database and accounts
+      refetchSaved();
       onRefreshAccounts?.();
       
       toast.success("Extrato atualizado!", {
@@ -394,7 +443,7 @@ export function StatementDashboard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isPolling ? (
+          {isPolling || isLoadingSaved ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />
