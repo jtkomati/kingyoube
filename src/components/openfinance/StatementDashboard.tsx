@@ -39,6 +39,7 @@ interface BankAccount {
   account_number: string;
   account_hash: string | null;
   open_finance_status: string;
+  consent_link?: string | null;
 }
 
 interface StatementDashboardProps {
@@ -220,10 +221,25 @@ export function StatementDashboard({
               </Button>
             </div>
             
-            {selectedAccount && !selectedAccountHash && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">Esta conta ainda não está conectada via Open Finance. Complete a autorização na aba "Contas Bancárias".</span>
+            {selectedAccount && selectedAccount.open_finance_status !== "connected" && (
+              <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm">
+                    {selectedAccount.open_finance_status === "awaiting_consent" 
+                      ? "Aguardando autorização no banco. Conclua o fluxo de consentimento."
+                      : "Esta conta ainda não está conectada via Open Finance."}
+                  </span>
+                </div>
+                {selectedAccount.consent_link && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open(selectedAccount.consent_link!, "_blank")}
+                  >
+                    Autorizar no banco
+                  </Button>
+                )}
               </div>
             )}
           </div>

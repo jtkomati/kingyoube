@@ -14,6 +14,42 @@ const getBaseUrl = () => {
     : "https://staging.pagamentobancario.com.br/api/v1";
 };
 
+// Helper to get payer CNPJ from company_settings
+// deno-lint-ignore no-explicit-any
+async function getPayerCnpj(supabaseClient: any, companyId?: string, bankAccountId?: string): Promise<string | null> {
+  let targetCompanyId = companyId;
+  
+  // If no companyId, try to get it from bank_accounts
+  if (!targetCompanyId && bankAccountId) {
+    const { data: bankAccount } = await supabaseClient
+      .from("bank_accounts")
+      .select("company_id")
+      .eq("id", bankAccountId)
+      .single();
+    
+    if (bankAccount?.company_id) {
+      targetCompanyId = bankAccount.company_id;
+    }
+  }
+  
+  if (!targetCompanyId) {
+    return null;
+  }
+  
+  const { data: company } = await supabaseClient
+    .from("company_settings")
+    .select("cnpj")
+    .eq("id", targetCompanyId)
+    .single();
+  
+  if (company?.cnpj) {
+    // Normalize CNPJ - remove all non-digits
+    return company.cnpj.replace(/\D/g, "");
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -57,10 +93,41 @@ serve(async (req) => {
       );
     }
 
+    // Get payer CNPJ from company_settings
+    const payerCnpj = await getPayerCnpj(supabaseClient, companyId, bankAccountId);
+    
+    if (!payerCnpj) {
+      console.error("Missing payer CNPJ - companyId:", companyId, "bankAccountId:", bankAccountId);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "CNPJ da empresa não encontrado. Verifique se o CNPJ está cadastrado nas configurações da empresa." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (payerCnpj.length !== 14) {
+      console.error("Invalid payer CNPJ length:", payerCnpj.length);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "CNPJ da empresa inválido. O CNPJ deve ter 14 dígitos." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const baseUrl = getBaseUrl();
     const requestUrl = `${baseUrl}/statement/openfinance`;
     
-    console.log("Requesting statement from TecnoSpeed:", { accountHash, startDate, endDate, requestUrl });
+    console.log("Requesting statement from TecnoSpeed:", { 
+      accountHash, 
+      startDate, 
+      endDate, 
+      requestUrl, 
+      payerCnpj: payerCnpj.substring(0, 4) + "****" 
+    });
 
     // Payload conforme documentação
     const statementPayload = {
@@ -75,6 +142,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
         "cnpjsh": CNPJ_SH,
         "tokensh": TOKEN,
+        "payercpfcnpj": payerCnpj,  // Header obrigatório do pagador
       },
       body: JSON.stringify(statementPayload),
     });
@@ -91,7 +159,19 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
+      const errorMessage = responseData.message || responseData.error || "Erro ao solicitar extrato";
+      
       if (response.status === 401) {
+        // Check if it's a payer CNPJ issue
+        if (errorMessage.toLowerCase().includes("pagador") || errorMessage.toLowerCase().includes("payer")) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "CNPJ do pagador inválido ou empresa não registrada no Open Finance. Verifique o cadastro." 
+            }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         return new Response(
           JSON.stringify({ success: false, error: "Token inválido. Verifique as configurações." }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -114,7 +194,7 @@ serve(async (req) => {
         );
       }
       return new Response(
-        JSON.stringify({ success: false, error: responseData.message || "Erro ao solicitar extrato" }),
+        JSON.stringify({ success: false, error: errorMessage }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

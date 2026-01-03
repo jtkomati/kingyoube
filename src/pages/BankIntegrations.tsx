@@ -17,6 +17,7 @@ interface BankAccount {
   account_number: string;
   account_hash: string | null;
   open_finance_status: string;
+  consent_link?: string | null;
 }
 
 const BankIntegrations = () => {
@@ -70,7 +71,7 @@ const BankIntegrations = () => {
   const loadBankAccounts = async (companyId: string) => {
     const { data, error } = await supabase
       .from("bank_accounts")
-      .select("id, bank_name, bank_code, agency, account_number, account_hash, open_finance_status")
+      .select("id, bank_name, bank_code, agency, account_number, account_hash, open_finance_status, consent_link")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false });
 

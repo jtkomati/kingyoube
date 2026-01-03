@@ -14,6 +14,37 @@ const getBaseUrl = () => {
     : "https://staging.pagamentobancario.com.br/api/v1";
 };
 
+// Helper to get payer CNPJ from company_settings via bank_account
+// deno-lint-ignore no-explicit-any
+async function getPayerCnpjFromBankAccount(supabaseClient: any, bankAccountId?: string): Promise<string | null> {
+  if (!bankAccountId) {
+    return null;
+  }
+  
+  const { data: bankAccount } = await supabaseClient
+    .from("bank_accounts")
+    .select("company_id")
+    .eq("id", bankAccountId)
+    .single();
+  
+  if (!bankAccount?.company_id) {
+    return null;
+  }
+  
+  const { data: company } = await supabaseClient
+    .from("company_settings")
+    .select("cnpj")
+    .eq("id", bankAccount.company_id)
+    .single();
+  
+  if (company?.cnpj) {
+    // Normalize CNPJ - remove all non-digits
+    return company.cnpj.replace(/\D/g, "");
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -57,10 +88,28 @@ serve(async (req) => {
       );
     }
 
+    // Get payer CNPJ from bank account's company
+    const payerCnpj = await getPayerCnpjFromBankAccount(supabaseClient, bankAccountId);
+    
+    if (!payerCnpj) {
+      console.error("Missing payer CNPJ for bankAccountId:", bankAccountId);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "CNPJ da empresa não encontrado. Verifique se o CNPJ está cadastrado nas configurações da empresa." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const baseUrl = getBaseUrl();
     const requestUrl = `${baseUrl}/statement/openfinance/${uniqueId}`;
     
-    console.log("Fetching statement from TecnoSpeed:", { uniqueId, requestUrl });
+    console.log("Fetching statement from TecnoSpeed:", { 
+      uniqueId, 
+      requestUrl,
+      payerCnpj: payerCnpj.substring(0, 4) + "****" 
+    });
 
     const response = await fetch(requestUrl, {
       method: "GET",
@@ -68,6 +117,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
         "cnpjsh": CNPJ_SH,
         "tokensh": TOKEN,
+        "payercpfcnpj": payerCnpj,  // Header obrigatório do pagador
       },
     });
 
@@ -83,6 +133,25 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
+      const errorMessage = responseData.message || responseData.error || "Erro ao buscar extrato";
+      
+      if (response.status === 401) {
+        // Check if it's a payer CNPJ issue
+        if (errorMessage.toLowerCase().includes("pagador") || errorMessage.toLowerCase().includes("payer")) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "CNPJ do pagador inválido ou empresa não registrada no Open Finance." 
+            }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        return new Response(
+          JSON.stringify({ success: false, error: "Token inválido. Verifique as configurações." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       if (response.status === 404) {
         return new Response(
           JSON.stringify({ success: false, error: "Protocolo não encontrado" }),
@@ -90,7 +159,7 @@ serve(async (req) => {
         );
       }
       return new Response(
-        JSON.stringify({ success: false, error: responseData.message || "Erro ao buscar extrato" }),
+        JSON.stringify({ success: false, error: errorMessage }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
