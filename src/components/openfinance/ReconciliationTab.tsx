@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   CalendarIcon, 
   Filter, 
@@ -35,7 +41,10 @@ import {
   Link2, 
   Plus,
   Loader2,
-  Sparkles
+  Sparkles,
+  Brain,
+  History,
+  FileText
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -53,6 +62,7 @@ interface BankStatement {
   type: string | null;
   category: string | null;
   category_confidence: number | null;
+  category_source?: string | null;
   reconciliation_status: string | null;
   linked_transaction_id: string | null;
 }
@@ -68,6 +78,7 @@ export function ReconciliationTab() {
   const [statements, setStatements] = useState<BankStatement[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCategorizing, setIsCategorizing] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date>();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -83,6 +94,55 @@ export function ReconciliationTab() {
     loadData();
   }, []);
 
+  const categorizeStatements = async (statementsToProcess: BankStatement[]) => {
+    const uncategorized = statementsToProcess.filter(s => !s.category && s.description);
+    if (uncategorized.length === 0) return;
+
+    setIsCategorizing(true);
+    let categorizedCount = 0;
+
+    for (const statement of uncategorized.slice(0, 10)) { // Limit to 10 at a time
+      try {
+        const { data, error } = await supabase.functions.invoke('categorize-transaction', {
+          body: { 
+            description: statement.description,
+            bankAccountId: statement.bank_account_id
+          }
+        });
+
+        if (error) {
+          console.error('Error categorizing statement:', error);
+          continue;
+        }
+
+        if (data?.category) {
+          await supabase
+            .from('bank_statements')
+            .update({
+              category: data.category,
+              category_confidence: data.confidence,
+            })
+            .eq('id', statement.id);
+
+          // Update local state
+          setStatements(prev => prev.map(s => 
+            s.id === statement.id 
+              ? { ...s, category: data.category, category_confidence: data.confidence, category_source: data.source }
+              : s
+          ));
+          categorizedCount++;
+        }
+      } catch (error) {
+        console.error('Error categorizing:', error);
+      }
+    }
+
+    if (categorizedCount > 0) {
+      toast.success(`${categorizedCount} transações categorizadas pela IA`);
+    }
+    setIsCategorizing(false);
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -97,6 +157,10 @@ export function ReconciliationTab() {
         console.error('Error loading statements:', statementsError);
       } else {
         setStatements(statementsData || []);
+        // Auto-categorize uncategorized statements
+        if (statementsData && statementsData.length > 0) {
+          categorizeStatements(statementsData);
+        }
       }
 
       // Load transactions for linking
@@ -229,6 +293,32 @@ export function ReconciliationTab() {
     }
   };
 
+  const getCategorySourceIcon = (source: string | null) => {
+    switch (source) {
+      case 'ai':
+        return <Brain className="h-3 w-3 text-purple-500" />;
+      case 'history':
+        return <History className="h-3 w-3 text-blue-500" />;
+      case 'rules':
+        return <FileText className="h-3 w-3 text-orange-500" />;
+      default:
+        return <Sparkles className="h-3 w-3 text-primary" />;
+    }
+  };
+
+  const getCategorySourceLabel = (source: string | null) => {
+    switch (source) {
+      case 'ai':
+        return 'Categorizado por IA';
+      case 'history':
+        return 'Baseado em histórico';
+      case 'rules':
+        return 'Categorizado por regras';
+      default:
+        return 'Sugestão automática';
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -347,12 +437,28 @@ export function ReconciliationTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {statement.category && (
-                          <>
-                            <Sparkles className="h-3 w-3 text-primary" />
-                            <Badge variant="outline">{statement.category}</Badge>
-                            {getConfidenceBadge(statement.category_confidence)}
-                          </>
+                        {statement.category ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 cursor-help">
+                                  {getCategorySourceIcon(statement.category_source)}
+                                  <Badge variant="outline">{statement.category}</Badge>
+                                  {getConfidenceBadge(statement.category_confidence)}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{getCategorySourceLabel(statement.category_source)}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : isCategorizing ? (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Analisando...
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </div>
                     </TableCell>
@@ -375,28 +481,44 @@ export function ReconciliationTab() {
                     </TableCell>
                     <TableCell className="text-center">
                       {statement.reconciliation_status !== "reconciled" && (
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedStatement(statement);
-                              setIsLinkDialogOpen(true);
-                            }}
-                          >
-                            <Link2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedStatement(statement);
-                              setIsCreateDialogOpen(true);
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <TooltipProvider>
+                          <div className="flex items-center justify-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedStatement(statement);
+                                    setIsLinkDialogOpen(true);
+                                  }}
+                                >
+                                  <Link2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Vincular a lançamento existente</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedStatement(statement);
+                                    setIsCreateDialogOpen(true);
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Criar novo lançamento</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       )}
                     </TableCell>
                   </TableRow>
