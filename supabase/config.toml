@@ -167,3 +167,24 @@ verify_jwt = true
 
 [functions.payment-create-dpvat]
 verify_jwt = true
+
+[functions.payment-create-paycheck]
+verify_jwt = true
+
+[functions.payment-certificate]
+verify_jwt = true
+
+[functions.payment-retorno]
+verify_jwt = true
+
+[functions.payment-receipt]
+verify_jwt = true
+
+[functions.payment-batch]
+verify_jwt = true
+
+[functions.payment-notification]
+verify_jwt = true
+
+[functions.payment-delete]
+verify_jwt = true
