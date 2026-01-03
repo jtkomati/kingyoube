@@ -327,21 +327,37 @@ serve(async (req) => {
         ...normalizedDebits.map((t: Record<string, unknown>) => ({ ...t, type: "debit" as const })),
       ];
 
-      console.log("Saving transactions to bank_statements:", { count: allTransactions.length });
+      // Deduplicate by business key (date + amount + description) BEFORE saving
+      const seenKeys = new Set<string>();
+      const uniqueTransactions = allTransactions.filter(t => {
+        const key = `${t.date}|${t.amount}|${String(t.description || '').trim()}`;
+        if (seenKeys.has(key)) {
+          console.log("Skipping duplicate transaction:", { date: t.date, amount: t.amount, description: t.description });
+          return false;
+        }
+        seenKeys.add(key);
+        return true;
+      });
 
-      for (const transaction of allTransactions) {
+      console.log("Saving transactions to bank_statements:", { 
+        total: allTransactions.length, 
+        unique: uniqueTransactions.length,
+        duplicatesRemoved: allTransactions.length - uniqueTransactions.length
+      });
+
+      for (const transaction of uniqueTransactions) {
         const { error: insertError } = await serviceClient
           .from("bank_statements")
           .upsert({
             bank_account_id: bankAccountId,
-            external_id: transaction.id || `${transaction.date}-${transaction.amount}-${transaction.description}`,
+            external_id: transaction.id || `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             statement_date: transaction.date,
-            description: transaction.description,
+            description: String(transaction.description || '').trim(),
             amount: transaction.type === "credit" ? Math.abs(Number(transaction.amount)) : -Math.abs(Number(transaction.amount)),
             type: transaction.type,
             imported_by: user.id,
             imported_at: new Date().toISOString(),
-          }, { onConflict: "external_id" });
+          }, { onConflict: "bank_account_id,statement_date,amount,description" });
 
         if (insertError) {
           console.error("Failed to insert transaction:", insertError, transaction);
