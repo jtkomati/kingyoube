@@ -64,7 +64,7 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
-  const { user, loading, userRole } = useAuth();
+  const { user, loading, hasPermission } = useAuth();
 
   if (loading) {
     return <PageLoader />;
@@ -74,7 +74,7 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
+  if (requiredRole && !hasPermission(requiredRole)) {
     return <Navigate to="/dashboard" replace />;
   }
 
