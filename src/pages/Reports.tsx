@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, TrendingUp, DollarSign, AlertCircle, Calendar, Landmark, Link as LinkIcon } from "lucide-react";
+import { FileText, TrendingUp, DollarSign, AlertCircle, Calendar, Landmark, Link as LinkIcon, Users, Truck, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,8 @@ const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 const [loading, setLoading] = useState(true);
 const [dreDataSource, setDreDataSource] = useState<'accounting' | 'none'>('none');
 const [cashFlowDataSource, setCashFlowDataSource] = useState<'bank_statements' | 'transactions' | 'none'>('none');
+const [receivables, setReceivables] = useState<any[]>([]);
+const [payables, setPayables] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -204,6 +207,33 @@ const [cashFlowDataSource, setCashFlowDataSource] = useState<'bank_statements' |
       setCashFlowData(cashFlow);
       setAvailableMonths(months);
       
+      // Buscar Contas a Receber
+      const { data: receivablesData } = await supabase
+        .from('transactions')
+        .select(`
+          id, description, gross_amount, net_amount, 
+          due_date, payment_date, customer_id,
+          customers:customer_id (first_name, last_name, company_name, person_type)
+        `)
+        .eq('company_id', currentOrganization.id)
+        .eq('type', 'RECEIVABLE')
+        .order('due_date', { ascending: true });
+
+      // Buscar Contas a Pagar  
+      const { data: payablesData } = await supabase
+        .from('transactions')
+        .select(`
+          id, description, gross_amount, net_amount,
+          due_date, payment_date, supplier_id,
+          suppliers:supplier_id (first_name, last_name, company_name, person_type)
+        `)
+        .eq('company_id', currentOrganization.id)
+        .eq('type', 'PAYABLE')
+        .order('due_date', { ascending: true });
+
+      setReceivables(receivablesData || []);
+      setPayables(payablesData || []);
+      
       // Atualizar mês selecionado se não estiver na lista
       if (!months.includes(selectedMonth)) {
         setSelectedMonth(months[months.length - 1] || currentMonthKey);
@@ -240,6 +270,38 @@ const [cashFlowDataSource, setCashFlowDataSource] = useState<'bank_statements' |
   const variation = prevData.resultado !== 0 
     ? ((currentData.resultado - prevData.resultado) / Math.abs(prevData.resultado) * 100).toFixed(1)
     : "0.0";
+
+  // Helper para status de pagamento
+  const getPaymentStatus = (dueDate: string, paymentDate: string | null) => {
+    if (paymentDate) return { label: 'Pago', variant: 'success' as const, icon: CheckCircle };
+    const today = new Date();
+    const due = new Date(dueDate);
+    if (due < today) return { label: 'Vencido', variant: 'destructive' as const, icon: XCircle };
+    return { label: 'A Vencer', variant: 'warning' as const, icon: Clock };
+  };
+
+  // Helper para nome do cliente/fornecedor
+  const getEntityName = (entity: any) => {
+    if (!entity) return 'Não informado';
+    if (entity.person_type === 'PJ' && entity.company_name) return entity.company_name;
+    return [entity.first_name, entity.last_name].filter(Boolean).join(' ') || 'Não informado';
+  };
+
+  // Cálculos de resumo para Contas a Receber
+  const receivablesSummary = {
+    total: receivables.reduce((sum, r) => sum + Number(r.gross_amount || 0), 0),
+    received: receivables.filter(r => r.payment_date).reduce((sum, r) => sum + Number(r.gross_amount || 0), 0),
+    overdue: receivables.filter(r => !r.payment_date && new Date(r.due_date) < new Date()).reduce((sum, r) => sum + Number(r.gross_amount || 0), 0),
+    upcoming: receivables.filter(r => !r.payment_date && new Date(r.due_date) >= new Date()).reduce((sum, r) => sum + Number(r.gross_amount || 0), 0),
+  };
+
+  // Cálculos de resumo para Contas a Pagar
+  const payablesSummary = {
+    total: payables.reduce((sum, p) => sum + Number(p.gross_amount || 0), 0),
+    paid: payables.filter(p => p.payment_date).reduce((sum, p) => sum + Number(p.gross_amount || 0), 0),
+    overdue: payables.filter(p => !p.payment_date && new Date(p.due_date) < new Date()).reduce((sum, p) => sum + Number(p.gross_amount || 0), 0),
+    upcoming: payables.filter(p => !p.payment_date && new Date(p.due_date) >= new Date()).reduce((sum, p) => sum + Number(p.gross_amount || 0), 0),
+  };
 
   return (
     <DashboardLayout>
@@ -304,9 +366,11 @@ const [cashFlowDataSource, setCashFlowDataSource] = useState<'bank_statements' |
         )}
 
         <Tabs defaultValue="dre" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="dre">DRE</TabsTrigger>
             <TabsTrigger value="cashflow">Fluxo de Caixa</TabsTrigger>
+            <TabsTrigger value="receivables">Contas a Receber</TabsTrigger>
+            <TabsTrigger value="payables">Contas a Pagar</TabsTrigger>
             <TabsTrigger value="taxes">Impostos</TabsTrigger>
             <TabsTrigger value="delinquency">Inadimplência</TabsTrigger>
           </TabsList>
@@ -594,6 +658,190 @@ const [cashFlowDataSource, setCashFlowDataSource] = useState<'bank_statements' |
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Contas a Receber */}
+          <TabsContent value="receivables" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total a Receber</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(receivablesSummary.total)}</div>
+                  <p className="text-xs text-muted-foreground">{receivables.length} lançamentos</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Recebido</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-success">{formatCurrency(receivablesSummary.received)}</div>
+                  <p className="text-xs text-muted-foreground">{receivables.filter(r => r.payment_date).length} pagos</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Vencido</CardTitle>
+                  <XCircle className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">{formatCurrency(receivablesSummary.overdue)}</div>
+                  <p className="text-xs text-muted-foreground">{receivables.filter(r => !r.payment_date && new Date(r.due_date) < new Date()).length} pendentes</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">A Vencer</CardTitle>
+                  <Clock className="h-4 w-4 text-warning" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-warning">{formatCurrency(receivablesSummary.upcoming)}</div>
+                  <p className="text-xs text-muted-foreground">{receivables.filter(r => !r.payment_date && new Date(r.due_date) >= new Date()).length} futuros</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Detalhamento</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {receivables.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Nenhuma conta a receber cadastrada</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Vencimento</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {receivables.map((r) => {
+                        const status = getPaymentStatus(r.due_date, r.payment_date);
+                        const StatusIcon = status.icon;
+                        return (
+                          <TableRow key={r.id}>
+                            <TableCell className="font-medium">{getEntityName(r.customers)}</TableCell>
+                            <TableCell>{r.description || '-'}</TableCell>
+                            <TableCell>{new Date(r.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(r.gross_amount)}</TableCell>
+                            <TableCell>
+                              <Badge variant={status.variant === 'success' ? 'default' : status.variant === 'destructive' ? 'destructive' : 'secondary'} className={status.variant === 'success' ? 'bg-success/20 text-success' : status.variant === 'warning' ? 'bg-warning/20 text-warning' : ''}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {status.label}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Contas a Pagar */}
+          <TabsContent value="payables" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total a Pagar</CardTitle>
+                  <Truck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(payablesSummary.total)}</div>
+                  <p className="text-xs text-muted-foreground">{payables.length} lançamentos</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pago</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-success">{formatCurrency(payablesSummary.paid)}</div>
+                  <p className="text-xs text-muted-foreground">{payables.filter(p => p.payment_date).length} pagos</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Vencido</CardTitle>
+                  <XCircle className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">{formatCurrency(payablesSummary.overdue)}</div>
+                  <p className="text-xs text-muted-foreground">{payables.filter(p => !p.payment_date && new Date(p.due_date) < new Date()).length} pendentes</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">A Vencer</CardTitle>
+                  <Clock className="h-4 w-4 text-warning" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-warning">{formatCurrency(payablesSummary.upcoming)}</div>
+                  <p className="text-xs text-muted-foreground">{payables.filter(p => !p.payment_date && new Date(p.due_date) >= new Date()).length} futuros</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Detalhamento</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {payables.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Nenhuma conta a pagar cadastrada</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Vencimento</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payables.map((p) => {
+                        const status = getPaymentStatus(p.due_date, p.payment_date);
+                        const StatusIcon = status.icon;
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-medium">{getEntityName(p.suppliers)}</TableCell>
+                            <TableCell>{p.description || '-'}</TableCell>
+                            <TableCell>{new Date(p.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(p.gross_amount)}</TableCell>
+                            <TableCell>
+                              <Badge variant={status.variant === 'success' ? 'default' : status.variant === 'destructive' ? 'destructive' : 'secondary'} className={status.variant === 'success' ? 'bg-success/20 text-success' : status.variant === 'warning' ? 'bg-warning/20 text-warning' : ''}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {status.label}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
