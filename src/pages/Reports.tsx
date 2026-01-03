@@ -19,6 +19,7 @@ const Reports = () => {
   const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
+  const [startMonth, setStartMonth] = useState<string>('2025-11');
   const [dreData, setDreData] = useState<any>({});
   const [cashFlowData, setCashFlowData] = useState<any[]>([]);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
@@ -30,7 +31,7 @@ const Reports = () => {
     if (currentOrganization?.id) {
       fetchFinancialData();
     }
-  }, [currentOrganization?.id]);
+  }, [currentOrganization?.id, startMonth]);
 
   const fetchFinancialData = async () => {
     if (!currentOrganization?.id) return;
@@ -179,6 +180,9 @@ const Reports = () => {
 
   const currentData = dreData[selectedMonth] || { receitaBruta: 0, deducoes: 0, receitaLiquida: 0, despesasOperacionais: 0, resultado: 0 };
   
+  // Filtrar dados do fluxo de caixa pela data inicial
+  const filteredCashFlowData = cashFlowData.filter((d: any) => d.monthKey >= startMonth);
+  
   // Calcular mês anterior
   const [year, month] = selectedMonth.split('-');
   const prevMonthNum = parseInt(month) - 1;
@@ -204,24 +208,48 @@ const Reports = () => {
           <div className="text-center py-8">Carregando dados financeiros...</div>
         ) : (
           <>
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex flex-wrap items-center gap-4 mb-4">
               <Calendar className="h-5 w-5 text-muted-foreground" />
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Selecione o mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.map((monthKey) => {
-                    const [year, month] = monthKey.split('-');
-                    const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    return (
-                      <SelectItem key={monthKey} value={monthKey}>
-                        {label.charAt(0).toUpperCase() + label.slice(1)}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">A partir de:</span>
+                <Select value={startMonth} onValueChange={setStartMonth}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Data inicial" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map((monthKey) => {
+                      const [year, month] = monthKey.split('-');
+                      const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                      return (
+                        <SelectItem key={monthKey} value={monthKey}>
+                          {label.charAt(0).toUpperCase() + label.slice(1)}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Mês selecionado:</span>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.filter(m => m >= startMonth).map((monthKey) => {
+                      const [year, month] = monthKey.split('-');
+                      const label = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                      return (
+                        <SelectItem key={monthKey} value={monthKey}>
+                          {label.charAt(0).toUpperCase() + label.slice(1)}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </>
         )}
@@ -338,16 +366,18 @@ const Reports = () => {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={Object.entries(dreData).map(([key, data]: [string, any]) => {
-                      const [year, month] = key.split('-');
-                      const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-                      return {
-                        mes: monthLabel.replace('.', ''),
-                        receita: data.receitaLiquida,
-                        despesas: data.despesasOperacionais,
-                        resultado: data.resultado
-                      };
-                    })}>
+                    <BarChart data={Object.entries(dreData)
+                      .filter(([key]) => key >= startMonth)
+                      .map(([key, data]: [string, any]) => {
+                        const [year, month] = key.split('-');
+                        const monthLabel = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                        return {
+                          mes: monthLabel.replace('.', ''),
+                          receita: data.receitaLiquida,
+                          despesas: data.despesasOperacionais,
+                          resultado: data.resultado
+                        };
+                      })}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="mes" />
                       <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
@@ -408,7 +438,7 @@ const Reports = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-success">
-                    {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.entradas, 0))}
+                    {formatCurrency(filteredCashFlowData.reduce((sum, d) => sum + d.entradas, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Últimos 12 meses
@@ -425,7 +455,7 @@ const Reports = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-destructive">
-                    {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.saidas, 0))}
+                    {formatCurrency(filteredCashFlowData.reduce((sum, d) => sum + d.saidas, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Últimos 12 meses
@@ -442,7 +472,7 @@ const Reports = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-success">
-                    {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.saldo, 0))}
+                    {formatCurrency(filteredCashFlowData.reduce((sum, d) => sum + d.saldo, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Resultado do período
@@ -457,7 +487,7 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={cashFlowData}>
+                  <LineChart data={filteredCashFlowData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="mes" />
                     <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
@@ -495,7 +525,7 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {cashFlowData.map((data) => (
+                  {filteredCashFlowData.map((data) => (
                     <div key={data.mes} className="border rounded-lg p-4">
                       <h3 className="font-semibold mb-2">{data.mes}</h3>
                       <div className="grid grid-cols-3 gap-4 text-sm">
