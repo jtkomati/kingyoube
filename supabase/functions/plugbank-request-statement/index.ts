@@ -202,7 +202,7 @@ serve(async (req) => {
     const uniqueId = responseData.uniqueId || responseData.id || responseData.protocolId;
     const status = responseData.status || "PROCESSING";
 
-    // Create sync protocol record
+    // Create sync protocol record and update account status to connected
     if (bankAccountId) {
       const { error: insertError } = await supabaseClient
         .from("sync_protocols")
@@ -218,6 +218,21 @@ serve(async (req) => {
 
       if (insertError) {
         console.error("Error creating sync_protocol:", insertError);
+      }
+
+      // Auto-reconcile: if request succeeded, consent is valid → mark as connected
+      const { error: updateError } = await supabaseClient
+        .from("bank_accounts")
+        .update({ 
+          open_finance_status: "connected",
+          last_sync_at: new Date().toISOString()
+        })
+        .eq("id", bankAccountId);
+
+      if (updateError) {
+        console.error("Error updating bank_account status:", updateError);
+      } else {
+        console.log("Bank account marked as connected:", bankAccountId);
       }
     }
 

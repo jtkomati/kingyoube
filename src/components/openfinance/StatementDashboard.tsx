@@ -48,6 +48,7 @@ interface StatementDashboardProps {
   selectedAccountHash: string | null;
   companyId?: string;
   onAccountSelect: (accountId: string) => void;
+  onRefreshAccounts?: () => void;
 }
 
 export function StatementDashboard({ 
@@ -55,7 +56,8 @@ export function StatementDashboard({
   selectedAccountId, 
   selectedAccountHash, 
   companyId, 
-  onAccountSelect 
+  onAccountSelect,
+  onRefreshAccounts
 }: StatementDashboardProps) {
   const today = new Date();
   const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -86,6 +88,9 @@ export function StatementDashboard({
         debits: statementData.totalDebits,
       });
       
+      // Refresh accounts to get updated status (now marked as "connected")
+      onRefreshAccounts?.();
+      
       toast.success("Extrato atualizado!", {
         description: `${allTransactions.length} transações encontradas`,
       });
@@ -111,7 +116,10 @@ export function StatementDashboard({
       companyId
     );
 
-    if (!result.success) {
+    if (result.success) {
+      // Request succeeded, refresh accounts to update status immediately
+      onRefreshAccounts?.();
+    } else {
       toast.error("Erro", { description: result.error });
     }
   };
@@ -221,7 +229,8 @@ export function StatementDashboard({
               </Button>
             </div>
             
-            {selectedAccount && selectedAccount.open_finance_status !== "connected" && (
+            {/* Only show consent alert if not currently polling (avoid conflicting messages) */}
+            {selectedAccount && selectedAccount.open_finance_status !== "connected" && !isPolling && (
               <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
