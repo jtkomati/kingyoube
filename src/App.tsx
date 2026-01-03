@@ -38,6 +38,8 @@ const AICommandCenter = lazy(() => import("./pages/AICommandCenter"));
 const PluggyConnectPopup = lazy(() => import("./pages/PluggyConnectPopup"));
 const PluggyOAuthCallback = lazy(() => import("./pages/PluggyOAuthCallback"));
 const BusinessRulesAdmin = lazy(() => import("./pages/BusinessRulesAdmin"));
+const BankPayments = lazy(() => import("./pages/BankPayments"));
+const TaxPayments = lazy(() => import("./pages/TaxPayments"));
 
 // Global query client with optimized defaults
 const queryClient = new QueryClient({
@@ -193,6 +195,14 @@ const App = () => {
             <Route
               path="/admin/rules"
               element={<LazyProtectedRoute requiredRole="ADMIN"><BusinessRulesAdmin /></LazyProtectedRoute>}
+            />
+            <Route
+              path="/bank-payments"
+              element={<LazyProtectedRoute><BankPayments /></LazyProtectedRoute>}
+            />
+            <Route
+              path="/tax-payments"
+              element={<LazyProtectedRoute><TaxPayments /></LazyProtectedRoute>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

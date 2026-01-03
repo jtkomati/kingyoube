@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity, Brain, Cog } from 'lucide-react';
+import { Home, FileText, LogOut, BarChart3, Link2, Receipt, Calculator, Bot, BrainCircuit, Database, Building2, Activity, Brain, Cog, CreditCard, FileSpreadsheet } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -50,6 +50,8 @@ const navigation: NavItem[] = [
   { key: 'cadastros', href: '/cadastros', icon: Database },
   { key: 'transactions', href: '/transactions', icon: FileText },
   { key: 'invoices', href: '/invoices', icon: Receipt },
+  { key: 'bankPayments', href: '/bank-payments', icon: CreditCard },
+  { key: 'taxPayments', href: '/tax-payments', icon: FileSpreadsheet },
   { key: 'reports', href: '/reports', icon: BarChart3 },
   { key: 'predictiveAnalytics', href: '/predictive-analytics', icon: BrainCircuit },
   { key: 'integrations', href: '/bank-integrations', icon: Link2 },
