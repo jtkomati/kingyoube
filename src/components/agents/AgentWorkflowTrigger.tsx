@@ -3,13 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Play, 
   Loader2, 
-  CheckCircle,
-  AlertCircle,
   FileText,
   CreditCard,
   HandCoins,
   Phone,
-  Landmark
+  Landmark,
+  Receipt,
+  FileBarChart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,19 +40,30 @@ const workflows: WorkflowConfig[] = [
   {
     id: 'billing',
     name: 'Faturamento',
-    description: 'Emitir nota fiscal e boleto para cliente',
+    description: 'Emitir NF, boletos e cobranças em lote',
     icon: FileText,
     color: 'from-blue-500 to-blue-600',
     fields: [
-      { name: 'customer_name', label: 'Cliente', type: 'text', required: true, placeholder: 'Nome do cliente' },
-      { name: 'service_description', label: 'Serviço', type: 'text', required: true, placeholder: 'Descrição do serviço' },
-      { name: 'amount', label: 'Valor (R$)', type: 'number', required: true, placeholder: '0,00' },
+      { 
+        name: 'action', 
+        label: 'Ação', 
+        type: 'select', 
+        required: true,
+        options: [
+          { value: 'issue_invoice', label: 'Emitir Nota Fiscal' },
+          { value: 'issue_batch', label: 'Emissão em Lote' },
+          { value: 'generate_billet', label: 'Gerar Boleto' },
+          { value: 'issue_with_billet', label: 'NF + Boleto Automático' },
+        ]
+      },
+      { name: 'customer_name', label: 'Cliente', type: 'text', placeholder: 'Nome do cliente (opcional para lote)' },
+      { name: 'amount', label: 'Valor (R$)', type: 'number', placeholder: '0,00' },
     ],
   },
   {
     id: 'receivables',
     name: 'Contas a Receber',
-    description: 'Sincronizar extratos e conciliar pagamentos',
+    description: 'Sincronizar extratos, DDA e conciliar',
     icon: HandCoins,
     color: 'from-green-500 to-green-600',
     fields: [
@@ -62,9 +73,11 @@ const workflows: WorkflowConfig[] = [
         type: 'select', 
         required: true,
         options: [
-          { value: 'sync_statements', label: 'Sincronizar Extratos' },
+          { value: 'sync_statements', label: 'Sincronizar Extratos Bancários' },
           { value: 'reconcile_all', label: 'Conciliar Automaticamente' },
+          { value: 'check_dda', label: 'Verificar Boletos DDA' },
           { value: 'review_pending', label: 'Revisar Pendentes' },
+          { value: 'check_overdue', label: 'Verificar Vencidos' },
         ]
       },
     ],
@@ -103,7 +116,7 @@ const workflows: WorkflowConfig[] = [
   {
     id: 'payables',
     name: 'Contas a Pagar',
-    description: 'Processar notas de entrada e programar pagamentos',
+    description: 'DDA, pagamentos e remessa CNAB',
     icon: CreditCard,
     color: 'from-red-500 to-red-600',
     fields: [
@@ -113,8 +126,10 @@ const workflows: WorkflowConfig[] = [
         type: 'select', 
         required: true,
         options: [
+          { value: 'sync_dda', label: 'Sincronizar Boletos DDA' },
           { value: 'process_invoices', label: 'Processar NFs Pendentes' },
           { value: 'schedule_payments', label: 'Agendar Pagamentos' },
+          { value: 'generate_remessa', label: 'Gerar Remessa CNAB' },
           { value: 'review_overdue', label: 'Revisar Vencidos' },
         ]
       },
@@ -123,7 +138,7 @@ const workflows: WorkflowConfig[] = [
   {
     id: 'treasury',
     name: 'Tesouraria',
-    description: 'Sincronizar saldos e projetar fluxo de caixa',
+    description: 'Saldos, fluxo de caixa e transferências',
     icon: Landmark,
     color: 'from-purple-500 to-purple-600',
     fields: [
@@ -135,6 +150,7 @@ const workflows: WorkflowConfig[] = [
         options: [
           { value: 'sync_balances', label: 'Sincronizar Saldos' },
           { value: 'project_cashflow', label: 'Projetar Fluxo de Caixa' },
+          { value: 'schedule_transfer', label: 'Agendar Transferência/PIX' },
           { value: 'check_alerts', label: 'Verificar Alertas' },
         ]
       },
@@ -146,6 +162,64 @@ const workflows: WorkflowConfig[] = [
           { value: '7', label: '7 dias' },
           { value: '30', label: '30 dias' },
           { value: '90', label: '90 dias' },
+        ]
+      },
+    ],
+  },
+  {
+    id: 'taxes',
+    name: 'Tributos',
+    description: 'Gerar guias DARF, GPS, GARE e FGTS',
+    icon: Receipt,
+    color: 'from-amber-500 to-amber-600',
+    fields: [
+      { 
+        name: 'tax_type', 
+        label: 'Tipo de Tributo', 
+        type: 'select', 
+        required: true,
+        options: [
+          { value: 'darf', label: 'DARF (Federal)' },
+          { value: 'gps', label: 'GPS (INSS)' },
+          { value: 'gare', label: 'GARE (Estadual)' },
+          { value: 'fgts', label: 'FGTS' },
+          { value: 'ipva', label: 'IPVA' },
+          { value: 'dpvat', label: 'DPVAT' },
+        ]
+      },
+      { name: 'reference_period', label: 'Período (MM/AAAA)', type: 'text', placeholder: '01/2026' },
+      { name: 'amount', label: 'Valor (R$)', type: 'number', placeholder: '0,00' },
+    ],
+  },
+  {
+    id: 'reports',
+    name: 'Relatórios',
+    description: 'Gerar relatórios financeiros e gerenciais',
+    icon: FileBarChart,
+    color: 'from-cyan-500 to-cyan-600',
+    fields: [
+      { 
+        name: 'report_type', 
+        label: 'Tipo de Relatório', 
+        type: 'select', 
+        required: true,
+        options: [
+          { value: 'cashflow', label: 'Fluxo de Caixa' },
+          { value: 'receivables', label: 'Contas a Receber' },
+          { value: 'payables', label: 'Contas a Pagar' },
+          { value: 'dre', label: 'DRE Gerencial' },
+          { value: 'reconciliation', label: 'Conciliação Bancária' },
+        ]
+      },
+      {
+        name: 'period',
+        label: 'Período',
+        type: 'select',
+        options: [
+          { value: 'current_month', label: 'Mês Atual' },
+          { value: 'last_month', label: 'Mês Anterior' },
+          { value: 'current_quarter', label: 'Trimestre Atual' },
+          { value: 'current_year', label: 'Ano Atual' },
         ]
       },
     ],

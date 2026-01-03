@@ -235,7 +235,7 @@ export default function AIAgents() {
           {/* Header */}
           <div className="text-center">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-              Agentes de IA - Service as a Software
+              Agentes de IA
             </h1>
             <p className="text-muted-foreground text-sm md:text-base">
               O ERP trabalha para você. Mínima interação, máxima automação.
