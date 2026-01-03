@@ -182,8 +182,23 @@ serve(async (req) => {
         .eq("plugbank_unique_id", uniqueId);
     }
 
-    // If completed, process and save transactions
+    // If completed, process and save transactions, and update account status
     if (isCompleted && bankAccountId) {
+      // Auto-reconcile: mark account as connected since statement was successfully retrieved
+      const { error: updateError } = await supabaseClient
+        .from("bank_accounts")
+        .update({ 
+          open_finance_status: "connected",
+          last_sync_at: new Date().toISOString()
+        })
+        .eq("id", bankAccountId);
+
+      if (updateError) {
+        console.error("Error updating bank_account status:", updateError);
+      } else {
+        console.log("Bank account marked as connected after statement completion:", bankAccountId);
+      }
+
       const credits = responseData.credits || [];
       const debits = responseData.debits || [];
       const allTransactions = [

@@ -153,6 +153,11 @@ const BankIntegrations = () => {
               selectedAccountHash={selectedAccountHash}
               companyId={companyData?.id}
               onAccountSelect={handleAccountSelect}
+              onRefreshAccounts={() => {
+                if (currentOrganization?.id) {
+                  loadBankAccounts(currentOrganization.id);
+                }
+              }}
             />
           </TabsContent>
 
