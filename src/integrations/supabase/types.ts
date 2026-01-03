@@ -1604,6 +1604,48 @@ export type Database = {
           },
         ]
       }
+      business_rules: {
+        Row: {
+          context: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          is_active: boolean
+          logic: Json
+          rule_name: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          context: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          is_active?: boolean
+          logic?: Json
+          rule_name: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          is_active?: boolean
+          logic?: Json
+          rule_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           company_id: string | null

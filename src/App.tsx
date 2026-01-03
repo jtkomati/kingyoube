@@ -37,6 +37,7 @@ const Observability = lazy(() => import("./pages/Observability"));
 const AICommandCenter = lazy(() => import("./pages/AICommandCenter"));
 const PluggyConnectPopup = lazy(() => import("./pages/PluggyConnectPopup"));
 const PluggyOAuthCallback = lazy(() => import("./pages/PluggyOAuthCallback"));
+const BusinessRulesAdmin = lazy(() => import("./pages/BusinessRulesAdmin"));
 
 // Global query client with optimized defaults
 const queryClient = new QueryClient({
@@ -188,6 +189,10 @@ const App = () => {
             <Route
               path="/ai-command-center"
               element={<LazyProtectedRoute requiredRole="SUPERADMIN"><AICommandCenter /></LazyProtectedRoute>}
+            />
+            <Route
+              path="/admin/rules"
+              element={<LazyProtectedRoute requiredRole="ADMIN"><BusinessRulesAdmin /></LazyProtectedRoute>}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
