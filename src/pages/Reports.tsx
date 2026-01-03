@@ -5,12 +5,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, TrendingUp, DollarSign, AlertCircle, Calendar } from "lucide-react";
+import { FileText, TrendingUp, DollarSign, AlertCircle, Calendar, Landmark, Link as LinkIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const Reports = () => {
   const { currentOrganization } = useAuth();
+  const navigate = useNavigate();
   const currentDate = new Date();
   const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   
@@ -19,6 +23,7 @@ const Reports = () => {
   const [cashFlowData, setCashFlowData] = useState<any[]>([]);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<'bank_statements' | 'transactions' | 'none'>('none');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,15 +43,27 @@ const Reports = () => {
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 11);
       
-      const { data: transactions, error } = await (supabase as any)
-        .from('transactions')
-        .select('*')
-        .eq('company_id', currentOrganization.id)
-        .gte('due_date', startDate.toISOString().split('T')[0])
-        .lte('due_date', endDate.toISOString().split('T')[0])
-        .order('due_date');
+      // Primeiro, buscar contas bancárias da organização
+      const { data: bankAccounts } = await supabase
+        .from('bank_accounts')
+        .select('id')
+        .eq('company_id', currentOrganization.id);
 
-      if (error) throw error;
+      const accountIds = bankAccounts?.map(a => a.id) || [];
+      
+      // Buscar dados do extrato bancário (fonte primária)
+      let bankStatements: any[] = [];
+      if (accountIds.length > 0) {
+        const { data: statements } = await supabase
+          .from('bank_statements')
+          .select('statement_date, amount, type, balance')
+          .in('bank_account_id', accountIds)
+          .gte('statement_date', startDate.toISOString().split('T')[0])
+          .lte('statement_date', endDate.toISOString().split('T')[0])
+          .order('statement_date');
+        
+        bankStatements = statements || [];
+      }
 
       // Processar dados por mês
       const monthlyData: any = {};
@@ -68,15 +85,46 @@ const Reports = () => {
         };
       }
       
-      // Processar transações
-      for (const tx of transactions || []) {
-        const monthKey = tx.due_date.substring(0, 7);
-        if (monthlyData[monthKey]) {
-          if (tx.type === 'RECEIVABLE') {
-            monthlyData[monthKey].receitaBruta += Number(tx.gross_amount || 0);
-          } else {
-            monthlyData[monthKey].despesasOperacionais += Number(tx.gross_amount || 0);
+      // Se temos dados do extrato bancário, usar como fonte primária
+      if (bankStatements.length > 0) {
+        setDataSource('bank_statements');
+        
+        for (const stmt of bankStatements) {
+          const monthKey = stmt.statement_date.substring(0, 7);
+          if (monthlyData[monthKey]) {
+            const amount = Number(stmt.amount || 0);
+            if (stmt.type === 'credit' || amount > 0) {
+              monthlyData[monthKey].receitaBruta += Math.abs(amount);
+            } else {
+              monthlyData[monthKey].despesasOperacionais += Math.abs(amount);
+            }
           }
+        }
+      } else {
+        // Fallback: buscar da tabela transactions
+        const { data: transactions, error } = await (supabase as any)
+          .from('transactions')
+          .select('*')
+          .eq('company_id', currentOrganization.id)
+          .gte('due_date', startDate.toISOString().split('T')[0])
+          .lte('due_date', endDate.toISOString().split('T')[0])
+          .order('due_date');
+
+        if (!error && transactions && transactions.length > 0) {
+          setDataSource('transactions');
+          
+          for (const tx of transactions) {
+            const monthKey = tx.due_date.substring(0, 7);
+            if (monthlyData[monthKey]) {
+              if (tx.type === 'RECEIVABLE') {
+                monthlyData[monthKey].receitaBruta += Number(tx.gross_amount || 0);
+              } else {
+                monthlyData[monthKey].despesasOperacionais += Number(tx.gross_amount || 0);
+              }
+            }
+          }
+        } else {
+          setDataSource('none');
         }
       }
       
@@ -92,6 +140,7 @@ const Reports = () => {
         
         cashFlow.push({
           mes: monthLabel.replace('.', ''),
+          monthKey,
           entradas: data.receitaBruta,
           saidas: data.despesasOperacionais,
           saldo: data.resultado
@@ -312,6 +361,40 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="cashflow" className="space-y-4">
+            {/* Data source indicator */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {dataSource === 'bank_statements' && (
+                  <Badge variant="default" className="bg-success/20 text-success border-success/30">
+                    <Landmark className="h-3 w-3 mr-1" />
+                    Dados do Open Finance
+                  </Badge>
+                )}
+                {dataSource === 'transactions' && (
+                  <Badge variant="secondary">
+                    <FileText className="h-3 w-3 mr-1" />
+                    Dados de Lançamentos
+                  </Badge>
+                )}
+                {dataSource === 'none' && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Sem dados financeiros
+                  </Badge>
+                )}
+              </div>
+              {dataSource === 'bank_statements' ? (
+                <Button variant="outline" size="sm" onClick={() => navigate('/bank-integrations')}>
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Ver extrato completo
+                </Button>
+              ) : (
+                <Button variant="default" size="sm" onClick={() => navigate('/bank-integrations')}>
+                  <Landmark className="h-4 w-4 mr-2" />
+                  Conectar conta bancária
+                </Button>
+              )}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -325,7 +408,7 @@ const Reports = () => {
                     {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.entradas, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Últimos 2 meses
+                    Últimos 12 meses
                   </p>
                 </CardContent>
               </Card>
@@ -342,7 +425,7 @@ const Reports = () => {
                     {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.saidas, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Últimos 2 meses
+                    Últimos 12 meses
                   </p>
                 </CardContent>
               </Card>
@@ -359,7 +442,7 @@ const Reports = () => {
                     {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.saldo, 0))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Resultado positivo
+                    Resultado do período
                   </p>
                 </CardContent>
               </Card>
