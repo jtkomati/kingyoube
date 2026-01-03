@@ -1570,6 +1570,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bank_statements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bank_statements_linked_transaction_id_fkey"
             columns: ["linked_transaction_id"]
             isOneToOne: false
@@ -3286,6 +3293,13 @@ export type Database = {
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "open_finance_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       partner_prospect_leads: {
@@ -4095,6 +4109,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_protocols_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -4979,6 +5000,110 @@ export type Database = {
             columns: ["cfo_partner_id"]
             isOneToOne: false
             referencedRelation: "cfo_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_accounts_safe: {
+        Row: {
+          account_number: string | null
+          account_type: string | null
+          agency: string | null
+          api_environment: string | null
+          auto_sync_enabled: boolean | null
+          balance: number | null
+          bank_code: string | null
+          bank_name: string | null
+          company_id: string | null
+          consent_expires_at: string | null
+          created_at: string | null
+          currency: string | null
+          dda_activated: boolean | null
+          id: string | null
+          last_sync_at: string | null
+          open_finance_consent_id: string | null
+          open_finance_status: string | null
+          plugbank_account_id: string | null
+          pluggy_account_id: string | null
+          pluggy_item_id: string | null
+          tecnospeed_item_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_number?: string | null
+          account_type?: string | null
+          agency?: string | null
+          api_environment?: string | null
+          auto_sync_enabled?: boolean | null
+          balance?: number | null
+          bank_code?: string | null
+          bank_name?: string | null
+          company_id?: string | null
+          consent_expires_at?: string | null
+          created_at?: string | null
+          currency?: string | null
+          dda_activated?: boolean | null
+          id?: string | null
+          last_sync_at?: string | null
+          open_finance_consent_id?: string | null
+          open_finance_status?: string | null
+          plugbank_account_id?: string | null
+          pluggy_account_id?: string | null
+          pluggy_item_id?: string | null
+          tecnospeed_item_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_number?: string | null
+          account_type?: string | null
+          agency?: string | null
+          api_environment?: string | null
+          auto_sync_enabled?: boolean | null
+          balance?: number | null
+          bank_code?: string | null
+          bank_name?: string | null
+          company_id?: string | null
+          consent_expires_at?: string | null
+          created_at?: string | null
+          currency?: string | null
+          dda_activated?: boolean | null
+          id?: string | null
+          last_sync_at?: string | null
+          open_finance_consent_id?: string | null
+          open_finance_status?: string | null
+          plugbank_account_id?: string | null
+          pluggy_account_id?: string | null
+          pluggy_item_id?: string | null
+          tecnospeed_item_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
