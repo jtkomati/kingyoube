@@ -200,3 +200,6 @@ verify_jwt = true
 
 [functions.payment-dda-process]
 verify_jwt = true
+
+[functions.kingyoube-finance-api]
+verify_jwt = false
