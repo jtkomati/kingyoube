@@ -146,6 +146,8 @@ export function UserRolesTab() {
   const handleSaveRole = async () => {
     if (!editingUser) return;
 
+    const isEditingSelf = editingUser.id === user?.id;
+
     // Validar telefone se WhatsApp estiver habilitado
     if (editWhatsappEnabled && !editPhone.trim()) {
       toast({
@@ -169,23 +171,25 @@ export function UserRolesTab() {
 
       if (profileError) throw profileError;
 
-      // Atualizar role
-      if (editingUser.role_id) {
-        const { error } = await supabase
-          .from('user_roles')
-          .update({ role: selectedRole })
-          .eq('id', editingUser.role_id);
+      // Atualizar role - apenas se não estiver editando a si mesmo
+      if (!isEditingSelf) {
+        if (editingUser.role_id) {
+          const { error } = await supabase
+            .from('user_roles')
+            .update({ role: selectedRole })
+            .eq('id', editingUser.role_id);
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: editingUser.id,
-            role: selectedRole,
-          });
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: editingUser.id,
+              role: selectedRole,
+            });
 
-        if (error) throw error;
+          if (error) throw error;
+        }
       }
 
       toast({
@@ -345,8 +349,11 @@ export function UserRolesTab() {
                   </TableCell>
                   <TableCell>{getRoleBadge(userItem.role)}</TableCell>
                   <TableCell className="text-right">
-                    {canManageUser(userItem) && userItem.id !== user?.id && (
-                      <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-2">
+                      {userItem.id === user?.id && (
+                        <Badge variant="outline">Você</Badge>
+                      )}
+                      {(canManageUser(userItem) || userItem.id === user?.id) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -354,24 +361,21 @@ export function UserRolesTab() {
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        {userItem.role_id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => {
-                              setUserToDelete(userItem);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    {userItem.id === user?.id && (
-                      <Badge variant="outline">Você</Badge>
-                    )}
+                      )}
+                      {canManageUser(userItem) && userItem.id !== user?.id && userItem.role_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setUserToDelete(userItem);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -397,7 +401,11 @@ export function UserRolesTab() {
             
             <div className="space-y-2">
               <Label>Perfil de Acesso</Label>
-              <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as AppRole)}>
+              <Select 
+                value={selectedRole} 
+                onValueChange={(v) => setSelectedRole(v as AppRole)}
+                disabled={editingUser?.id === user?.id}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -412,9 +420,15 @@ export function UserRolesTab() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {roleConfig[selectedRole].description}
-              </p>
+              {editingUser?.id === user?.id ? (
+                <p className="text-xs text-amber-600">
+                  Você não pode alterar seu próprio perfil de acesso
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {roleConfig[selectedRole].description}
+                </p>
+              )}
             </div>
 
             <div className="border-t pt-4 space-y-4">
