@@ -3,14 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, UserPlus, Edit2, Trash2, Loader2, Crown, User, Calculator, Eye } from 'lucide-react';
+import { Shield, Edit2, Trash2, Loader2, Crown, User, Calculator, Eye, Phone, MessageCircle } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 type AppRole = 'SUPERADMIN' | 'ADMIN' | 'CONTADOR' | 'USUARIO';
@@ -19,6 +20,8 @@ interface UserWithRole {
   id: string;
   email: string;
   full_name: string;
+  phone_number: string | null;
+  whatsapp_enabled: boolean;
   role: AppRole | null;
   role_id: string | null;
   created_at: string;
@@ -55,6 +58,19 @@ const roleConfig: Record<AppRole, { label: string; description: string; level: n
   },
 };
 
+// Formatar telefone para exibição
+function formatPhoneDisplay(phone: string | null): string {
+  if (!phone) return '—';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 13) {
+    return `+${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  return phone;
+}
+
 export function UserRolesTab() {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
@@ -63,6 +79,8 @@ export function UserRolesTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [selectedRole, setSelectedRole] = useState<AppRole>('USUARIO');
+  const [editPhone, setEditPhone] = useState('');
+  const [editWhatsappEnabled, setEditWhatsappEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
@@ -78,7 +96,7 @@ export function UserRolesTab() {
       // Fetch profiles with their roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, created_at');
+        .select('id, email, full_name, phone_number, whatsapp_enabled, created_at');
 
       if (profilesError) throw profilesError;
 
@@ -96,6 +114,8 @@ export function UserRolesTab() {
           id: profile.id,
           email: profile.email,
           full_name: profile.full_name,
+          phone_number: profile.phone_number,
+          whatsapp_enabled: profile.whatsapp_enabled || false,
           role: userRoleData?.role as AppRole | null,
           role_id: userRoleData?.id || null,
           created_at: profile.created_at,
@@ -118,16 +138,39 @@ export function UserRolesTab() {
   const handleEditRole = (userToEdit: UserWithRole) => {
     setEditingUser(userToEdit);
     setSelectedRole(userToEdit.role || 'USUARIO');
+    setEditPhone(userToEdit.phone_number || '');
+    setEditWhatsappEnabled(userToEdit.whatsapp_enabled);
     setDialogOpen(true);
   };
 
   const handleSaveRole = async () => {
     if (!editingUser) return;
 
+    // Validar telefone se WhatsApp estiver habilitado
+    if (editWhatsappEnabled && !editPhone.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Telefone é obrigatório para habilitar acesso WhatsApp.',
+      });
+      return;
+    }
+
     setSaving(true);
     try {
+      // Atualizar profile (telefone e whatsapp_enabled)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          phone_number: editPhone.trim() || null,
+          whatsapp_enabled: editWhatsappEnabled,
+        })
+        .eq('id', editingUser.id);
+
+      if (profileError) throw profileError;
+
+      // Atualizar role
       if (editingUser.role_id) {
-        // Update existing role
         const { error } = await supabase
           .from('user_roles')
           .update({ role: selectedRole })
@@ -135,7 +178,6 @@ export function UserRolesTab() {
 
         if (error) throw error;
       } else {
-        // Insert new role
         const { error } = await supabase
           .from('user_roles')
           .insert({
@@ -148,7 +190,7 @@ export function UserRolesTab() {
 
       toast({
         title: 'Perfil atualizado',
-        description: `O perfil de ${editingUser.full_name} foi atualizado para ${roleConfig[selectedRole].label}.`,
+        description: `O perfil de ${editingUser.full_name} foi atualizado.`,
       });
 
       setDialogOpen(false);
@@ -195,9 +237,7 @@ export function UserRolesTab() {
   };
 
   const canManageUser = (targetUser: UserWithRole) => {
-    // Superadmin can manage everyone except themselves for certain actions
     if (userRole === 'SUPERADMIN') return true;
-    // Admin can manage users with lower level
     if (userRole === 'ADMIN') {
       const targetLevel = targetUser.role ? roleConfig[targetUser.role]?.level || 0 : 0;
       return targetLevel < 4;
@@ -273,8 +313,9 @@ export function UserRolesTab() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Telefone</TableHead>
+                <TableHead className="text-center">WhatsApp</TableHead>
                 <TableHead>Perfil</TableHead>
-                <TableHead>Cadastro</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -283,8 +324,26 @@ export function UserRolesTab() {
                 <TableRow key={userItem.id}>
                   <TableCell className="font-medium">{userItem.full_name}</TableCell>
                   <TableCell>{userItem.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm">{formatPhoneDisplay(userItem.phone_number)}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {userItem.whatsapp_enabled ? (
+                      <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700">
+                        <MessageCircle className="h-3 w-3" />
+                        Ativo
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1">
+                        <MessageCircle className="h-3 w-3" />
+                        Inativo
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{getRoleBadge(userItem.role)}</TableCell>
-                  <TableCell>{new Date(userItem.created_at).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell className="text-right">
                     {canManageUser(userItem) && userItem.id !== user?.id && (
                       <div className="flex justify-end gap-2">
@@ -323,18 +382,19 @@ export function UserRolesTab() {
 
       {/* Edit Role Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Perfil de Acesso</DialogTitle>
             <DialogDescription>
-              Altere o nível de acesso de {editingUser?.full_name}
+              Altere o nível de acesso e configurações de {editingUser?.full_name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             <div className="space-y-2">
               <Label>Usuário</Label>
               <Input value={editingUser?.full_name || ''} disabled />
             </div>
+            
             <div className="space-y-2">
               <Label>Perfil de Acesso</Label>
               <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as AppRole)}>
@@ -355,6 +415,46 @@ export function UserRolesTab() {
               <p className="text-xs text-muted-foreground">
                 {roleConfig[selectedRole].description}
               </p>
+            </div>
+
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Acesso WhatsApp</Label>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input 
+                  id="phone"
+                  placeholder="+55 11 99999-9999"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Formato recomendado: +55 11 99999-9999
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="whatsapp-toggle">Habilitar WhatsApp</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Permite consultas financeiras via WhatsApp/n8n
+                  </p>
+                </div>
+                <Switch
+                  id="whatsapp-toggle"
+                  checked={editWhatsappEnabled}
+                  onCheckedChange={setEditWhatsappEnabled}
+                  disabled={!editPhone.trim()}
+                />
+              </div>
+              {!editPhone.trim() && editWhatsappEnabled && (
+                <p className="text-xs text-destructive">
+                  Informe o telefone para habilitar o WhatsApp
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

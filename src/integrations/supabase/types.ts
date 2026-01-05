@@ -3616,6 +3616,7 @@ export type Database = {
           id: string
           phone_number: string | null
           updated_at: string
+          whatsapp_enabled: boolean | null
         }
         Insert: {
           company_id?: string | null
@@ -3625,6 +3626,7 @@ export type Database = {
           id: string
           phone_number?: string | null
           updated_at?: string
+          whatsapp_enabled?: boolean | null
         }
         Update: {
           company_id?: string | null
@@ -3634,6 +3636,7 @@ export type Database = {
           id?: string
           phone_number?: string | null
           updated_at?: string
+          whatsapp_enabled?: boolean | null
         }
         Relationships: [
           {
