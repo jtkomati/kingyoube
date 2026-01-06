@@ -66,26 +66,58 @@ serve(async (req) => {
       );
     }
 
-    // Upsert config_fiscal with login and inscricao_municipal
-    const { error: upsertError } = await adminClient
+    // Check if config_fiscal exists for this company
+    const { data: existingConfig, error: fetchError } = await adminClient
       .from('config_fiscal')
-      .upsert({
-        organization_id: organizationId,
-        prefeitura_login: login || null,
-        inscricao_municipal: inscricaoMunicipal || null,
-        updated_at: new Date().toISOString(),
-        client_id: '',
-        client_secret: ''
-      }, {
-        onConflict: 'organization_id'
-      });
+      .select('id')
+      .eq('company_id', organizationId)
+      .maybeSingle();
 
-    if (upsertError) {
-      console.error('Upsert error:', upsertError);
+    if (fetchError) {
+      console.error('Fetch config error:', fetchError);
       return new Response(
-        JSON.stringify({ error: 'Failed to save credentials' }),
+        JSON.stringify({ error: 'Failed to check existing config', details: fetchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (existingConfig) {
+      // Update existing config without overwriting other fields
+      const { error: updateError } = await adminClient
+        .from('config_fiscal')
+        .update({
+          prefeitura_login: login || null,
+          prefeitura_inscricao_municipal: inscricaoMunicipal || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('company_id', organizationId);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update credentials', details: updateError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Insert new config
+      const { error: insertError } = await adminClient
+        .from('config_fiscal')
+        .insert({
+          company_id: organizationId,
+          prefeitura_login: login || null,
+          prefeitura_inscricao_municipal: inscricaoMunicipal || null,
+          client_id: 'prefeitura',
+          client_secret: 'configured'
+        });
+
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create credentials', details: insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Store password in vault if provided

@@ -67,14 +67,14 @@ serve(async (req) => {
     // Fetch config_fiscal
     const { data: config, error: configError } = await adminClient
       .from('config_fiscal')
-      .select('prefeitura_login, inscricao_municipal')
-      .eq('organization_id', organizationId)
-      .single();
+      .select('prefeitura_login, prefeitura_inscricao_municipal')
+      .eq('company_id', organizationId)
+      .maybeSingle();
 
-    if (configError && configError.code !== 'PGRST116') {
+    if (configError) {
       console.error('Config error:', configError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch credentials' }),
+        JSON.stringify({ error: 'Failed to fetch credentials', details: configError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -101,7 +101,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         login: config?.prefeitura_login || null,
-        inscricaoMunicipal: config?.inscricao_municipal || null,
+        inscricaoMunicipal: config?.prefeitura_inscricao_municipal || null,
         hasPassword,
         password
       }),
