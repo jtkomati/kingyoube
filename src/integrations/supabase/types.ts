@@ -3613,6 +3613,65 @@ export type Database = {
         }
         Relationships: []
       }
+      prefeitura_credentials: {
+        Row: {
+          company_id: string
+          created_at: string
+          inscricao_municipal: string | null
+          login: string | null
+          password_ciphertext: string | null
+          password_iv: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          inscricao_municipal?: string | null
+          login?: string | null
+          password_ciphertext?: string | null
+          password_iv?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          inscricao_municipal?: string | null
+          login?: string | null
+          password_ciphertext?: string | null
+          password_iv?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prefeitura_credentials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "accountant_client_dashboard"
+            referencedColumns: ["client_company_id"]
+          },
+          {
+            foreignKeyName: "prefeitura_credentials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prefeitura_credentials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "mv_cfo_client_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "prefeitura_credentials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string | null
