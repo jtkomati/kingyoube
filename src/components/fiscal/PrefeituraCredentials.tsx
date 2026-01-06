@@ -32,26 +32,20 @@ export function PrefeituraCredentials() {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("config_fiscal")
-        .select("prefeitura_login, prefeitura_inscricao_municipal")
-        .eq("company_id", currentOrganization.id)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('get-prefeitura-credentials', {
+        body: {
+          organizationId: currentOrganization.id,
+          includePassword: false
+        }
+      });
 
       if (error) throw error;
 
       if (data) {
-        setLogin(data.prefeitura_login || "");
-        setInscricaoMunicipal(data.prefeitura_inscricao_municipal || "");
+        setLogin(data.login || "");
+        setInscricaoMunicipal(data.inscricaoMunicipal || "");
         
-        // Check if password exists in vault
-        const { data: secretData } = await supabase.rpc("get_secret", {
-          p_entity_type: "prefeitura",
-          p_entity_id: currentOrganization.id,
-          p_secret_type: "password"
-        });
-        
-        if (secretData) {
+        if (data.hasPassword) {
           setPassword("••••••••");
           setHasExistingCredentials(true);
         }
@@ -84,61 +78,31 @@ export function PrefeituraCredentials() {
 
     setSaving(true);
     try {
-      // Check if config exists
-      const { data: existingConfig } = await supabase
-        .from("config_fiscal")
-        .select("id")
-        .eq("company_id", currentOrganization.id)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('store-prefeitura-credentials', {
+        body: {
+          organizationId: currentOrganization.id,
+          login,
+          inscricaoMunicipal,
+          password: password && password !== "••••••••" ? password : null
+        }
+      });
 
-      if (existingConfig) {
-        // Update existing
-        const { error: updateError } = await supabase
-          .from("config_fiscal")
-          .update({
-            prefeitura_login: login,
-            prefeitura_inscricao_municipal: inscricaoMunicipal
-          })
-          .eq("company_id", currentOrganization.id);
-        
-        if (updateError) throw updateError;
-      } else {
-        // Insert new - need to check required fields from types
-        const { error: insertError } = await supabase
-          .from("config_fiscal")
-          .insert({
-            company_id: currentOrganization.id,
-            prefeitura_login: login,
-            prefeitura_inscricao_municipal: inscricaoMunicipal,
-            client_id: "",
-            client_secret: ""
-          });
-        
-        if (insertError) throw insertError;
-      }
-
-      // Store password securely in vault if provided (not placeholder)
-      if (password && password !== "••••••••") {
-        const { error: secretError } = await supabase.rpc("store_secret", {
-          p_entity_type: "prefeitura",
-          p_entity_id: currentOrganization.id,
-          p_secret_type: "password",
-          p_secret_value: password
-        });
-
-        if (secretError) throw secretError;
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       setHasExistingCredentials(true);
+      if (password && password !== "••••••••") {
+        setPassword("••••••••");
+      }
       toast({
         title: "Credenciais salvas",
         description: "As credenciais da Prefeitura foram salvas com segurança"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving credentials:", error);
       toast({
         title: "Erro ao salvar",
-        description: error.message || "Não foi possível salvar as credenciais",
+        description: error instanceof Error ? error.message : "Não foi possível salvar as credenciais",
         variant: "destructive"
       });
     } finally {

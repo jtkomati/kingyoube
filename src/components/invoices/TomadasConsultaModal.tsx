@@ -59,26 +59,19 @@ export function TomadasConsultaModal({
 
   const fetchSavedCredentials = async () => {
     try {
-      const { data: configData } = await supabase
-        .from("config_fiscal")
-        .select("prefeitura_login, prefeitura_inscricao_municipal")
-        .eq("company_id", companyId)
-        .maybeSingle();
-
-      if (configData) {
-        if (configData.prefeitura_login) setLogin(configData.prefeitura_login);
-        if (configData.prefeitura_inscricao_municipal) setInscricaoMunicipal(configData.prefeitura_inscricao_municipal);
-      }
-
-      // Try to get password from vault
-      const { data: secretData } = await supabase.rpc("get_secret", {
-        p_entity_type: "prefeitura",
-        p_entity_id: companyId,
-        p_secret_type: "password"
+      const { data, error } = await supabase.functions.invoke('get-prefeitura-credentials', {
+        body: {
+          organizationId: companyId,
+          includePassword: true
+        }
       });
 
-      if (secretData) {
-        setSenha(secretData);
+      if (error) throw error;
+
+      if (data) {
+        if (data.login) setLogin(data.login);
+        if (data.inscricaoMunicipal) setInscricaoMunicipal(data.inscricaoMunicipal);
+        if (data.password) setSenha(data.password);
       }
     } catch (error) {
       console.error("Error fetching saved credentials:", error);
