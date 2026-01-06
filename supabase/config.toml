@@ -202,10 +202,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.store-prefeitura-credentials]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-prefeitura-credentials]
-verify_jwt = true
+verify_jwt = false
 
 [functions.kingyoube-finance-api]
 verify_jwt = false
