@@ -43,10 +43,11 @@ export function TomadasConsultaModal({
   const [senha, setSenha] = useState("");
   const [inscricaoMunicipal, setInscricaoMunicipal] = useState("");
 
-  // Load cities on mount
+  // Load cities and saved credentials on mount
   useEffect(() => {
     if (open) {
       fetchCidades();
+      fetchSavedCredentials();
       // Set default period (last 30 days)
       const hoje = new Date();
       const mesPassado = new Date();
@@ -54,7 +55,35 @@ export function TomadasConsultaModal({
       setPeriodoFinal(hoje.toISOString().split('T')[0]);
       setPeriodoInicial(mesPassado.toISOString().split('T')[0]);
     }
-  }, [open]);
+  }, [open, companyId]);
+
+  const fetchSavedCredentials = async () => {
+    try {
+      const { data: configData } = await supabase
+        .from("config_fiscal")
+        .select("prefeitura_login, prefeitura_inscricao_municipal")
+        .eq("company_id", companyId)
+        .maybeSingle();
+
+      if (configData) {
+        if (configData.prefeitura_login) setLogin(configData.prefeitura_login);
+        if (configData.prefeitura_inscricao_municipal) setInscricaoMunicipal(configData.prefeitura_inscricao_municipal);
+      }
+
+      // Try to get password from vault
+      const { data: secretData } = await supabase.rpc("get_secret", {
+        p_entity_type: "prefeitura",
+        p_entity_id: companyId,
+        p_secret_type: "password"
+      });
+
+      if (secretData) {
+        setSenha(secretData);
+      }
+    } catch (error) {
+      console.error("Error fetching saved credentials:", error);
+    }
+  };
 
   const fetchCidades = async (search?: string) => {
     setLoadingCidades(true);

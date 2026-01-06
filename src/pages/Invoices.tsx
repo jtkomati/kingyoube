@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OutgoingInvoices } from "@/components/invoices/OutgoingInvoices";
 import { IncomingInvoices } from "@/components/invoices/IncomingInvoices";
 import { PlugNotasSettings } from "@/components/fiscal/PlugNotasSettings";
+import { PrefeituraCredentials } from "@/components/fiscal/PrefeituraCredentials";
 import { FileText, FileInput, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -51,7 +52,8 @@ const Invoices = () => {
           </TabsContent>
 
           {canAccessSettings && (
-            <TabsContent value="settings">
+            <TabsContent value="settings" className="space-y-6">
+              <PrefeituraCredentials />
               <PlugNotasSettings />
             </TabsContent>
           )}

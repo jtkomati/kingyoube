@@ -2362,6 +2362,8 @@ export type Database = {
           plugnotas_last_test: string | null
           plugnotas_status: string | null
           plugnotas_token: string | null
+          prefeitura_inscricao_municipal: string | null
+          prefeitura_login: string | null
           tecnospeed_tomadas_ativo: boolean | null
           tecnospeed_tomadas_last_sync: string | null
           updated_at: string
@@ -2379,6 +2381,8 @@ export type Database = {
           plugnotas_last_test?: string | null
           plugnotas_status?: string | null
           plugnotas_token?: string | null
+          prefeitura_inscricao_municipal?: string | null
+          prefeitura_login?: string | null
           tecnospeed_tomadas_ativo?: boolean | null
           tecnospeed_tomadas_last_sync?: string | null
           updated_at?: string
@@ -2396,6 +2400,8 @@ export type Database = {
           plugnotas_last_test?: string | null
           plugnotas_status?: string | null
           plugnotas_token?: string | null
+          prefeitura_inscricao_municipal?: string | null
+          prefeitura_login?: string | null
           tecnospeed_tomadas_ativo?: boolean | null
           tecnospeed_tomadas_last_sync?: string | null
           updated_at?: string
