@@ -6,6 +6,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// AES-GCM decryption helper
+async function decryptPassword(ciphertext: string, ivBase64: string, masterKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  
+  // Derive the same 256-bit key from the master key
+  const keyMaterial = await crypto.subtle.digest('SHA-256', encoder.encode(masterKey));
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyMaterial,
+    { name: 'AES-GCM' },
+    false,
+    ['decrypt']
+  );
+  
+  // Decode base64 to Uint8Array
+  const ciphertextBytes = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+  const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
+  
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    ciphertextBytes
+  );
+  
+  return decoder.decode(decrypted);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,6 +52,15 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const masterKey = Deno.env.get('PREFEITURA_CREDENTIALS_MASTER_KEY');
+
+    if (!masterKey) {
+      console.error('PREFEITURA_CREDENTIALS_MASTER_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
@@ -64,35 +102,36 @@ serve(async (req) => {
       );
     }
 
-    // Fetch config_fiscal
-    const { data: config, error: configError } = await adminClient
-      .from('config_fiscal')
-      .select('prefeitura_login, prefeitura_inscricao_municipal')
+    // Fetch from prefeitura_credentials table
+    const { data: credentials, error: credError } = await adminClient
+      .from('prefeitura_credentials')
+      .select('login, inscricao_municipal, password_ciphertext, password_iv')
       .eq('company_id', organizationId)
       .maybeSingle();
 
-    if (configError) {
-      console.error('Config error:', configError);
+    if (credError) {
+      console.error('Credentials fetch error:', credError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch credentials', details: configError.message }),
+        JSON.stringify({ error: 'Failed to fetch credentials', details: credError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     let password = null;
-    let hasPassword = false;
+    const hasPassword = !!(credentials?.password_ciphertext && credentials?.password_iv);
 
-    // Get password from vault
-    const { data: vaultPassword, error: vaultError } = await adminClient.rpc('get_secret', {
-      p_entity_type: 'prefeitura',
-      p_entity_id: organizationId,
-      p_secret_type: 'password'
-    });
-
-    if (!vaultError && vaultPassword) {
-      hasPassword = true;
-      if (includePassword) {
-        password = vaultPassword;
+    // Decrypt password if requested and available
+    if (includePassword && hasPassword) {
+      try {
+        password = await decryptPassword(
+          credentials.password_ciphertext,
+          credentials.password_iv,
+          masterKey
+        );
+        console.log('Password decrypted successfully');
+      } catch (decryptError) {
+        console.error('Password decryption failed:', decryptError);
+        // Don't fail the request, just don't return the password
       }
     }
 
@@ -100,8 +139,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        login: config?.prefeitura_login || null,
-        inscricaoMunicipal: config?.prefeitura_inscricao_municipal || null,
+        login: credentials?.login || null,
+        inscricaoMunicipal: credentials?.inscricao_municipal || null,
         hasPassword,
         password
       }),

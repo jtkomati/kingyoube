@@ -6,6 +6,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// AES-GCM encryption helper
+async function encryptPassword(password: string, masterKey: string): Promise<{ ciphertext: string; iv: string }> {
+  const encoder = new TextEncoder();
+  
+  // Derive a 256-bit key from the master key using SHA-256
+  const keyMaterial = await crypto.subtle.digest('SHA-256', encoder.encode(masterKey));
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyMaterial,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+  
+  // Generate random IV (12 bytes for AES-GCM)
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  // Encrypt the password
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    encoder.encode(password)
+  );
+  
+  // Convert to base64
+  const ciphertext = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  const ivBase64 = btoa(String.fromCharCode(...iv));
+  
+  return { ciphertext, iv: ivBase64 };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,10 +51,18 @@ serve(async (req) => {
       );
     }
 
-    // Create client with user's JWT to get their identity
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const masterKey = Deno.env.get('PREFEITURA_CREDENTIALS_MASTER_KEY');
+
+    if (!masterKey) {
+      console.error('PREFEITURA_CREDENTIALS_MASTER_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
@@ -47,7 +86,6 @@ serve(async (req) => {
       );
     }
 
-    // Use service role client for privileged operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify user belongs to organization
@@ -66,30 +104,41 @@ serve(async (req) => {
       );
     }
 
-    // Check if config_fiscal exists for this company
-    const { data: existingConfig, error: fetchError } = await adminClient
-      .from('config_fiscal')
-      .select('id')
+    // Check if credentials already exist in prefeitura_credentials table
+    const { data: existingCreds, error: fetchError } = await adminClient
+      .from('prefeitura_credentials')
+      .select('company_id, password_ciphertext')
       .eq('company_id', organizationId)
       .maybeSingle();
 
     if (fetchError) {
-      console.error('Fetch config error:', fetchError);
+      console.error('Fetch credentials error:', fetchError);
       return new Response(
-        JSON.stringify({ error: 'Failed to check existing config', details: fetchError.message }),
+        JSON.stringify({ error: 'Failed to check existing credentials', details: fetchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (existingConfig) {
-      // Update existing config without overwriting other fields
+    // Prepare update data
+    const updateData: Record<string, unknown> = {
+      login: login || null,
+      inscricao_municipal: inscricaoMunicipal || null,
+      updated_at: new Date().toISOString()
+    };
+
+    // Encrypt password if provided and not a masked placeholder
+    if (password && password !== '••••••••') {
+      const encrypted = await encryptPassword(password, masterKey);
+      updateData.password_ciphertext = encrypted.ciphertext;
+      updateData.password_iv = encrypted.iv;
+      console.log('Password encrypted successfully');
+    }
+
+    if (existingCreds) {
+      // Update existing record
       const { error: updateError } = await adminClient
-        .from('config_fiscal')
-        .update({
-          prefeitura_login: login || null,
-          prefeitura_inscricao_municipal: inscricaoMunicipal || null,
-          updated_at: new Date().toISOString()
-        })
+        .from('prefeitura_credentials')
+        .update(updateData)
         .eq('company_id', organizationId);
 
       if (updateError) {
@@ -99,17 +148,17 @@ serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      console.log('Credentials updated for organization:', organizationId);
     } else {
-      // Insert new config
+      // Insert new record
+      const insertData = {
+        company_id: organizationId,
+        ...updateData
+      };
+
       const { error: insertError } = await adminClient
-        .from('config_fiscal')
-        .insert({
-          company_id: organizationId,
-          prefeitura_login: login || null,
-          prefeitura_inscricao_municipal: inscricaoMunicipal || null,
-          client_id: 'prefeitura',
-          client_secret: 'configured'
-        });
+        .from('prefeitura_credentials')
+        .insert(insertData);
 
       if (insertError) {
         console.error('Insert error:', insertError);
@@ -118,27 +167,8 @@ serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      console.log('Credentials created for organization:', organizationId);
     }
-
-    // Store password in vault if provided
-    if (password) {
-      const { error: vaultError } = await adminClient.rpc('store_secret', {
-        p_entity_type: 'prefeitura',
-        p_entity_id: organizationId,
-        p_secret_type: 'password',
-        p_secret_value: password
-      });
-
-      if (vaultError) {
-        console.error('Vault error:', vaultError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to store password securely' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    console.log('Credentials saved successfully for organization:', organizationId);
 
     return new Response(
       JSON.stringify({ success: true }),
